@@ -1,0 +1,265 @@
+/* Rig (truss grid) solver: trusses hang from hoists or are bolted to other trusses.
+ * Each truss is solved with TLA.beam; reactions at "bolted to truss" connections are injected as point loads
+ * on the truss they are bolted to. Fully data driven - any number of trusses / supports / nesting depth.
+ *
+ * rig = { trusses: [ { id, name, trussId | custom, length, weightless, wallWeight, x, y, angle,
+ *                      loads: [ {id, distance, weight, note, mirror} ],
+ *                      supports: [ { id, name, distance, kind: 'hoist'|'truss', hoistId, chainLength,
+ *                                    onTruss, onDistance, hardwareWeight } ] } ],
+ *         settings: { derate: number|null } }
+ */
+(function (g) {
+  var TLA = (g.TLA = g.TLA || {});
+
+  function dbTruss(t, db) {
+    if (t.custom) return t.custom;
+    var found = (db.trusses || []).filter(function (x) { return x.id === t.trussId; })[0];
+    return found || null;
+  }
+  var PIPE_OD = { "0.5": 0.84, "0.75": 1.05, "1": 1.315, "1.25": 1.66, "1.5": 1.9, "2": 2.375, "2.5": 2.875, "3": 3.5, "4": 4.5 };
+  /** Plan width of a truss in inches: user override, else pipe outside diameter (nominal size), else the first dimension in the name (12x12 = 12"). */
+  function widthIn(t, entry) {
+    if (t && Number(t.widthIn) > 0) return Number(t.widthIn);
+    if (entry && Number(entry.widthIn) > 0) return Number(entry.widthIn);
+    var d = String((entry && entry.description) || ""), n = d.match(/(\d+(?:\.\d+)?)/);
+    if (!n) return 12;
+    if (/pipe/i.test(d)) return PIPE_OD[String(parseFloat(n[1]))] || parseFloat(n[1]) + 0.4;
+    return parseFloat(n[1]);
+  }
+  /** Cross-section in inches for drawing: pipe is round (OD); a truss "AxB" is A wide and B deep (a single number, or a typed width, is square). */
+  function sectionIn(t, entry) {
+    if (t && t.isBlock) { var b = (t.length || 1) * 12; return { w: b, h: b, round: false }; }
+    if (!entry && t) entry = (TLA.data && TLA.data.trusses || []).filter(function (x) { return x.id === t.trussId; })[0];
+    var d = String((entry && entry.description) || ""), w = widthIn(t, entry);
+    if (/pipe/i.test(d)) return { w: w, h: w, round: true };
+    var m = d.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i);
+    var h = m && !(t && Number(t.widthIn) > 0) ? parseFloat(m[2]) : w;
+    return { w: w, h: h, round: false };
+  }
+  function widthFt(t, entry) {
+    if (!entry && t && !t.isBlock) entry = (TLA.data && TLA.data.trusses || []).filter(function (x) { return x.id === t.trussId; })[0];
+    return widthIn(t, entry) / 12;
+  }
+  function dbHoist(id, db) {
+    return (db.hoists || []).filter(function (h) { return h.id === id; })[0] || (db.hoists || [])[0] || null;
+  }
+
+  function dbCorner(t, db) {
+    return (db.corners || []).filter(function (x) { return x.id === t.blockTypeId; })[0] || null;
+  }
+
+  /** Published weight of a corner block for this rig (variants, plates per connection, or user override). */
+  function blockWeight(t, type, waysUsed) {
+    if (typeof t.weightOverride === "number") return t.weightOverride;
+    if (!type) return 0;
+    if (type.base_lb != null) return type.base_lb + (type.per_connection_lb || 0) * waysUsed;
+    if (type.variants && type.variants.length) {
+      var i = typeof t.variant === "number" ? t.variant : Math.floor(type.variants.length / 2);
+      return type.variants[Math.min(Math.max(i, 0), type.variants.length - 1)][1];
+    }
+    return type.weight_lb == null ? 0 : type.weight_lb;
+  }
+
+  /** How many block faces are used: 1 for a truss ending at the block, 2 for one running through it. */
+  function faces(dist, length) { return dist < 0.01 || dist > length - 0.01 ? 1 : 2; }
+
+  function solve(rig, dbIn) {
+    var db = dbIn || TLA.data || {};
+    var settings = rig.settings || {};
+    var warnings = [];
+    var byId = {};
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+
+    // corner block faces in use
+    var ways = {};
+    rig.trusses.forEach(function (t) { if (t.isBlock) ways[t.id] = 0; });
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "truss") return;
+        var u = byId[s.onTruss];
+        if (u && u.isBlock) ways[u.id] += s.end ? (s.end === "through" ? 2 : 1) : faces(Number(s.distance) || 0, t.length);
+        if (t.isBlock && u) { var od = Number(s.onDistance) || 0, hs = t.length / 2 + 0.01; ways[t.id] += (od <= hs || od >= u.length - hs) ? 1 : 2; }
+      });
+    });
+
+    // dependency graph: feeder -> target
+    var feeders = {}, targets = {};
+    rig.trusses.forEach(function (t) { feeders[t.id] = []; targets[t.id] = []; });
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "truss") return;
+        if (!byId[s.onTruss]) { warnings.push({ truss: t.id, message: t.name + ": support '" + (s.name || s.id) + "' is bolted to a truss that does not exist" }); return; }
+        if (s.onTruss === t.id) { warnings.push({ truss: t.id, message: t.name + ": a truss cannot be bolted to itself" }); return; }
+        if (feeders[s.onTruss].indexOf(t.id) < 0) feeders[s.onTruss].push(t.id);
+        if (targets[t.id].indexOf(s.onTruss) < 0) targets[t.id].push(s.onTruss);
+      });
+    });
+
+    // Kahn topological order (feeders solved before the trusses they are bolted to)
+    var pending = {}, queue = [], order = [];
+    rig.trusses.forEach(function (t) { pending[t.id] = feeders[t.id].length; if (pending[t.id] === 0) queue.push(t.id); });
+    while (queue.length) {
+      var id = queue.shift();
+      order.push(id);
+      targets[id].forEach(function (tg) { if (--pending[tg] === 0) queue.push(tg); });
+    }
+    var unsolved = rig.trusses.filter(function (t) { return order.indexOf(t.id) < 0; }).map(function (t) { return t.id; });
+    var cycles = unsolved.length ? findCycles(unsolved, targets) : [];
+    if (unsolved.length) {
+      warnings.push({ message: "Load-path loop or dependency on a loop: " + unsolved.map(function (i) { return byId[i].name; }).join(", ") +
+        ". Give each truss in the loop a hoist support (or break the loop) so loads can flow to hoists." });
+    }
+
+    // layers: leaf trusses = 1, a truss carrying others is 1 + deepest feeder
+    var layer = {};
+    order.forEach(function (id2) {
+      var l = 1;
+      feeders[id2].forEach(function (f) { if (layer[f] != null) l = Math.max(l, layer[f] + 1); });
+      layer[id2] = l;
+    });
+
+    var results = {}, hoists = [], applied = 0, hoistReaction = 0;
+
+    order.forEach(function (id3) {
+      var t = byId[id3], blk = null;
+      var truss;
+      if (t.isBlock) {
+        var ctype = dbCorner(t, db), bw = blockWeight(t, ctype, ways[t.id]);
+        blk = { type: ctype, weight: bw, waysUsed: ways[t.id], waysAvailable: ctype ? ctype.ways : null };
+        truss = { weight_per_ft_lb: bw / (t.length || 1), max_span_ft: 0, udl_lb: [], cpl_lb: [], repetitive_use: true };
+        if (!ctype) warnings.push({ truss: t.id, message: t.name + ": corner block type not found in database" });
+        else if (ctype.weight_lb == null && !ctype.variants && ctype.base_lb == null && typeof t.weightOverride !== "number") warnings.push({ truss: t.id, message: t.name + ": " + ctype.name + " weight is not published - enter your own" });
+        if (ctype && blk.waysUsed > ctype.ways) warnings.push({ truss: t.id, message: t.name + ": " + blk.waysUsed + " truss ends bolted to a " + ctype.ways + "-way block" });
+      } else truss = dbTruss(t, db);
+      if (!truss) { warnings.push({ truss: t.id, message: t.name + ": truss type not found in database" }); return; }
+      var supports = t.supports || [];
+      if (!supports.length) { warnings.push({ truss: t.id, message: t.name + ": has no supports" }); return; }
+
+      var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, note: l.note, mirror: l.mirror, id: l.id }; });
+      var injected = [];
+      feeders[t.id].forEach(function (fid) {
+        var fr = results[fid];
+        if (!fr) return;
+        fr.supports.forEach(function (sr) {
+          if (sr.support.kind === "truss" && sr.support.onTruss === t.id) {
+            var wgt = sr.reaction + (Number(sr.support.hardwareWeight) || 0);
+            var inj = { distance: Number(sr.support.onDistance) || 0, weight: wgt, note: "from " + byId[fid].name, source: { truss: fid, support: sr.support.id }, injected: true };
+            injected.push(inj);
+            loads.push(inj);
+          }
+        });
+      });
+
+      var beam = TLA.beam.solve({
+        length: t.length, supports: supports.map(function (s) { return s.distance; }), loads: loads,
+        trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless
+      });
+      var limits = t.isBlock ? { derate: 1, maxSpan: 0, maxCantilever: 0, segments: [], worstCode: 0, ok: true }
+        : TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof settings.derate === "number" ? settings.derate : undefined, cantileverSelfWeight: settings.cantileverSelfWeight === true });
+
+      var own = (t.loads || []).reduce(function (a, l) { return a + (Number(l.weight) || 0) * (l.mirror && Math.abs(l.distance - beam.length / 2) > 1e-7 ? 2 : 1); }, 0);
+      applied += own + beam.wSelf * beam.length + (Number(t.wallWeight) || 0);
+      // hardware weight at a bolted connection is injected on the connected truss, so count it once here
+      supports.forEach(function (s) { if (s.kind === "truss") applied += Number(s.hardwareWeight) || 0; });
+
+      var srs = supports.map(function (s, i) {
+        var reaction = beam.reactions[i];
+        var rec = { support: s, reaction: reaction };
+        if (s.kind === "hoist") {
+          rec.hoist = TLA.limits.checkHoist(dbHoist(s.hoistId, db), s.chainLength, reaction, s.hardwareWeight, s.dlf, settings.defaultDlf);
+          hoistReaction += reaction;
+          hoists.push({ truss: t.id, trussName: t.name, support: s.id, supportName: s.name, layer: layer[t.id], distance: s.distance, reaction: reaction, hoist: rec.hoist });
+        }
+        return rec;
+      });
+
+      results[t.id] = { truss: t.id, name: t.name, layer: layer[t.id], beam: beam, limits: limits, supports: srs, injected: injected, dbTruss: truss, block: blk };
+      if (!t.isBlock) beam.warnings.forEach(function (m) { warnings.push({ truss: t.id, message: t.name + ": " + m }); });
+      limits.segments.forEach(function (s) {
+        if (s.code) warnings.push({ truss: t.id, message: t.name + ": " + describeSeg(s) + " - " + s.status });
+      });
+    });
+
+    hoists.forEach(function (h) {
+      if (h.hoist.status !== "Good") warnings.push({ truss: h.truss, message: h.trussName + " " + (h.supportName || "hoist") + ": " + h.hoist.status + " (" + Math.round(h.hoist.staticLoad) + " lb static)" });
+      else if (h.hoist.dynamicOver) warnings.push({ truss: h.truss, message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity" });
+    });
+
+    var totals = hoists.reduce(function (a, h) {
+      a.staticLoad += h.hoist.staticLoad; a.dynamicLoad += h.hoist.dynamicLoad; a.hoistChain += h.hoist.hoistChain; a.count++;
+      return a;
+    }, { staticLoad: 0, dynamicLoad: 0, hoistChain: 0, count: 0 });
+    totals.applied = applied;
+    totals.hoistReaction = hoistReaction;
+
+    return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved };
+  }
+
+  function describeSeg(s) {
+    if (s.type === "span") return "Span " + s.index;
+    return s.type === "cantilever-left" ? "Left cantilever" : "Right cantilever";
+  }
+
+  function findCycles(nodes, targets) {
+    var set = {}; nodes.forEach(function (n) { set[n] = true; });
+    var cycles = [], state = {}, stack = [];
+    function dfs(n) {
+      state[n] = 1; stack.push(n);
+      (targets[n] || []).forEach(function (m) {
+        if (!set[m]) return;
+        if (state[m] === 1) cycles.push(stack.slice(stack.indexOf(m)));
+        else if (!state[m]) dfs(m);
+      });
+      stack.pop(); state[n] = 2;
+    }
+    nodes.forEach(function (n) { if (!state[n]) dfs(n); });
+    return cycles;
+  }
+
+  /* ---- plan geometry helpers (feet, angle in degrees, y up) ---- */
+  function endPoint(t, d) {
+    var a = (Number(t.angle) || 0) * Math.PI / 180;
+    return { x: (Number(t.x) || 0) + d * Math.cos(a), y: (Number(t.y) || 0) + d * Math.sin(a) };
+  }
+  /** Distance along truss t of the projection of point p, and the perpendicular offset. */
+  function project(t, p) {
+    var a = (Number(t.angle) || 0) * Math.PI / 180;
+    var dx = p.x - (Number(t.x) || 0), dy = p.y - (Number(t.y) || 0);
+    return { distance: dx * Math.cos(a) + dy * Math.sin(a), offset: -dx * Math.sin(a) + dy * Math.cos(a) };
+  }
+  /** Where the centerlines of two trusses cross (null if parallel). Returns distances along each. */
+  function crossing(a, b) {
+    var ta = (Number(a.angle) || 0) * Math.PI / 180, tb = (Number(b.angle) || 0) * Math.PI / 180;
+    var ax = Math.cos(ta), ay = Math.sin(ta), bx = Math.cos(tb), by = Math.sin(tb);
+    var den = ax * by - ay * bx;
+    if (Math.abs(den) < 1e-9) return null;
+    var dx = (Number(b.x) || 0) - (Number(a.x) || 0), dy = (Number(b.y) || 0) - (Number(a.y) || 0);
+    var da = (dx * by - dy * bx) / den;
+    var db2 = (dx * ay - dy * ax) / den;
+    return { onA: da, onB: db2, point: endPoint(a, da) };
+  }
+
+
+  /** Where does a hoist's load come from? Superposition: solve with only one truss' own weights active at a time. */
+  function attribution(rig, dbIn, trussId, supportId) {
+    var db = dbIn || TLA.data || {};
+    function pick(res) { return res.hoists.filter(function (h) { return h.truss === trussId && h.support === supportId; })[0]; }
+    var base = solve(rig, db), target = pick(base);
+    if (!target) return null;
+    var parts = [];
+    rig.trusses.forEach(function (t) {
+      var clone = JSON.parse(JSON.stringify(rig));
+      clone.trusses.forEach(function (c) {
+        if (c.id === t.id) return;
+        c.loads = []; c.weightless = true; c.wallWeight = 0;
+        c.supports.forEach(function (s) { s.hardwareWeight = 0; });
+      });
+      var h = pick(solve(clone, db));
+      if (h && Math.abs(h.reaction) > 0.005) parts.push({ truss: t.id, name: t.name, weight: h.reaction });
+    });
+    parts.sort(function (a, b) { return Math.abs(b.weight) - Math.abs(a.weight); });
+    return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
+  }
+
+  TLA.rig = { sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+})(typeof globalThis !== "undefined" ? globalThis : window);

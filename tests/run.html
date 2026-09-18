@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Engine tests</title>
+<style>body{font:14px system-ui;margin:20px}.ok{color:#0a7d2c}.bad{color:#b00020;font-weight:600}</style></head>
+<body><h2>Engine tests</h2><div id="out"></div>
+<script src="../data/trusses.js"></script>
+<script src="../data/hoists.js"></script>
+<script src="../data/fixtures.js"></script>
+<script src="../data/corners.js"></script>
+<script src="../data/pieces.js"></script>
+<script src="../src/engine/beam.js"></script>
+<script src="../src/engine/limits.js"></script>
+<script src="../src/engine/rig.js"></script>
+<script src="../src/engine/grillage.js"></script>
+<script src="../src/engine/side.js"></script>
+<script src="../src/ui/samples.js"></script>
+<script src="../src/ui/store.js"></script>
+<script src="tests.js"></script>
+<script src="rig-tests.js"></script>
+<script src="side-tests.js"></script>
+<script src="textbook-tests.js"></script>
+<script src="store-tests.js"></script>
+<script src="grillage-tests.js"></script>
+<script>
+var res = runTLATests(), out = document.getElementById('out');
+var pass = res.filter(function(r){return r.ok}).length;
+out.innerHTML = '<p><b>' + pass + ' / ' + res.length + ' passed</b></p>' + res.map(function(r){
+  return '<div class="' + (r.ok ? 'ok' : 'bad') + '">' + (r.ok ? 'PASS' : 'FAIL') + ' - ' + r.name + (r.ok ? '' : ' :: ' + r.error) + '</div>';
+}).join('');
+</script></body></html>

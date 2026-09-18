@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Truss Grid Analyzer</title>
+<link rel="stylesheet" href="src/ui/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>Truss Grid Analyzer</b><span id="rigname"></span></div>
+  <div class="tools">
+    <button id="b-new" title="Start an empty rig">New</button>
+    <button id="b-sample" title="Load the illustrative example box">Example</button>
+    <button id="b-open">Open</button>
+    <button id="b-save">Save</button>
+    <input type="file" id="f-open" accept=".json,application/json" hidden>
+    <span class="sep"></span>
+    <button id="b-undo" title="Ctrl+Z">Undo</button>
+    <button id="b-redo" title="Ctrl+Y">Redo</button>
+    <span class="sep"></span>
+    <button id="b-add" class="primary">+ Truss</button>
+    <button id="b-fit">Fit</button>
+    <label class="tool-sel">Color <select id="s-color">
+      <option value="layer">Load-path layer</option>
+      <option value="util">Utilization</option>
+      <option value="hoist">Hoist load</option>
+      <option value="status">Pass / fail</option>
+    </select></label>
+    <label class="tool-check"><input type="checkbox" id="c-loads" checked> Loads</label>
+    <label class="tool-check"><input type="checkbox" id="c-labels" checked> Labels</label>
+    <span class="sep"></span>
+    <button id="b-csv">Copy hoist table</button>
+    <button id="b-img" title="Save the current view as a PNG image">Save image</button>
+    <button id="b-print">Print</button>
+    <button id="b-docs">About</button>
+  </div>
+</header>
+<nav class="tabs" id="tabs">
+  <button data-tab="plan" class="on">Plan view</button>
+  <button data-tab="iso">3D view</button>
+  <button data-tab="circular">Circular truss</button>
+  <button data-tab="udl">Simple UDL</button>
+  <button data-tab="fixtures">Fixture weights</button>
+  <button data-tab="databases">Databases</button>
+</nav>
+<main id="main">
+  <section class="stage">
+    <div id="plan"></div>
+    <div id="iso" hidden></div>
+    <div class="viewctl" id="isoctl" hidden>3D view <label>Rotate <input type="range" id="r-yaw" min="-180" max="180" value="35"></label> <label>Tilt <input type="range" id="r-pitch" min="5" max="85" value="32"></label> <span>drag = orbit, shift+drag = pan</span></div>
+    <div id="legend" class="legend"></div>
+    <div class="hint">Drag trusses to move (ends snap; hold Alt to disable). Wheel = zoom, drag background = pan. Click a motor to trace its load path; Delete removes the selected motor (or the selected truss).</div>
+  </section>
+  <aside id="inspector"></aside>
+  <section id="summary"></section>
+</main>
+<section id="page" hidden></section>
+<dialog id="docs"></dialog>
+<script src="data/trusses.js"></script>
+<script src="data/hoists.js"></script>
+<script src="data/fixtures.js"></script>
+<script src="data/corners.js"></script>
+<script src="data/pieces.js"></script>
+<script src="src/engine/beam.js"></script>
+<script src="src/engine/limits.js"></script>
+<script src="src/engine/rig.js"></script>
+<script src="src/engine/grillage.js"></script>
+<script src="src/engine/side.js"></script>
+<script src="src/ui/samples.js"></script>
+<script src="src/ui/store.js"></script>
+<script src="src/ui/plan.js"></script>
+<script src="src/ui/panels.js"></script>
+<script src="src/ui/iso.js"></script>
+<script src="src/ui/tools.js"></script>
+<script src="src/ui/app.js"></script>
+</body>
+</html>
