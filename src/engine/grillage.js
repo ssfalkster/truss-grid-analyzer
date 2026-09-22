@@ -1,4 +1,8 @@
-/* Stiffness check of the whole rig (plan-view grillage, finite elements).
+/* Stiffness check of the whole rig (plan-view grillage, finite elements) - the "grillage method" used for bridge
+ * decks and other bolted grids of beams: idealize the structure as beams meeting at nodes and solve with the direct
+ * stiffness (matrix) method. The textbook grillage joint is RIGID (full bending and torsional continuity at every
+ * node); only the ground/hoist supports are pinned. RMMS Lesson 40 confirms this independently: its worked CalcForge
+ * 3D-frame example only sets the hoist/ground Restraints to "Pinned" and leaves the truss-to-truss joints continuous.
  *
  * The load-path solver in rig.js treats every carrying truss as an UNYIELDING support for the trusses bolted to it.
  * That is exact only when the carrier is held up at (or close to) each connection. When a carrier is flexible and a
@@ -7,28 +11,56 @@
  * used as a check on the load-path numbers.
  *
  * Model: every truss is an Euler-Bernoulli beam (bending EI, torsion GJ) in the horizontal plane, loaded vertically.
- * Hoists are rigid vertical supports. Bolted connections (corner blocks) share vertical deflection; clamps/stacks share
- * vertical deflection only. Two joint models bracket the real bolted corner:
- *   hinged - connections carry vertical force only (no bending or torsion through the joint)
- *   rigid  - corner-block connections also carry bending and torsion (GJ = gjRatio x EI)
- * Only relative stiffness matters: EI is estimated from the manufacturer's published deflection (RMMS Lesson 21,
- * 20.5 x 20.5 plated: about 2.4e9 lb-in2) scaled by depth cubed, and can be scaled per truss (truss.eiScale). */
+ * Hoists are rigid vertical supports. Bolted connections (corner blocks) always share vertical deflection; two joint
+ * models bracket how much of the real bolted corner's moment/torsion actually carries across, since no manufacturer
+ * publishes a stiffness for the corner-block hardware itself (RMMS Lesson 39: this is "precision guesswork"):
+ *   hinged - connections carry vertical force only (the grillage method's rigid-joint assumption relaxed to a lower
+ *            bound, for a corner block that turns out not to hold the joint square under load)
+ *   rigid  - the textbook grillage assumption: bending and torsion also pass through the corner block
+ * EI and GJ are estimated per truss type from its connector (RMMS Lesson 39):
+ *   - EI is scaled from the manufacturer's published deflection (RMMS Lesson 21, 20.5 x 20.5 PLATED: about
+ *     2.4e9 lb-in2) by depth cubed. That anchor point is itself a plated truss, so plated/bolted trusses (and any
+ *     truss type this can't classify) use it as-is. A spigoted truss keeps its chord continuous through every
+ *     joint instead of relying on a bolted end plate, and Lesson 39's own worked example (a 20.5" truss's real
+ *     bending stiffness falls to about a fifth of a solid beam's once you use its 13.75" bolt-hole spacing instead
+ *     of its nominal depth) points the same way for stiffness, so spigoted types get a modest, capped bonus rather
+ *     than that full ratio - a lattice truss is not a solid beam, and no direct measurement is available.
+ *   - GJ/EI is a connector-dependent ratio, not a flat constant: a truss cross-section (box or triangle) is a closed
+ *     loop, and a closed thin-walled section is far stiffer in torsion than an open one - but a plated joint breaks
+ *     that loop's continuity every panel length, while a spigoted joint (a continuous pin through both chord halves)
+ *     mostly preserves it. Pipe is a true closed round section. Can be scaled per truss (truss.eiScale, applied to
+ *     both EI and GJ). */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
 
-  function estimateEI(entry, t) {
-    var d = String((entry && entry.description) || ""), ei = 1e9;
-    var m = d.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i);
-    if (/pipe/i.test(d)) ei = 9e6;
-    else if (m) ei = 2.4e9 * Math.pow(Math.min(parseFloat(m[1]), parseFloat(m[2])) / 20.5, 3);
-    else { var n = d.match(/(\d+(?:\.\d+)?)/); if (n) ei = 2.4e9 * Math.pow(parseFloat(n[1]) / 20.5, 3) * 0.6; }
-    return (ei / 144) * ((t && t.eiScale) || 1);       // lb-ft2
+  var GJ_RATIO = { pipe: 0.75, spigot: 0.4, plated: 0.15 };
+
+  /** Best guess at a truss's connector type from its catalog description. Falls back to "plated" (the more flexible
+   * assumption, and the one the EI baseline itself is anchored to) when the wording doesn't say. */
+  function connectorType(d) {
+    if (/pipe/i.test(d)) return "pipe";
+    if (/spigot|\bfork\b|\bfrk\b|supertruss/i.test(d)) return "spigot";
+    return "plated";
   }
+
+  function estimateStiffness(entry, t) {
+    var d = String((entry && entry.description) || ""), kind = connectorType(d), ei;
+    if (kind === "pipe") ei = 9e6;
+    else {
+      var m = d.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i);
+      if (m) ei = 2.4e9 * Math.pow(Math.min(parseFloat(m[1]), parseFloat(m[2])) / 20.5, 3);
+      else { var n = d.match(/(\d+(?:\.\d+)?)/); ei = n ? 2.4e9 * Math.pow(parseFloat(n[1]) / 20.5, 3) * 0.6 : 1e9; }
+      if (kind === "spigot") ei *= 1.5;
+    }
+    ei = (ei / 144) * ((t && t.eiScale) || 1);          // lb-ft2
+    return { EI: ei, GJ: ei * GJ_RATIO[kind] };
+  }
+  function estimateEI(entry, t) { return estimateStiffness(entry, t).EI; }
 
   function key(x, y) { return Math.round(x * 1000) + "," + Math.round(y * 1000); }
 
   /** Solve one joint model. Returns { reactions: {truss.id:support.id -> lb}, total }. */
-  function solveModel(model, rigid, gjRatio) {
+  function solveModel(model, rigid) {
     var beams = model.beams, links = model.links;
     var parent = [];
     function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
@@ -48,7 +80,7 @@
     var K = []; for (i = 0; i < n; i++) K.push(new Float64Array(n));
     var F = new Float64Array(n);
     beams.forEach(function (bm) {
-      var c = bm.c, s = bm.s, EI = bm.EI, GJ = gjRatio * bm.EI;
+      var c = bm.c, s = bm.s, EI = bm.EI, GJ = bm.GJ;
       for (var e = 0; e < bm.nodes.length - 1; e++) {
         var a = bm.nodes[e], b = bm.nodes[e + 1], L = b.d - a.d;
         if (L < 1e-9) continue;
@@ -102,8 +134,8 @@
     rig.trusses.forEach(function (t) {
       if (t.isBlock) return;
       var res = results.trusses[t.id]; if (!res) return;
-      var a = (t.angle || 0) * Math.PI / 180, entry = res.dbTruss;
-      var bm = { t: t, c: Math.cos(a), s: Math.sin(a), L: t.length, EI: estimateEI(entry, t), w: (t.weightless ? 0 : (entry.weight_per_ft_lb || 0)) + (Number(t.wallWeight) || 0) / (t.length || 1), pts: { 0: {}, [t.length]: {} } };
+      var a = (t.angle || 0) * Math.PI / 180, entry = res.dbTruss, st = estimateStiffness(entry, t);
+      var bm = { t: t, c: Math.cos(a), s: Math.sin(a), L: t.length, EI: st.EI, GJ: st.GJ, w: (t.weightless ? 0 : (entry.weight_per_ft_lb || 0)) + (Number(t.wallWeight) || 0) / (t.length || 1), pts: { 0: {}, [t.length]: {} } };
       index[t.id] = beams.length; beams.push(bm);
     });
     function pt(bm, d) {
@@ -179,7 +211,7 @@
     model.beams.forEach(function (bm) { dofs += bm.nodes.length * 3; });
     if (!model.supports.length) { out.note = "No hoists."; return out; }
     if (dofs > 1600) { out.note = "Rig too large for the stiffness check (" + dofs + " degrees of freedom)."; return out; }
-    var hinged = solveModel(model, false, 0), rigid = solveModel(model, true, opts.gjRatio || 0.3);
+    var hinged = solveModel(model, false), rigid = solveModel(model, true);
     if (!hinged.ok || !rigid.ok) { out.note = "The stiffness model is unstable (a truss is not held up anywhere)."; return out; }
     out.ok = true; out.hinged = hinged; out.rigid = rigid;
     return out;
@@ -211,5 +243,5 @@
     return out;
   }
 
-  TLA.grillage = { annotate: annotate, build: build, solveModel: solveModel, estimateEI: estimateEI };
+  TLA.grillage = { annotate: annotate, build: build, solveModel: solveModel, estimateEI: estimateEI, estimateStiffness: estimateStiffness, connectorType: connectorType };
 })(typeof globalThis !== "undefined" ? globalThis : window);

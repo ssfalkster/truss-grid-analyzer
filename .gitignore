@@ -1,2 +1,9 @@
 __pycache__/
 *.pyc
+
+# Claude Code files stay local, never on GitHub
+CLAUDE.md
+CLAUDE.local.md
+**/CLAUDE.md
+.claude/
+ENGINEERING_NOTES.md
