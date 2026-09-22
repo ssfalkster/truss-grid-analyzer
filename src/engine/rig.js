@@ -63,10 +63,13 @@
   /** How many block faces are used: 1 for a truss ending at the block, 2 for one running through it. */
   function faces(dist, length) { return dist < 0.01 || dist > length - 0.01 ? 1 : 2; }
 
-  function solve(rig, dbIn) {
+  var SLACK_TOL = 0.01;   // lb - a hoist reaction below -SLACK_TOL is a pushing (slack) chain
+
+  function solve(rig, dbIn, opts) {
+    opts = opts || {};
     var db = dbIn || TLA.data || {};
     var settings = rig.settings || {};
-    var warnings = [];
+    var warnings = [], slackSet = {}, unstable = [];
     var byId = {};
     rig.trusses.forEach(function (t) { byId[t.id] = t; });
 
@@ -150,10 +153,39 @@
         });
       });
 
-      var beam = TLA.beam.solve({
-        length: t.length, supports: supports.map(function (s) { return s.distance; }), loads: loads,
-        trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless
-      });
+      // A chain can only pull. A hoist that comes out pushing (negative reaction) has a slack chain: take it out and
+      // solve again, most negative first, until every hoist pulls. Bolted connections carry tension and always stay.
+      // opts.slack fixes the slack set instead (keeps attribution's superposition linear).
+      var slack = {}, forced = opts.slack;
+      if (forced) supports.forEach(function (s) { if (forced[t.id + ":" + s.id]) slack[s.id] = true; });
+      function solveBeam() {
+        var act = supports.filter(function (s) { return !slack[s.id]; });
+        var b = TLA.beam.solve({
+          length: t.length, supports: act.map(function (s) { return s.distance; }), loads: loads,
+          trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless
+        });
+        b.active = act;
+        return b;
+      }
+      var beam = solveBeam();
+      while (!forced && beam.active.length > 1) {
+        var worst = null, least = -SLACK_TOL;
+        beam.active.forEach(function (s, i) { if (s.kind === "hoist" && beam.reactions[i] < least) { least = beam.reactions[i]; worst = s; } });
+        if (!worst) break;
+        slack[worst.id] = true;
+        beam = solveBeam();
+      }
+      var slackIds = Object.keys(slack);
+      slackIds.forEach(function (sid) { slackSet[t.id + ":" + sid] = true; });
+      var reactionOf = {};
+      beam.active.forEach(function (s, i) { reactionOf[s.id] = beam.reactions[i]; });
+      var held = beam.positions.length;              // distinct support positions still carrying load
+      var isUnstable = held < 2 && supports.length > 1 && !t.isBlock;
+      if (isUnstable) {
+        unstable.push(t.id);
+        warnings.unshift({ truss: t.id, level: "unstable", message: t.name + ": UNSTABLE - " + (slackIds.length ? "once the slack hoist" + (slackIds.length > 1 ? "s are" : " is") + " taken out, " : "") +
+          "only one support point is left, so the truss would tip. Add a hoist or bolted support, or move the load." });
+      }
       var limits = t.isBlock ? { derate: 1, maxSpan: 0, maxCantilever: 0, segments: [], worstCode: 0, ok: true }
         : TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof settings.derate === "number" ? settings.derate : undefined, cantileverSelfWeight: settings.cantileverSelfWeight === true });
 
@@ -162,13 +194,15 @@
       // hardware weight at a bolted connection is injected on the connected truss, so count it once here
       supports.forEach(function (s) { if (s.kind === "truss") applied += Number(s.hardwareWeight) || 0; });
 
-      var srs = supports.map(function (s, i) {
-        var reaction = beam.reactions[i];
-        var rec = { support: s, reaction: reaction };
+      var srs = supports.map(function (s) {
+        var isSlack = !!slack[s.id], reaction = isSlack ? 0 : reactionOf[s.id];
+        var rec = { support: s, reaction: reaction, slack: isSlack };
         if (s.kind === "hoist") {
           rec.hoist = TLA.limits.checkHoist(dbHoist(s.hoistId, db), s.chainLength, reaction, s.hardwareWeight, s.dlf, settings.defaultDlf);
+          if (isSlack) { rec.hoist.status = "Slack"; rec.hoist.slack = true; }
+          else if (isUnstable) rec.hoist.status = "UNSTABLE";      // the truss tips: this number means nothing
           hoistReaction += reaction;
-          hoists.push({ truss: t.id, trussName: t.name, support: s.id, supportName: s.name, layer: layer[t.id], distance: s.distance, reaction: reaction, hoist: rec.hoist });
+          hoists.push({ truss: t.id, trussName: t.name, support: s.id, supportName: s.name, layer: layer[t.id], distance: s.distance, reaction: reaction, slack: isSlack, hoist: rec.hoist });
         }
         return rec;
       });
@@ -181,7 +215,8 @@
     });
 
     hoists.forEach(function (h) {
-      if (h.hoist.status !== "Good") warnings.push({ truss: h.truss, message: h.trussName + " " + (h.supportName || "hoist") + ": " + h.hoist.status + " (" + Math.round(h.hoist.staticLoad) + " lb static)" });
+      if (h.slack) warnings.push({ truss: h.truss, level: "slack", message: h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft: SLACK - the load would push this hoist up, so its chain goes slack and it carries nothing (only the hoist and chain weight). The other supports carry the load; the results shown are with this hoist taken out." });
+      else if (h.hoist.status !== "Good" && h.hoist.status !== "UNSTABLE") warnings.push({ truss: h.truss, message: h.trussName + " " + (h.supportName || "hoist") + ": " + h.hoist.status + " (" + Math.round(h.hoist.staticLoad) + " lb static)" });
       else if (h.hoist.dynamicOver) warnings.push({ truss: h.truss, message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity" });
     });
 
@@ -192,7 +227,7 @@
     totals.applied = applied;
     totals.hoistReaction = hoistReaction;
 
-    return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved };
+    return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable };
   }
 
   function describeSeg(s) {
@@ -254,7 +289,7 @@
         c.loads = []; c.weightless = true; c.wallWeight = 0;
         c.supports.forEach(function (s) { s.hardwareWeight = 0; });
       });
-      var h = pick(solve(clone, db));
+      var h = pick(solve(clone, db, { slack: base.slack }));   // same slack hoists as the full rig, so the parts add up
       if (h && Math.abs(h.reaction) > 0.005) parts.push({ truss: t.id, name: t.name, weight: h.reaction });
     });
     parts.sort(function (a, b) { return Math.abs(b.weight) - Math.abs(a.weight); });

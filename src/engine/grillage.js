@@ -111,13 +111,19 @@
     for (i = 0; i < m; i++) if (rotDof[free[i]]) A[i][i] += eps;      // removes torsion rigid-body modes in the hinged model
     for (var cidx = 0; cidx < m; cidx++) {
       var p = cidx; for (var r2 = cidx + 1; r2 < m; r2++) if (Math.abs(A[r2][cidx]) > Math.abs(A[p][cidx])) p = r2;
-      if (Math.abs(A[p][cidx]) < 1e-14 * (maxd || 1)) return { ok: false };
+      if (Math.abs(A[p][cidx]) < 1e-14 * (maxd || 1)) return { ok: false, dof: free[cidx] };
       var tmp = A[cidx]; A[cidx] = A[p]; A[p] = tmp; var tb = bvec[cidx]; bvec[cidx] = bvec[p]; bvec[p] = tb;
       for (r2 = cidx + 1; r2 < m; r2++) { var fct = A[r2][cidx] / A[cidx][cidx]; if (fct === 0) continue; for (var c2 = cidx; c2 < m; c2++) A[r2][c2] -= fct * A[cidx][c2]; bvec[r2] -= fct * bvec[cidx]; }
     }
     var u = new Float64Array(m);
     for (i = m - 1; i >= 0; i--) { var sum = bvec[i]; for (j = i + 1; j < m; j++) sum -= A[i][j] * u[j]; u[i] = sum / A[i][i]; }
     var U = new Float64Array(n); free.forEach(function (gi, ii) { U[gi] = u[ii]; });
+    // The eps above only exists to pin down twist that nothing loads. If it ends up carrying real moment, a truss is
+    // free to rotate (tip) - a mechanism, not a structure.
+    var fsum = 0; for (i = 0; i < n; i++) fsum += Math.abs(F[i]);
+    var leak = 0, leakDof = -1;
+    for (i = 0; i < m; i++) if (rotDof[free[i]] && Math.abs(eps * u[i]) > leak) { leak = Math.abs(eps * u[i]); leakDof = free[i]; }
+    if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof };
     var reactions = {}, byDof = {}, total = 0;
     model.supports.forEach(function (sp) { var d = beams[sp.b].nodes[sp.n].W; (byDof[d] = byDof[d] || []).push(sp); });
     Object.keys(byDof).forEach(function (d) {
@@ -160,14 +166,31 @@
       });
       function blockCentre(b) { var hh = byId[b.host || (b.attach && b.attach.b)]; var s0 = b.supports.filter(function (x) { return x.kind === "truss" && x.onTruss === hh.id; })[0]; return s0 ? s0.onDistance : 0; }
     });
-    // block weights at their position on the host line
+    // block weights, and any loads hung on a block, at the block's position on the host line
     rig.trusses.forEach(function (b) {
       if (!b.isBlock) return;
       var hh = byId[b.host || (b.attach && b.attach.b)], r = results.trusses[b.id];
       if (!hh || index[hh.id] === undefined || !r || !r.block) return;
       var s0 = b.supports.filter(function (x) { return x.kind === "truss" && x.onTruss === hh.id; })[0];
       var bm = beams[index[hh.id]], d = pt(bm, s0 ? s0.onDistance : 0);
-      bm.pts[d].P = (bm.pts[d].P || 0) + r.block.weight;
+      var own = r.beam.loads.reduce(function (a, l) { return a + (l.injected ? 0 : l.weight); }, 0);
+      bm.pts[d].P = (bm.pts[d].P || 0) + r.block.weight + own;
+    });
+    // hardware weight at a bolted connection (rig.js passes it to the truss it is bolted to, with the reaction)
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        var hw = Number(s.hardwareWeight) || 0, u = byId[s.onTruss];
+        if (s.kind !== "truss" || !hw || !u || !results.trusses[t.id]) return;
+        var owner = u, d = s.onDistance;
+        if (u.isBlock) {
+          owner = byId[u.host || (u.attach && u.attach.b)];
+          var s1 = owner && u.supports.filter(function (x) { return x.kind === "truss" && x.onTruss === owner.id; })[0];
+          d = s1 ? s1.onDistance : 0;
+        }
+        if (!owner || index[owner.id] === undefined) return;
+        var bm = beams[index[owner.id]], dd = pt(bm, Number(d) || 0);
+        bm.pts[dd].P = (bm.pts[dd].P || 0) + hw;
+      });
     });
     // connections
     var pending = [];
@@ -204,6 +227,47 @@
     return JSON.stringify(rig, function (k, v) { return k === "x" || k === "y" ? undefined : v; }) + "|" + (results.totals ? results.totals.applied : "");
   }
 
+  var SLACK_TOL = 0.01;   // lb, as in rig.js
+
+  /** Names of the trusses that own a degree of freedom (to say which truss is not held up). */
+  function ownersOf(model, dof) {
+    var names = [];
+    model.beams.forEach(function (bm) {
+      if (bm.nodes.some(function (nd) { return nd.W === dof || nd.RX === dof || nd.RY === dof; }) && names.indexOf(bm.t.name) < 0) names.push(bm.t.name);
+    });
+    return names;
+  }
+
+  /** Groups of beams joined by connections that have no hoist at all (they can only fall). */
+  function unheldGroups(model) {
+    var parent = model.beams.map(function (_, i) { return i; });
+    function find(a) { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; }
+    model.links.forEach(function (lk) { parent[find(lk.b)] = find(lk.a); });
+    var held = {}; model.supports.forEach(function (sp) { held[find(sp.b)] = true; });
+    var groups = {};
+    model.beams.forEach(function (bm, i) { var r = find(i); if (!held[r]) (groups[r] = groups[r] || []).push(bm.t.name); });
+    return Object.keys(groups).map(function (k) { return groups[k]; });
+  }
+
+  /** Solve one joint model with tension-only hoists: a hoist that comes out pushing has a slack chain, so it is taken
+   * out and the rig solved again, most negative first. Slack hoists report 0. */
+  function solveSlack(model, rigid) {
+    var sup = model.supports.slice(), slack = [];
+    for (;;) {
+      var r = solveModel({ beams: model.beams, links: model.links, supports: sup }, rigid);
+      if (!r.ok) { r.slack = slack; r.names = ownersOf(model, r.dof); return r; }
+      var worst = null, least = -SLACK_TOL;
+      sup.forEach(function (sp) { var v = r.reactions[sp.id]; if (v < least) { least = v; worst = sp; } });
+      if (!worst || sup.length <= 1) {
+        slack.forEach(function (id) { r.reactions[id] = 0; });
+        r.slack = slack;
+        return r;
+      }
+      slack.push(worst.id);
+      sup = sup.filter(function (sp) { return sp !== worst; });
+    }
+  }
+
   function compute(rig, results, db, opts) {
     var out = { ok: false };
     if (results.unsolved && results.unsolved.length) { out.note = "Not run: the rig has an unsolved load-path loop."; return out; }
@@ -211,8 +275,30 @@
     model.beams.forEach(function (bm) { dofs += bm.nodes.length * 3; });
     if (!model.supports.length) { out.note = "No hoists."; return out; }
     if (dofs > 1600) { out.note = "Rig too large for the stiffness check (" + dofs + " degrees of freedom)."; return out; }
-    var hinged = solveModel(model, false), rigid = solveModel(model, true);
-    if (!hinged.ok || !rigid.ok) { out.note = "The stiffness model is unstable (a truss is not held up anywhere)."; return out; }
+    var loose = unheldGroups(model);
+    if (loose.length) {
+      out.unstable = true;
+      out.note = "UNSTABLE: not held up by any hoist - " + loose.map(function (g) { return g.join(" + "); }).join("; ") + ".";
+      return out;
+    }
+    // everything the model carries, to check the solve against (equilibrium) and against the load-path total
+    out.load = 0;
+    model.beams.forEach(function (bm) { out.load += bm.w * bm.L; bm.nodes.forEach(function (nd) { out.load += nd.P || 0; }); });
+    var hinged = solveSlack(model, false), rigid = solveSlack(model, true);
+    if (!rigid.ok) {
+      out.unstable = true;
+      out.note = "UNSTABLE: " + (rigid.slack.length ? "once the slack hoist" + (rigid.slack.length > 1 ? "s are" : " is") + " taken out, " : "") +
+        "the rig can't be held in place" + (rigid.names.length ? " (at " + rigid.names.join(", ") + ")" : "") + " - it would tip or swing. Add or move a hoist.";
+      return out;
+    }
+    if (!hinged.ok) {
+      // stable only because the bolted joints hold moment: with pinned joints part of the rig would swing
+      out.hingedNote = "With pinned joints " + (hinged.names.length ? hinged.names.join(", ") : "part of the rig") +
+        " would swing freely, so it relies on the corner-block joints holding moment; the hinged columns show the rigid-joint result.";
+      hinged = rigid;
+    }
+    hinged.equilibriumError = hinged.total - out.load;
+    rigid.equilibriumError = rigid.total - out.load;
     out.ok = true; out.hinged = hinged; out.rigid = rigid;
     return out;
   }
@@ -224,14 +310,24 @@
     if (last.sig === sig && last.out) out = last.out;
     else { out = compute(rig, results, db, opts); last = { sig: sig, out: out }; }
     results.compat = out;
+    if (out.unstable) results.warnings.unshift({ level: "unstable", message: "Stiffness check: " + out.note });
     if (!out.ok) return out;
+    if (out.hingedNote) results.warnings.push({ level: "info", message: "Stiffness check: " + out.hingedNote });
+    // self-checks: the solve balances, and it carries the same total weight as the load-path solve
+    var tol = 0.5 + 1e-6 * out.load, applied = results.totals && results.totals.applied;
+    if (Math.abs(out.hinged.equilibriumError) > tol || Math.abs(out.rigid.equilibriumError) > tol)
+      results.warnings.push({ level: "internal", message: "Stiffness check does not balance (" + Math.round(out.hinged.equilibriumError) + " lb) - please report this rig." });
+    if (typeof applied === "number" && Math.abs(out.load - applied) > tol)
+      results.warnings.push({ level: "internal", message: "Stiffness check carries " + Math.round(out.load) + " lb but the load-path solve carries " + Math.round(applied) + " lb - please report this rig." });
     results.hoists.forEach(function (h) {
       var id = h.truss + ":" + h.support, chain = h.hoist.hoistChain, extra = h.hoist.staticLoad - h.reaction - chain;
       var lp = h.hoist.staticLoad, hs = out.hinged.reactions[id], rs = out.rigid.reactions[id];
       if (hs === undefined || rs === undefined) return;
       var env = Math.max(lp, hs + chain + extra, rs + chain + extra);
-      h.compat = { hinged: hs + chain + extra, rigid: rs + chain + extra, envelope: env };
+      var sh = out.hinged.slack.indexOf(id) >= 0, sr = out.rigid.slack.indexOf(id) >= 0;
+      h.compat = { hinged: hs + chain + extra, rigid: rs + chain + extra, envelope: env, slackHinged: sh, slackRigid: sr };
       h.hoist.compat = h.compat;
+      if ((sh || sr) && !h.slack) results.warnings.push({ truss: h.truss, level: "slack", message: h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft: the stiffness check has this hoist going SLACK (" + (sh && sr ? "hinged and rigid joints" : sh ? "hinged joints" : "rigid joints") + ") - the rest of the rig carries its share." });
       var higher = env > lp + Math.max(0.05 * lp, 20);
       h.compat.higher = higher;
       if (higher) {

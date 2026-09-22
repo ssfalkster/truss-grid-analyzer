@@ -84,7 +84,7 @@
   }
   function field(label, control, cls) { return h("label", { "class": "field " + (cls || "") }, h("span", { text: label }), control); }
   function badge(status) {
-    var cls = status === "Good" ? "ok" : status === "No Load" || status === "Check" ? "warn" : "fail";
+    var cls = status === "Good" ? "ok" : status === "No Load" || status === "Check" || status === "Slack" ? "warn" : "fail";
     return h("span", { "class": "badge " + cls, text: status });
   }
 
