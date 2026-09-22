@@ -45,7 +45,7 @@ share them. Saved files record the app version that made them.
 
 ## How it's checked
 
-- Reactions reproduce the worked examples in *Rigging Math Made Simple* (Delbert L. Hall), lessons 12-14 and 21.
+- Reactions reproduce the worked examples in *Rigging Math Made Simple* (Delbert L. Hall).
 - The beam solver is checked against an independent finite-element model of 400 random continuous beams.
 - For a whole grid, cross-check with an independent 3D frame analysis such as CalcForge's
   *3D Structural Analysis*. Model hoists as pinned supports and leave the truss joints continuous.

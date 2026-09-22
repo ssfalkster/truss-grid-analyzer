@@ -622,7 +622,7 @@
 
     var st = S.rig.settings || (S.rig.settings = {});
     container.appendChild(h("div", { "class": "rules" },
-      h("label", { "class": "mini check", title: "Rigging Math Made Simple, Lesson 21: manufacturers' tables already subtract the truss weight. Tick this to also count it against cantilevers, as the original Excel did (stricter)." },
+      h("label", { "class": "mini check", title: "Per Rigging Math Made Simple, manufacturers' tables already subtract the truss weight. Tick this to also count it against cantilevers, as the original Excel did (stricter)." },
         h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), "Count truss weight against cantilever limits (stricter than the textbook)"),
       h("label", { "class": "mini", title: "How length boxes are shown. You can type either way in any length box." }, "Show lengths as ",
         select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); })),
