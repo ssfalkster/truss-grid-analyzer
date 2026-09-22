@@ -473,14 +473,14 @@
       h("button", { "class": "lnk", text: "Expand all", onclick: function () { setAllGroups(root, true); } })));
 
     if (res && S.sel.support) {
-      var a = TLA.rig.attribution(S.rig, S.db(), t.id, S.sel.support);
+      var a = TLA.grillage.attribution(S.rig, S.results, S.db(), t.id, S.sel.support);
       if (a) {
         var ss = t.supports.filter(function (x) { return x.id === S.sel.support; })[0];
         var at = h("table", { "class": "tbl" }, h("tbody", null,
-          a.parts.map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (own weight)" : "") }), h("td", { "class": "r", text: fmt(p.weight, 1) + " lb" })); }),
+          a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (own weight)" : "") }), h("td", { "class": "r", text: fmt(p.weight, 1) + " lb" })); }),
           h("tr", null, h("td", { text: "Hoist + chain" }), h("td", { "class": "r", text: fmt(a.hoistChain, 1) + " lb" })),
           h("tr", null, h("td", null, h("b", { text: "Total static" })), h("td", { "class": "r" }, h("b", { text: fmt(a.staticLoad, 1) + " lb" })))));
-        container.appendChild(h("div", { "class": "loadpath" }, h("h4", { text: "Selected motor at " + fmt(ss ? ss.distance : 0, 2) + " ft on " + t.name }),
+        container.appendChild(h("div", { "class": "loadpath" }, h("h4", { text: "Selected motor at " + fmt(ss ? ss.distance : 0, 2) + " ft on " + t.name + (a.model === "load-path" ? " (load-path method)" : " (stiffness solve, " + TLA.grillage.MODEL_LABEL[a.model] + ")") }),
           h("div", { "class": "row-btns" }, h("button", { "class": "danger", text: "Delete this motor", onclick: function () { S.removeSupport(t.id, S.sel.support); } })), at));
       }
     }
@@ -492,6 +492,8 @@
       chips.appendChild(h("span", { "class": "chip " + (st.bad ? "fail" : "ok"), text: st.bad ? "Check warnings" : "All checks pass" }));
       chips.appendChild(h("span", { "class": "chip", text: "Total " + fmt(res.beam.totalLoad, 0) + " lb" }));
       chips.appendChild(h("span", { "class": "chip", text: "Derate " + res.limits.derate }));
+      if (res.model) chips.appendChild(h("span", { "class": "chip", title: "The diagram, reactions and span checks shown are from the stiffness solve with " + TLA.grillage.MODEL_LABEL[res.model] + ", the worse of the two joint models for this truss", text: "Checked with " + TLA.grillage.MODEL_LABEL[res.model] }));
+      else if (S.results.primary === "load-path") chips.appendChild(h("span", { "class": "chip", text: "Load-path method only" }));
       container.appendChild(chips);
     } else {
       container.appendChild(h("div", { "class": "note fail", text: "Not solved: it depends on a load-path loop or a missing truss/support. See warnings below." }));
@@ -607,6 +609,13 @@
     }
   }
   function round(v) { return Math.round(v * 100) / 100; }
+  /** One joint model's static load in the hoist table; bold when it is the one that governs. */
+  function modelCell(x, m) {
+    var c = x.byModel && x.byModel[m];
+    if (!c) return h("td", { "class": "r mut", text: "-" });
+    var txt = fmt(c.staticLoad, 1) + (c.slack ? " slack" : "");
+    return h("td", { "class": "r", title: "Stiffness solve, " + TLA.grillage.MODEL_LABEL[m] + (x.model === m ? " (governs)" : "") }, x.model === m ? h("b", { text: txt }) : txt);
+  }
 
   /* ---------- summary ---------- */
   function summary(container) {
@@ -640,7 +649,7 @@
     }
 
     var tbl = h("table", { "class": "tbl hoists" });
-    tbl.appendChild(h("thead", null, h("tr", null, [["Truss"], ["Layer", "r"], ["At (ft)", "r"], ["Hoist"], ["Loads & Truss (lb)", "r"], ["Hoist & Chain (lb)", "r"], ["Total Static (lb)", "r"], ["Worst case*", "r"], ["Dyn. factor", "r"], ["Total Dynamic (lb)", "r"], ["Capacity", "r"], ["% cap", "r"], ["Status"], [""]].map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
+    tbl.appendChild(h("thead", null, h("tr", null, [["Truss"], ["Layer", "r"], ["At (ft)", "r"], ["Hoist"], ["Hoist & Chain (lb)", "r"], ["Load path* (lb)", "r"], ["Hinged joints* (lb)", "r"], ["Rigid joints* (lb)", "r"], ["Total Static (lb)", "r"], ["Dyn. factor", "r"], ["Total Dynamic (lb)", "r"], ["Capacity", "r"], ["% cap", "r"], ["Status"], [""]].map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
     var tb = h("tbody");
     r.hoists.forEach(function (x) {
       var hs = S.truss(x.truss).supports.filter(function (s) { return s.id === x.support; })[0];
@@ -648,10 +657,10 @@
       tb.appendChild(h("tr", { "class": S.sel.support === x.support ? "sel" : "", onclick: function () { S.sel = { truss: x.truss, support: x.support }; S.emit(); } },
         h("td", { text: x.trussName }), h("td", { "class": "r", text: String(x.layer) }), h("td", { "class": "r", text: fmt(x.distance, 2) }),
         h("td", { text: hd ? hd.description.trim() + " " + hd.capacity_label : "-" }),
-        h("td", { "class": "r", title: "Reaction from the loads and the truss's own weight (including any trusses it carries)", text: fmt(x.hoist.reaction, 1) }),
         h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: fmt(x.hoist.staticLoad - x.hoist.reaction, 1) }),
-        h("td", { "class": "r", text: fmt(x.hoist.staticLoad, 1) }),
-        h("td", { "class": "r" + (x.compat && x.compat.higher ? " hi" : ""), title: x.compat ? "Stiffness check: hinged joints " + fmt(x.compat.hinged, 0) + " lb, rigid corner blocks " + fmt(x.compat.rigid, 0) + " lb" : "", text: x.compat ? fmt(x.compat.envelope, 0) : "-" }),
+        h("td", { "class": "r mut", title: "Load-path method (each carrying truss treated as unyielding) - for reference", text: fmt((x.loadPath || x).hoist.staticLoad, 1) + ((x.loadPath || x).slack ? " slack" : "") }),
+        modelCell(x, "hinged"), modelCell(x, "rigid"),
+        h("td", { "class": "r" + (x.compat && x.compat.higher ? " hi" : ""), title: x.model ? "Larger of the two joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" + (x.compat.higher ? " - well above the load-path method" : "") : "Load-path method (stiffness solve not available)" }, h("b", { text: fmt(x.hoist.staticLoad, 1) })),
         h("td", { "class": "r", text: fmt(x.hoist.dynamicFactor, 3) }),
         h("td", { "class": "r", text: fmt(x.hoist.dynamicLoad, 1) }),
         h("td", { "class": "r", text: x.hoist.capacity >= 999999 ? "none" : fmt(x.hoist.capacity, 0) }),
@@ -661,15 +670,22 @@
     });
     tbl.appendChild(tb); container.appendChild(tbl);
     if (!r.hoists.length) container.appendChild(h("p", { "class": "sub", text: "No hoists yet - add a hoist support to a truss." }));
-    container.appendChild(h("p", { "class": "sub" }, "* Worst case: the larger of the load-path result and a stiffness check that lets the trusses sag and share load (bolted joints modelled as pins and as rigid, all trusses assumed equally stiff unless scaled). " + (r.compat && !r.compat.ok && r.compat.note ? r.compat.note : "")));
+    container.appendChild(h("p", { "class": "sub" }, r.primary === "grillage"
+      ? "* Hoist loads come from a stiffness (grillage) solve of the whole rig, which lets the trusses sag and share load, with the bolted joints modelled two ways: hinged (the corner block passes vertical force only) and rigid (bending and torsion pass through it too). Total static, dynamic, % and status use the larger of the two. Each truss's stiffness is estimated from its size and connector type (scale it with Stiffness x). The load-path column is the per-truss method of the original workbook, for reference only."
+      : "* Stiffness solve not available" + (r.compat && r.compat.note ? " (" + r.compat.note + ")" : "") + ": loads are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid."));
   }
 
   TLA.panels = {
     mount: function (store) { S = store; },
     parseLen: parseLen, fmtFtIn: fmtFtIn, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, summary: summary, hoistsCsv: function () {
-      var rows = [["Truss", "Layer", "At ft", "Loads & Truss lb", "Hoist & Chain lb", "Total Static lb", "Dynamic factor", "Total Dynamic lb", "Capacity lb", "Status"]];
-      S.results.hoists.forEach(function (x) { rows.push([x.trussName, x.layer, x.distance, Math.round(x.hoist.reaction * 10) / 10, Math.round((x.hoist.staticLoad - x.hoist.reaction) * 10) / 10, Math.round(x.hoist.staticLoad * 10) / 10, Math.round(x.hoist.dynamicFactor * 1000) / 1000, Math.round(x.hoist.dynamicLoad * 10) / 10, x.hoist.capacity, x.hoist.status]); });
+      var rows = [["Truss", "Layer", "At ft", "Loads & Truss lb", "Hoist & Chain lb", "Load path static lb (ref.)", "Hinged joints static lb", "Rigid joints static lb", "Total Static lb", "Governing", "Dynamic factor", "Total Dynamic lb", "Capacity lb", "Status"]];
+      function r1(v) { return Math.round(v * 10) / 10; }
+      S.results.hoists.forEach(function (x) {
+        rows.push([x.trussName, x.layer, x.distance, r1(x.hoist.reaction), r1(x.hoist.staticLoad - x.hoist.reaction), r1((x.loadPath || x).hoist.staticLoad),
+          x.byModel ? r1(x.byModel.hinged.staticLoad) : "", x.byModel ? r1(x.byModel.rigid.staticLoad) : "", r1(x.hoist.staticLoad), x.model ? TLA.grillage.MODEL_LABEL[x.model] : "load path",
+          Math.round(x.hoist.dynamicFactor * 1000) / 1000, r1(x.hoist.dynamicLoad), x.hoist.capacity, x.hoist.status]);
+      });
       return rows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
     }
   };

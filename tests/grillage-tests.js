@@ -27,7 +27,7 @@
     ["North", "South"].forEach(function (n) { var t = S.rig.trusses.filter(function (x) { return x.name === n; })[0]; t.supports = t.supports.filter(function (s) { return s.kind !== "hoist"; }); });
     S.commit();
     var iw = hoistOf("Inner W", 15), ie = hoistOf("Inner E", 15), we = hoistOf("West", 3);
-    near(iw.reaction, 301.0, 0.2, "load-path Inner W (NumPy input)"); near(ie.reaction, 181.0, 0.2, "load-path Inner E");
+    near(iw.loadPath.reaction, 301.0, 0.2, "load-path Inner W (NumPy input)"); near(ie.loadPath.reaction, 181.0, 0.2, "load-path Inner E");
     // 1.1.0: in this rig the West/East hoists at 16 ft would have to PUSH (the NumPy reference let them), so their
     // chains go slack and are taken out. Values below equal the same rig with those two hoists deleted by hand.
     eq(hoistOf("West", 16).slack, true, "West @16 slack"); eq(hoistOf("East", 16).slack, true, "East @16 slack");
@@ -35,7 +35,7 @@
     near(ie.compat.hinged - ie.hoist.hoistChain, 451.3, 0.5, "Inner E hinged"); near(ie.compat.rigid - ie.hoist.hoistChain, 469.8, 0.5, "Inner E rigid");
     near(we.compat.hinged - we.hoist.hoistChain, 320.6, 0.5, "West @3 hinged");
     eq(iw.compat.higher, true, "flagged"); eq(ie.compat.higher, true, "flagged");
-    eq(S.results.warnings.some(function (w) { return /stiffness check/.test(w.message); }), true, "a warning is raised");
+    eq(S.results.warnings.some(function (w) { return /stiffness solve, well above the load-path/.test(w.message); }), true, "a warning is raised");
   });
 
   add("stiffness check: a single truss on two hoists changes nothing", function () {
@@ -153,5 +153,102 @@
       ["N01", "N10", "N12", "N21"].forEach(function (k) { near(R[k], 1625, 1e-4, "edge " + k); });
       near(R.N11, 2500, 1e-4, "centre"); near(r.total, 12300, 1e-4, "total");
     });
+  });
+
+  /* ---------- 1.3.0: the stiffness solve is primary ---------- */
+
+  function noCarrierHoists() {
+    S.newRig(); TLA.samples.box(S);
+    ["North", "South"].forEach(function (n) { var t = S.rig.trusses.filter(function (x) { return x.name === n; })[0]; t.supports = t.supports.filter(function (s) { return s.kind !== "hoist"; }); });
+    S.commit();
+  }
+  function trussNamed(n) { return S.rig.trusses.filter(function (x) { return x.name === n; })[0]; }
+
+  add("primary: hoist loads, status and totals come from the stiffness solve (worse of hinged and rigid), load path kept for reference", function () {
+    noCarrierHoists();
+    var r = S.results; eq(r.primary, "grillage", "primary");
+    var iw = hoistOf("Inner W", 15);
+    near(iw.hoist.staticLoad, Math.max(iw.compat.hinged, iw.compat.rigid), 1e-9, "governing = worse model");
+    eq(iw.model, iw.compat.rigid >= iw.compat.hinged ? "rigid" : "hinged", "model named");
+    near(iw.byModel.hinged.reaction, 553.4, 0.5, "hinged reaction"); near(iw.byModel.rigid.reaction, 569.0, 0.5, "rigid reaction");
+    near(iw.loadPath.hoist.staticLoad - iw.loadPath.hoist.hoistChain, 301.0, 0.2, "load path kept");
+    near(r.totals.staticLoad, r.hoists.reduce(function (t, h) { return t + h.hoist.staticLoad; }, 0), 1e-9, "totals from the governing loads");
+    near(r.totals.byModel.hinged - r.totals.hoistChain, r.totals.applied, 1e-6, "hinged totals balance");
+    near(r.totals.byModel.rigid - r.totals.hoistChain, r.totals.applied, 1e-6, "rigid totals balance");
+    // the same record is what the plan, 3D view and support list read
+    var sr = r.trusses[iw.truss].supports.filter(function (x) { return x.support.id === iw.support; })[0];
+    eq(sr.hoist, iw.hoist, "support record shares the governing check");
+  });
+
+  add("primary: every truss is in equilibrium under its stiffness-solve loads (hoists + bolted connection forces = its loads)", function () {
+    ["box", "carrier"].forEach(function (which) {
+      if (which === "box") { S.newRig(); TLA.samples.box(S); S.rig.trusses.forEach(function (t) { (t.supports || []).forEach(function (s) { if (s.kind === "truss") s.hardwareWeight = 7; }); }); S.commit(); }
+      else noCarrierHoists();
+      var r = S.results; eq(r.primary, "grillage", which + " primary");
+      S.rig.trusses.forEach(function (t) {
+        var res = r.trusses[t.id]; if (t.isBlock || !res.byModel) return;
+        ["hinged", "rigid"].forEach(function (m) {
+          var up = res.supports.reduce(function (a, sr) { return a + sr.byModel[m]; }, 0);
+          near(up, res.byModel[m].beam.totalLoad, 1e-6, which + " " + t.name + " " + m);
+        });
+      });
+      eq(r.warnings.some(function (w) { return w.level === "internal"; }), false, which + ": no self-check warnings");
+    });
+  });
+
+  add("primary: span checks on a carrier use the connection forces from the stiffness solve", function () {
+    noCarrierHoists();
+    var n = trussNamed("North"), res = S.results.trusses[n.id];
+    eq(res.injected.length > 0, true, "North carries bolted trusses");
+    var lp = res.loadPath.injected.reduce(function (a, l) { return a + l.weight; }, 0), gr = res.injected.reduce(function (a, l) { return a + l.weight; }, 0);
+    eq(Math.abs(gr - lp) > 1, true, "different from the load path (" + gr + " vs " + lp + ")");
+    var segLoads = res.limits.segments.filter(function (s) { return !s.skipped; }).reduce(function (a, s) { return a + (s.type === "span" ? s.load : s.load - res.beam.wDist * s.length); }, 0);
+    near(segLoads, res.beam.loads.reduce(function (a, l) { return a + l.weight; }, 0), 1e-6, "span and cantilever loads add up to every point load on the truss (" + res.model + ")");
+  });
+
+  add("primary: member forces - a simple span and a two-span continuous truss match beam theory", function () {
+    S.newRig();
+    var t = S.addTruss({ name: "S", x: 0, y: 0, angle: 30, length: 20, hoists: [0, 20] });
+    t.weightless = true; t.loads.push({ id: S.newId("l"), distance: 10, weight: 400 }); S.commit();
+    var f = S.results.trusses[t.id].memberForces;
+    ["hinged", "rigid"].forEach(function (m) { near(f[m].maxSag, 400 * 20 / 4, 1e-4, m + " PL/4"); near(f[m].maxShear, 200, 1e-4, m + " P/2"); near(f[m].maxHog, 0, 1e-4, m + " no hogging"); });
+    S.newRig();
+    var c = S.addTruss({ name: "C", x: 0, y: 0, angle: 0, length: 20, hoists: [0, 10, 20] });
+    c.weightless = true; c.wallWeight = 20 * 50; S.commit();                  // 50 lb/ft over two 10 ft spans
+    var g = S.results.trusses[c.id].memberForces.rigid;
+    near(g.maxHog, 50 * 100 / 8, 1e-6, "hogging over the middle hoist wL^2/8"); near(g.atHog, 10, 1e-9, "at the middle");
+    near(g.maxSag, 9 / 128 * 50 * 100, 1e-6, "span peak 9/128 wL^2"); near(g.maxShear, 5 / 8 * 50 * 10, 1e-6, "5/8 wL");
+  });
+
+  add("primary: a rigid corner block carries moment across the joint (the moment diagram jumps there), a hinged one doesn't", function () {
+    S.newRig(); TLA.samples.box(S); S.commit();
+    function jumps(m) {
+      var n = 0;
+      S.rig.trusses.forEach(function (t) { var f = S.results.trusses[t.id].memberForces; if (f && f[m]) f[m].points.forEach(function (p) { if (p.jump) n++; }); });
+      return n;
+    }
+    eq(jumps("rigid") > 0, true, "rigid model has moment jumps at blocks");
+    eq(jumps("hinged"), 0, "hinged model: no moment through the joints");
+  });
+
+  add("primary: a hoist's load breakdown adds up to its stiffness-solve reaction", function () {
+    noCarrierHoists();
+    ["Inner W@15", "West@3"].forEach(function (k) {
+      var h = hoistOf(k.split("@")[0], parseFloat(k.split("@")[1])), a = TLA.grillage.attribution(S.rig, S.results, S.db(), h.truss, h.support);
+      eq(a.model, h.model, "breakdown uses the governing model");
+      near(a.parts.reduce(function (s, p) { return s + p.weight; }, 0), h.reaction, 1e-6, k + " parts sum");
+      eq(a.parts.length > 1, true, k + " more than one truss contributes");
+    });
+  });
+
+  add("primary: falls back to the load path, with a warning, when the stiffness solve can't run", function () {
+    S.newRig();
+    var a = S.addTruss({ name: "A", x: 0, y: 0, angle: 0, length: 20, hoists: [0] }), b = S.addTruss({ name: "B", x: 0, y: 5, angle: 0, length: 20, hoists: [20] });
+    a.supports.push({ id: S.newId("s"), kind: "truss", distance: 20, onTruss: b.id, onDistance: 20 });
+    b.supports.push({ id: S.newId("s"), kind: "truss", distance: 0, onTruss: a.id, onDistance: 0 });
+    S.commit();
+    eq(S.results.unsolved.length > 0, true, "a load-path loop");
+    eq(S.results.primary, "load-path", "primary");
+    eq(S.results.warnings.some(function (w) { return w.level === "fallback"; }), true, "fallback warning");
   });
 })(typeof globalThis !== "undefined" ? globalThis : window);
