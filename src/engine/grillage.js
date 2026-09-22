@@ -125,6 +125,16 @@
       });
       return F;
     }
+    /** Load vector of a uniform load w (lb/ft, down) on one beam only. */
+    function udlVector(bi, w) {
+      var F = new Float64Array(n), bm = beams[bi];
+      for (var e = 0; e < bm.nodes.length - 1; e++) {
+        var el = bm.els[e]; if (!el) continue;
+        var dd = dofs[bi][e].concat(dofs[bi][e + 1]);
+        for (var r = 0; r < 6; r++) F[dd[r]] += w * el.fg[r];
+      }
+      return F;
+    }
     var fixed = {}; model.supports.forEach(function (sp) { fixed[dofs[sp.b][sp.n][0]] = true; });
     var free = []; for (i = 0; i < n; i++) if (!fixed[i]) free.push(i);
     var m = free.length, A = [], maxd = 0;
@@ -165,18 +175,19 @@
     var leak = 0, leakDof = -1;
     for (i = 0; i < m; i++) if (rotDof[free[i]] && Math.abs(eps * sol.u[i]) > leak) { leak = Math.abs(eps * sol.u[i]); leakDof = free[i]; }
     if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof, dofs: dofs };
-    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, loadVector: loadVector, solveF: solveF };
+    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, loadVector: loadVector, udlVector: udlVector, solveF: solveF };
   }
 
   var JUMP_TOL = 1e-5;   // of the truss's largest moment: smaller steps are the solver's tiny twist stiffness, not a joint
 
   /** Member forces from a solved model: shear, bending moment and torque along every truss (same shape as the
    * load-path diagrams: points with shear just left/right and moment, sagging positive, plus extremes), and the
-   * vertical force in every bolted connection (upward on the truss that is bolted, lb). */
-  function forces(model, sol) {
+   * vertical force in every bolted connection (upward on the truss that is bolted, lb). wOf(bm) overrides the
+   * uniform load a beam carries in this load case. */
+  function forces(model, sol, wOf) {
     var beams = model.beams, U = sol.U, members = {}, ext = {};
     beams.forEach(function (bm, bi) {
-      var nds = bm.nodes, w = bm.w, seg = [];
+      var nds = bm.nodes, w = wOf ? wOf(bm) : bm.w, seg = [];
       nds.forEach(function (nd, ni) { ext[bi + ":" + ni] = nd.P || 0; });
       for (var e = 0; e < nds.length - 1; e++) {
         var el = bm.els[e]; if (!el) continue;
@@ -189,7 +200,7 @@
       }
       var scale = 0;
       seg.forEach(function (sg) { if (sg) scale = Math.max(scale, Math.abs(sg.M0), Math.abs(sg.M0 + sg.V * sg.L - w * sg.L * sg.L / 2)); });
-      var pts = [], out = { points: pts, maxSag: 0, maxHog: 0, maxShear: 0, maxTorque: 0, atSag: 0, atHog: 0, atShear: 0 };
+      var pts = [], out = { points: pts, w: w, length: bm.L, maxSag: 0, maxHog: 0, maxShear: 0, maxTorque: 0, atSag: 0, atHog: 0, atShear: 0 };
       nds.forEach(function (nd, ni) {
         var L = seg[ni - 1], R = seg[ni];
         var vl = L ? L.V - w * L.L : 0, vr = R ? R.V : 0;
@@ -246,7 +257,8 @@
       if (t.isBlock) return;
       var res = results.trusses[t.id]; if (!res) return;
       var a = (t.angle || 0) * Math.PI / 180, entry = res.dbTruss, st = estimateStiffness(entry, t);
-      var bm = { t: t, c: Math.cos(a), s: Math.sin(a), L: t.length, EI: st.EI, GJ: st.GJ, w: (t.weightless ? 0 : (entry.weight_per_ft_lb || 0)) + (Number(t.wallWeight) || 0) / (t.length || 1), pts: { 0: {}, [t.length]: {} } };
+      var ws = t.weightless ? 0 : (entry.weight_per_ft_lb || 0);
+      var bm = { t: t, c: Math.cos(a), s: Math.sin(a), L: t.length, EI: st.EI, GJ: st.GJ, w: ws + (Number(t.wallWeight) || 0) / (t.length || 1), wSelf: ws, pts: { 0: {}, [t.length]: {} } };
       index[t.id] = beams.length; beams.push(bm);
     });
     function pt(bm, d) {
@@ -427,7 +439,7 @@
   function hoistEntry(db, id) { return (db.hoists || []).filter(function (h) { return h.id === id; })[0] || (db.hoists || [])[0] || null; }
   function ownLoad(t) { return (t.loads || []).reduce(function (a, l) { return a + (Number(l.weight) || 0) * (l.mirror && Math.abs(l.distance - t.length / 2) > 1e-7 ? 2 : 1); }, 0); }
   function describeSeg(s) { return s.type === "span" ? "Span " + s.index : s.type === "cantilever-left" ? "Left cantilever" : "Right cantilever"; }
-  function maxUtil(l) { return l.segments.reduce(function (m, s) { return Math.max(m, s.utilization || 0); }, 0); }
+  function maxUtil(l) { return l.segments.reduce(function (m, s) { return Math.max(m, s.utilization || 0); }, l.member ? l.member.utilization || 0 : 0); }
   function margin(lp) { return Math.max(0.05 * Math.abs(lp), 20); }
 
   /** The force a load-path "injected" load stands for, from one stiffness solve: a bolted truss's connection force,
@@ -447,7 +459,7 @@
   }
 
   /** The span/cantilever table checks of one truss with the loads and slack hoists of one stiffness solve. */
-  function checkWith(t, res, sol, rig, byId, results) {
+  function checkWith(t, res, sol, rig, byId, results, model) {
     var slack = {}; sol.slack.forEach(function (id) { slack[id] = true; });
     var sups = (t.supports || []).filter(function (s) { return !(s.kind === "hoist" && slack[t.id + ":" + s.id]); });
     if (!sups.length || !res.dbTruss) return null;
@@ -458,7 +470,16 @@
     var truss = res.dbTruss, st = rig.settings || {};
     var beam = TLA.beam.solve({ length: t.length, supports: sups.map(function (s) { return s.distance; }), loads: loads, trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless });
     beam.active = sups;
-    var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: st.cantileverSelfWeight === true });
+    // moment/shear check on the stiffness solve's own diagrams, net of the truss's own weight as the tables are
+    var full = sol.forces.members[t.id], net = full, bi = -1;
+    model.beams.forEach(function (bm, i) { if (bm.t.id === t.id) bi = i; });
+    if (full && bi >= 0 && st.cantileverSelfWeight !== true && model.beams[bi].wSelf > 0) {
+      var bmT = model.beams[bi], F = sol.F.slice(), Fs = sol.udlVector(bi, bmT.wSelf);
+      for (var q = 0; q < F.length; q++) F[q] -= Fs[q];
+      var r = sol.solveF(F);                            // same structure, same slack hoists
+      net = forces(model, { U: r.U, reactions: r.reactions, dofs: sol.dofs, supports: sol.supports }, function (b) { return b === bmT ? b.w - b.wSelf : b.w; }).members[t.id];
+    }
+    var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: st.cantileverSelfWeight === true, memberDiagrams: full ? { full: full, net: net } : null });
     return { beam: beam, limits: limits, injected: injected };
   }
 
@@ -474,12 +495,12 @@
     rig.trusses.forEach(function (t) { byId[t.id] = t; });
     results.primary = "grillage";
     // the load-path hoist and span warnings are replaced by the ones below
-    for (var i = W.length - 1; i >= 0; i--) if (W[i].kind === "segment" || W[i].kind === "hoist") W.splice(i, 1);
+    for (var i = W.length - 1; i >= 0; i--) if (W[i].kind === "segment" || W[i].kind === "member" || W[i].kind === "hoist") W.splice(i, 1);
 
     Object.keys(results.trusses).forEach(function (id) {
       var t = byId[id], res = results.trusses[id];
       if (!t || t.isBlock) return;
-      var by = { hinged: checkWith(t, res, out.hinged, rig, byId, results), rigid: checkWith(t, res, out.rigid, rig, byId, results) };
+      var by = { hinged: checkWith(t, res, out.hinged, rig, byId, results, out.model), rigid: checkWith(t, res, out.rigid, rig, byId, results, out.model) };
       if (!by.hinged && !by.rigid) return;
       var m = worse(by.hinged, by.rigid);
       res.loadPath = { beam: res.beam, limits: res.limits, injected: res.injected };
@@ -497,6 +518,8 @@
       res.limits.segments.forEach(function (s) {
         if (s.code) W.push({ truss: id, kind: "segment", message: t.name + ": " + describeSeg(s) + " - " + s.status + " (" + MODEL_LABEL[m] + ")" });
       });
+      var mb = res.limits.member;
+      if (mb && mb.code) W.push({ truss: id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) + " (" + MODEL_LABEL[m] + ")" });
     });
 
     results.hoists.forEach(function (h) {

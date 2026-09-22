@@ -129,6 +129,49 @@
     return svg;
   }
 
+  /** Shear and bending-moment diagrams under the elevation (same horizontal scale), with the table-derived
+   * allowable as dashed lines. Shows the diagram the check uses (without truss self weight unless the stricter option). */
+  function forceDiagrams(res) {
+    var mb = res.limits.member;
+    if (!mb) return null;
+    var d = mb.checked, W = 420, pad = 26, band = 62, gap = 16, H = 2 * band + gap + 22;
+    var svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("class", "elev forces");
+    function add(tag, attrs, txt) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (txt != null) e.textContent = txt;
+      svg.appendChild(e); return e;
+    }
+    var L = d.length || 1, sx = (W - pad * 2) / L, X = function (x) { return pad + x * sx; };
+    function plot(top, title, pts, maxAbs, allowed, over, unit) {
+      var mid = top + band / 2 + 6, lim = allowed > 0 && allowed < 3 * maxAbs ? allowed : 0;
+      var scale = (band / 2 - 4) / (Math.max(maxAbs, lim) || 1);
+      add("text", { x: pad - 22, y: top + 8, "class": "et small" }, title);
+      add("text", { x: W - pad + 22, y: top + 8, "text-anchor": "end", "class": "et" + (over ? " fail" : "") },
+        "max " + fmt(maxAbs, 0) + " " + unit + (allowed > 0 ? " / about " + fmt(allowed, 0) + " allowed" : ""));
+      add("line", { x1: X(0), x2: X(L), y1: mid, y2: mid, "class": "axis" });
+      if (lim) [1, -1].forEach(function (s) { add("line", { x1: X(0), x2: X(L), y1: mid - s * lim * scale, y2: mid - s * lim * scale, "class": "limit" }); });
+      var path = "M" + X(0) + " " + mid + " " + pts.map(function (p) { return "L" + X(p[0]).toFixed(1) + " " + (mid - p[1] * scale).toFixed(1); }).join(" ") + " L" + X(L) + " " + mid + " Z";
+      add("path", { d: path, "class": "fd" + (over ? " over" : "") });
+    }
+    var sh = [], mo = [];
+    d.points.forEach(function (p, i) {
+      sh.push([p.x, p.vl], [p.x, p.vr]);
+      var nx = d.points[i + 1];
+      mo.push([p.x, p.m]);
+      if (nx && d.w > 0) for (var k = 1; k < 8; k++) {            // moment is a parabola under a uniform load
+        var x = p.x + (nx.x - p.x) * k / 8, dx = x - p.x;
+        mo.push([x, p.m + p.vr * dx - d.w * dx * dx / 2]);
+      }
+    });
+    plot(4, "Shear", sh, d.maxShear, mb.shearAllowed, mb.shearOver, "lb");
+    plot(4 + band + gap, "Moment", mo, d.maxMoment, mb.momentAllowed, mb.momentOver, "lb-ft");
+    add("text", { x: W / 2, y: H - 3, "text-anchor": "middle", "class": "et small" },
+      "Sagging moment up. Allowable estimated from the manufacturer's tables" + (d === mb.diagram ? "." : "; truss self weight left out, as in the tables."));
+    return svg;
+  }
+
   /* ---------- inspector ---------- */
   /** Search-as-you-type fixture picker with an optional clamp. onPick(fixture, clampLb) adds the load. */
   function fixturePicker(onPick) {
@@ -487,11 +530,18 @@
     container = group(root, "result", "Diagram and checks", true, res ? (TLA.plan.trussStatus(res).bad ? "warnings" : "all pass") : "not solved");
     if (res) {
       container.appendChild(h("div", { "class": "elev-wrap" }, elevation(t, res)));
+      var fd = forceDiagrams(res);
+      if (fd) container.appendChild(h("div", { "class": "elev-wrap" }, fd));
       var chips = h("div", { "class": "chips" }, h("span", { "class": "chip", text: "Layer " + S.results.layers[t.id] }));
       var st = TLA.plan.trussStatus(res);
       chips.appendChild(h("span", { "class": "chip " + (st.bad ? "fail" : "ok"), text: st.bad ? "Check warnings" : "All checks pass" }));
       chips.appendChild(h("span", { "class": "chip", text: "Total " + fmt(res.beam.totalLoad, 0) + " lb" }));
       chips.appendChild(h("span", { "class": "chip", text: "Derate " + res.limits.derate }));
+      var mbr = res.limits.member;
+      if (mbr) {
+        chips.appendChild(h("span", { "class": "chip" + (mbr.momentOver ? " fail" : ""), title: "Largest bending moment / allowable estimated from the tables", text: "Moment " + fmt(mbr.momentUtil * 100, 0) + "%" }));
+        chips.appendChild(h("span", { "class": "chip" + (mbr.shearOver ? " fail" : ""), title: "Largest shear / allowable estimated from the tables", text: "Shear " + fmt(mbr.shearUtil * 100, 0) + "%" }));
+      }
       if (res.model) chips.appendChild(h("span", { "class": "chip", title: "The diagram, reactions and span checks shown are from the stiffness solve with " + TLA.grillage.MODEL_LABEL[res.model] + ", the worse of the two joint models for this truss", text: "Checked with " + TLA.grillage.MODEL_LABEL[res.model] }));
       else if (S.results.primary === "load-path") chips.appendChild(h("span", { "class": "chip", text: "Load-path method only" }));
       container.appendChild(chips);
@@ -631,8 +681,8 @@
 
     var st = S.rig.settings || (S.rig.settings = {});
     container.appendChild(h("div", { "class": "rules" },
-      h("label", { "class": "mini check", title: "Per Rigging Math Made Simple, manufacturers' tables already subtract the truss weight. Tick this to also count it against cantilevers, as the original Excel did (stricter)." },
-        h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), "Count truss weight against cantilever limits (stricter than the textbook)"),
+      h("label", { "class": "mini check", title: "Per Rigging Math Made Simple, manufacturers' tables already subtract the truss weight. Tick this to also count it against the cantilever limits (as the original Excel did) and in the moment/shear check (stricter)." },
+        h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), "Count truss weight against cantilever and moment/shear limits (stricter than the textbook)"),
       h("label", { "class": "mini", title: "How length boxes are shown. You can type either way in any length box." }, "Show lengths as ",
         select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); })),
       h("label", { "class": "mini", title: "Used when a hoist has no speed listed (a custom motor). Hoists with a speed use fpm / 64 + 1 (16 fpm = 1.25). You can also type a factor on any hoist." }, "Default dynamic factor ",

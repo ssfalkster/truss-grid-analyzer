@@ -212,6 +212,8 @@
       limits.segments.forEach(function (s) {
         if (s.code) warnings.push({ truss: t.id, kind: "segment", message: t.name + ": " + describeSeg(s) + " - " + s.status });
       });
+      var mb = limits.member;
+      if (mb && mb.code) warnings.push({ truss: t.id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) });
     });
 
     hoists.forEach(function (h) {

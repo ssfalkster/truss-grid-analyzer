@@ -251,4 +251,19 @@
     eq(S.results.primary, "load-path", "primary");
     eq(S.results.warnings.some(function (w) { return w.level === "fallback"; }), true, "fallback warning");
   });
+  add("primary: the moment/shear check uses the stiffness solve's diagrams (net of self weight); a lone truss matches the load path", function () {
+    noCarrierHoists();
+    var n = 0;
+    S.rig.trusses.forEach(function (t) {
+      var res = S.results.trusses[t.id]; if (t.isBlock || !res.model) return;
+      eq(res.limits.member.diagram, res.memberForces[res.model], t.name + ": full diagram from the stiffness solve"); n++;
+    });
+    eq(n > 0, true, "checked some trusses");
+    S.newRig();
+    var t = S.addTruss({ name: "L", x: 0, y: 0, angle: 45, length: 30, hoists: [0, 12, 30] });
+    t.loads.push({ id: S.newId("l"), distance: 5, weight: 300 }, { id: S.newId("l"), distance: 20, weight: 500 }); S.commit();
+    var res = S.results.trusses[t.id], a = res.limits.member, b = res.loadPath.limits.member;
+    near(a.moment, b.moment, 1e-3 * b.moment, "moment (self weight left out in both)"); near(a.shear, b.shear, 1e-3 * b.shear, "shear");
+    eq(a.checked === a.diagram, false, "a separate net-of-self-weight diagram");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

@@ -69,8 +69,58 @@
     });
     cant("cantilever-right", beam.right);
 
-    var worst = segs.reduce(function (m, s) { return Math.max(m, s.code || 0); }, 0);
-    return { derate: k, maxSpan: maxSpan, maxCantilever: maxCant, segments: segs, worstCode: worst, ok: worst === 0 };
+    var member = checkMember(truss, beam, k, opts);
+    var worst = segs.reduce(function (m, s) { return Math.max(m, s.code || 0); }, member.code);
+    return { derate: k, maxSpan: maxSpan, maxCantilever: maxCant, segments: segs, member: member, worstCode: worst, ok: worst === 0 };
+  }
+
+  /**
+   * Allowable bending moment and shear for a truss, estimated from its manufacturer tables (lb-ft, lb; before derate).
+   * Every table entry is a load the maker says the truss carries on that span, so it demonstrates a moment and a shear:
+   *   centre point load P on span L: M = P L / 4, V = P / 2;   uniform load W (total) on span L: M = W L / 8, V = W / 2.
+   * Moment: the largest demonstrated moment from each table, and the smaller of the two (a point load also bends the
+   * chords locally, so the point-load table can be the lower one). Shear: the largest shear any entry demonstrates -
+   * a lower bound on the real capacity, so it can only err on the safe side. Estimates - not published values.
+   */
+  function memberCapacity(truss) {
+    var mc = 0, mu = 0, v = 0, n = Math.min(Number(truss.max_span_ft) || 100, 100);
+    for (var i = 0; i < n; i++) {
+      var L = i + 1, p = Number((truss.cpl_lb || [])[i]) || 0, u = Number((truss.udl_lb || [])[i]) || 0;
+      mc = Math.max(mc, p * L / 4); mu = Math.max(mu, u * L / 8); v = Math.max(v, p / 2, u / 2);
+    }
+    var m = mc && mu ? Math.min(mc, mu) : mc || mu;
+    return { moment: m, shear: v, momentFromPoint: mc, momentFromUniform: mu };
+  }
+
+  /** Bending moment and shear along the truss (continuous-beam statics) against the table-derived capacity. Like the
+   * table checks, the truss's own weight is left out (the tables already allow for it) unless opts.cantileverSelfWeight.
+   * opts.memberDiagrams { full, net } supplies the diagrams instead (from the stiffness solve, 1.3.0). */
+  function checkMember(truss, beam, k, opts) {
+    var cap = memberCapacity(truss), given = opts.memberDiagrams, full = given ? given.full : TLA.beam.diagram(beam), net = given ? given.net : full;
+    if (!given && !opts.cantileverSelfWeight && beam.wSelf > 0 && beam.positions.length) {
+      var nb = TLA.beam.solve({
+        length: beam.length, supports: beam.positions, trussWeightPerFt: 0, wallWeight: beam.wDist * beam.length,
+        loads: beam.loads.map(function (l) { return { distance: l.distance, weight: l.weight }; })
+      });
+      net = TLA.beam.diagram(nb);
+    }
+    var mA = cap.moment * k, vA = cap.shear * k;
+    var uM = mA > 0 ? net.maxMoment / mA : (net.maxMoment > 1e-6 ? Infinity : 0);
+    var uV = vA > 0 ? net.maxShear / vA : (net.maxShear > 1e-6 ? Infinity : 0);
+    var mOver = uM > 1 + 1e-9, vOver = uV > 1 + 1e-9, code = mOver || vOver ? 2 : 0;
+    return {
+      diagram: full, checked: net, momentAllowed: mA, shearAllowed: vA, capacity: cap,
+      moment: net.maxMoment, shear: net.maxShear, momentUtil: uM, shearUtil: uV, utilization: Math.max(uM, uV),
+      momentOver: mOver, shearOver: vOver, code: code,
+      status: mOver && vOver ? "Moment and shear over" : mOver ? "Moment over" : vOver ? "Shear over" : "Good"
+    };
+  }
+
+  /** Warning text for a failed moment/shear check. */
+  function memberMessage(mb) {
+    return mb.status + " - " + [mb.momentOver ? "bending moment " + Math.round(mb.moment) + " lb-ft is " + Math.round(mb.momentUtil * 100) + "% of about " + Math.round(mb.momentAllowed) + " lb-ft allowed" : "",
+      mb.shearOver ? "shear " + Math.round(mb.shear) + " lb is " + Math.round(mb.shearUtil * 100) + "% of about " + Math.round(mb.shearAllowed) + " lb allowed" : ""].filter(Boolean).join("; ") +
+      " (allowable estimated from the manufacturer's tables)";
   }
 
   /** Hoist + chain weight added after beam analysis; status uses STATIC load (as the original). */
@@ -91,5 +141,5 @@
     };
   }
 
-  TLA.limits = { checkTruss: checkTruss, checkHoist: checkHoist, table: table, derate: derate, STATUS: STATUS };
+  TLA.limits = { checkTruss: checkTruss, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS };
 })(typeof globalThis !== "undefined" ? globalThis : window);
