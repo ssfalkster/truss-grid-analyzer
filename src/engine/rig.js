@@ -210,19 +210,16 @@
       results[t.id] = { truss: t.id, name: t.name, layer: layer[t.id], beam: beam, limits: limits, supports: srs, injected: injected, dbTruss: truss, block: blk };
       if (!t.isBlock) beam.warnings.forEach(function (m) { warnings.push({ truss: t.id, message: t.name + ": " + m }); });
       limits.segments.forEach(function (s) {
-        if (s.code) warnings.push({ truss: t.id, message: t.name + ": " + describeSeg(s) + " - " + s.status });
+        if (s.code) warnings.push({ truss: t.id, kind: "segment", message: t.name + ": " + describeSeg(s) + " - " + s.status });
       });
       var mb = limits.member;
-      if (mb && mb.code) warnings.push({ truss: t.id, level: "member", message: t.name + ": " + mb.status + " - " +
-        [mb.momentOver ? "bending moment " + Math.round(mb.moment) + " lb-ft is " + Math.round(mb.momentUtil * 100) + "% of about " + Math.round(mb.momentAllowed) + " lb-ft allowed" : "",
-         mb.shearOver ? "shear " + Math.round(mb.shear) + " lb is " + Math.round(mb.shearUtil * 100) + "% of about " + Math.round(mb.shearAllowed) + " lb allowed" : ""].filter(Boolean).join("; ") +
-        " (allowable estimated from the manufacturer's tables)" });
+      if (mb && mb.code) warnings.push({ truss: t.id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) });
     });
 
     hoists.forEach(function (h) {
-      if (h.slack) warnings.push({ truss: h.truss, level: "slack", message: h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft: SLACK - the load would push this hoist up, so its chain goes slack and it carries nothing (only the hoist and chain weight). The other supports carry the load; the results shown are with this hoist taken out." });
-      else if (h.hoist.status !== "Good" && h.hoist.status !== "UNSTABLE") warnings.push({ truss: h.truss, message: h.trussName + " " + (h.supportName || "hoist") + ": " + h.hoist.status + " (" + Math.round(h.hoist.staticLoad) + " lb static)" });
-      else if (h.hoist.dynamicOver) warnings.push({ truss: h.truss, message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity" });
+      if (h.slack) warnings.push({ truss: h.truss, kind: "hoist", level: "slack", message: h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft: SLACK - the load would push this hoist up, so its chain goes slack and it carries nothing (only the hoist and chain weight). The other supports carry the load; the results shown are with this hoist taken out." });
+      else if (h.hoist.status !== "Good" && h.hoist.status !== "UNSTABLE") warnings.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": " + h.hoist.status + " (" + Math.round(h.hoist.staticLoad) + " lb static)" });
+      else if (h.hoist.dynamicOver) warnings.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity" });
     });
 
     var totals = hoists.reduce(function (a, h) {

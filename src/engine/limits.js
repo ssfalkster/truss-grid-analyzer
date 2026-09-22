@@ -93,10 +93,11 @@
   }
 
   /** Bending moment and shear along the truss (continuous-beam statics) against the table-derived capacity. Like the
-   * table checks, the truss's own weight is left out (the tables already allow for it) unless opts.cantileverSelfWeight. */
+   * table checks, the truss's own weight is left out (the tables already allow for it) unless opts.cantileverSelfWeight.
+   * opts.memberDiagrams { full, net } supplies the diagrams instead (from the stiffness solve, 1.3.0). */
   function checkMember(truss, beam, k, opts) {
-    var cap = memberCapacity(truss), full = TLA.beam.diagram(beam), net = full;
-    if (!opts.cantileverSelfWeight && beam.wSelf > 0 && beam.positions.length) {
+    var cap = memberCapacity(truss), given = opts.memberDiagrams, full = given ? given.full : TLA.beam.diagram(beam), net = given ? given.net : full;
+    if (!given && !opts.cantileverSelfWeight && beam.wSelf > 0 && beam.positions.length) {
       var nb = TLA.beam.solve({
         length: beam.length, supports: beam.positions, trussWeightPerFt: 0, wallWeight: beam.wDist * beam.length,
         loads: beam.loads.map(function (l) { return { distance: l.distance, weight: l.weight }; })
@@ -113,6 +114,13 @@
       momentOver: mOver, shearOver: vOver, code: code,
       status: mOver && vOver ? "Moment and shear over" : mOver ? "Moment over" : vOver ? "Shear over" : "Good"
     };
+  }
+
+  /** Warning text for a failed moment/shear check. */
+  function memberMessage(mb) {
+    return mb.status + " - " + [mb.momentOver ? "bending moment " + Math.round(mb.moment) + " lb-ft is " + Math.round(mb.momentUtil * 100) + "% of about " + Math.round(mb.momentAllowed) + " lb-ft allowed" : "",
+      mb.shearOver ? "shear " + Math.round(mb.shear) + " lb is " + Math.round(mb.shearUtil * 100) + "% of about " + Math.round(mb.shearAllowed) + " lb allowed" : ""].filter(Boolean).join("; ") +
+      " (allowable estimated from the manufacturer's tables)";
   }
 
   /** Hoist + chain weight added after beam analysis; status uses STATIC load (as the original). */
@@ -133,5 +141,5 @@
     };
   }
 
-  TLA.limits = { checkTruss: checkTruss, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, table: table, derate: derate, STATUS: STATUS };
+  TLA.limits = { checkTruss: checkTruss, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS };
 })(typeof globalThis !== "undefined" ? globalThis : window);

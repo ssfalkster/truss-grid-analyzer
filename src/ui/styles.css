@@ -181,6 +181,7 @@ button.cb-ins:hover { color: var(--ink); border-color: var(--accent); }
 .rules { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin: 4px 0 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; }
 
 .tbl td.hi { color: var(--warn); font-weight: 700; }
+.tbl td.mut { color: var(--muted, #777); }
 
 details.grp { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; background: color-mix(in srgb, var(--panel) 92%, var(--ink) 3%); }
 details.grp > summary { cursor: pointer; padding: 6px 10px; display: flex; align-items: center; gap: 8px; font-weight: 600; list-style: none; user-select: none; }
