@@ -4,7 +4,7 @@
   function $(id) { return document.getElementById(id); }
 
   var DOCS = [
-    "<h2>Truss Grid Analyzer</h2>",
+    "<h2>Truss Grid Analyzer " + TLA.VERSION + "</h2>",
     "<p>A rebuild of <b>Truss Load Analyzer - EOT</b>, created by <b>Delbert L. Hall and Jon Sogoian</b> (open-source freeware, based on their original program by Delbert Hall). The truss, chain hoist and fixture data come from their workbook. This version adds a truss-grid model where trusses are bolted to each other and hung from hoists.</p>",
     "<h3>Disclaimer</h3><p>This tool is intended for use by entertainment rigging professionals to assist them in making rigging decisions. Every attempt has been made to be accurate. However, the authors of the original program and of this rebuild are not responsible for errors in the program or the results of its use. <b>Users are responsible for verifying the results before using them to make rigging decisions.</b></p>",
     "<h3>Method and assumptions</h3><ul>",
@@ -19,6 +19,7 @@
     "<li><b>Corner blocks</b>: trusses are bolted together at corner blocks, which are special short trusses with their own weight. The block type comes from the Christie Lites and James Thomas Engineering catalogues (weights as published on their product pages; blocks that use end/face plates add weight per truss bolted on, and bolt-on blocks default to the middle published bolt count). The truss it is bolted through carries the block, and every truss bolted to it passes its end reaction into the block. Faces used are counted (a truss ending at the block uses 1, one running through it uses 2) and compared with the block's ways. Where a maker publishes no weight, enter your own on the block. Truss lengths are measured center to center of the blocks in the plan.</li>",
     "<li>Truss self weight is spread uniformly over the whole length, including cantilevers. Hoist and chain weight are added after the analysis.</li>",
     "<li>Mirror loads: a load can be mirrored about the truss centerline; the twin follows edits to the original.</li></ul>",
+    "<h3>Version history</h3><ul>" + TLA.CHANGES.map(function (c) { return "<li><b>" + c[0] + "</b> (" + c[1] + "): " + c[2] + "</li>"; }).join("") + "</ul>",
     "<h3>License terms of the original</h3><p>Free to distribute. Anyone distributing a modified version must give credit to Delbert L. Hall and Jon Sogoian as the originators, update the history to show what was changed, and not charge for new versions. The person modifying the program is responsible for the results of those modifications.</p>",
     "<h3>History</h3><ul><li>Original Truss Load Analyzer - EOT v1.0 - 2.1 (2020-2021), Hall &amp; Sogoian.</li><li>Truss Grid Analyzer (this rebuild): offline web version with truss-grid load paths, plan view, mirrored loads.</li></ul>",
     "<p><button id=\"docs-close\">Close</button></p>"
@@ -115,6 +116,7 @@
       r.readAsText(f); e.target.value = "";
     };
     $("b-docs").onclick = function () { var d = $("docs"); d.innerHTML = DOCS; d.showModal(); $("docs-close").onclick = function () { d.close(); }; };
+    $("appver").textContent = "v" + TLA.VERSION;
     $("rigname").ondblclick = function () { var n = prompt("Rig name", S.rig.name); if (n) { S.rig.name = n; S.commit(); } };
 
     document.addEventListener("keydown", function (e) {

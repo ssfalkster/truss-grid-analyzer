@@ -840,7 +840,7 @@
     }
   };
 
-  S.exportJSON = function () { return JSON.stringify({ format: "truss-grid-analyzer", version: 1, rig: S.rig, userDb: S.userDb }, null, 2); };
+  S.exportJSON = function () { return JSON.stringify({ format: "truss-grid-analyzer", version: 1, appVersion: TLA.VERSION, rig: S.rig, userDb: S.userDb }, null, 2); };
   S.importJSON = function (text) {
     var o = JSON.parse(text);
     var rig = o.rig || o;

@@ -27,7 +27,7 @@ select, input[type=text], input[type=number] { background: var(--panel); border:
 input.num { width: 72px; text-align: right; }
 input.w50 { width: 52px; } input.w60 { width: 62px; }
 .top { display: flex; align-items: center; gap: 16px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.brand b { font-size: 15px; } .brand span { color: var(--muted); margin-left: 10px; }
+.brand b { font-size: 15px; } .brand small { color: var(--muted); margin-left: 6px; font-size: 11px; } .brand span { color: var(--muted); margin-left: 10px; }
 .tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
 .tool-sel, .tool-check { display: flex; align-items: center; gap: 4px; color: var(--muted); }
