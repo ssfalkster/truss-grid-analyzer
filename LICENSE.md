@@ -75,4 +75,4 @@ a qualified rigger or engineer.
 - **Delbert L. Hall and Jon Sogoian**, for *Truss Load Analyzer - EOT*, and the original team credited in the
   workbook: Don Earl, Roman Pastierik, Joe Golden, Kai Vidar Bech, Coen Kortendijk, Alex Tomanovich, Michael Wells
   and Will Todd.
-- **Issy Stadler, Drop Bear Productions**, for testing help.
+- **Issy Stadler**, for testing help.
