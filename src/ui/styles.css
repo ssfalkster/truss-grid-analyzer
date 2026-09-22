@@ -97,6 +97,10 @@ h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spac
 .elev .et { font-size: 10px; fill: var(--ink); } .elev .et.small { fill: var(--muted); font-size: 9px; } .elev .et.strong { font-weight: 700; font-size: 11px; } .elev .et.fail { fill: var(--fail); font-weight: 700; }
 .elev .el { fill: var(--ink); } .elev .el.ghost { opacity: .5; } .elev .el.inj { fill: var(--accent); }
 .elev .es.hoist { fill: var(--l3); } .elev .es.bear { fill: var(--ink); }
+.elev-wrap + .elev-wrap { margin-top: 6px; }
+.forces .axis { stroke: var(--muted); stroke-width: 1; } .forces .limit { stroke: var(--fail); stroke-width: 1; stroke-dasharray: 4 3; opacity: .7; }
+.forces .fd { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: var(--accent); stroke-width: 1.2; }
+.forces .fd.over { fill: color-mix(in srgb, var(--fail) 22%, transparent); stroke: var(--fail); }
 .tbl { width: 100%; border-collapse: collapse; }
 .tbl th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 600; padding: 2px 4px; border-bottom: 1px solid var(--line); }
 .tbl td { padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }

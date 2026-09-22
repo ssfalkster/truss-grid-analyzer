@@ -22,6 +22,8 @@
       u = Math.max(u, v);
       if (s.code) bad = true;
     });
+    var mb = res.limits.member;
+    if (mb) { u = Math.max(u, isFinite(mb.utilization) ? mb.utilization : 9); if (mb.code) bad = true; }
     res.supports.forEach(function (sr) {
       if (!sr.hoist) return;
       var cap = sr.hoist.capacity || 1;

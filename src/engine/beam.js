@@ -160,5 +160,46 @@
     };
   }
 
-  TLA.beam = { solve: solve, expandLoads: expandLoads, thomas: thomas };
+  /**
+   * Shear and bending moment along a solved beam (statics from its reactions, loads and uniform load).
+   * Sign convention: sagging moment positive (hogging over supports is negative); shear is the upward force on the
+   * part to the left of the cut. Returns points at every support, load and end (shear just left and just right of
+   * each), plus the peak of each uniformly loaded stretch; and the extremes.
+   */
+  function diagram(b) {
+    var L = b.length, w = b.w, P = b.positions, R = b.sortedReactions, loads = b.loads;
+    function V(x, right) {       // shear just left (right = false) or just right of x
+      var v = -w * Math.min(Math.max(x, 0), L);
+      P.forEach(function (p, i) { if (right ? p <= x + EPS : p < x - EPS) v += R[i]; });
+      loads.forEach(function (l) { if (right ? l.distance <= x + EPS : l.distance < x - EPS) v -= l.weight; });
+      return v;
+    }
+    function M(x) {
+      var m = -w * x * x / 2;
+      P.forEach(function (p, i) { if (p < x) m += R[i] * (x - p); });
+      loads.forEach(function (l) { if (l.distance < x) m -= l.weight * (x - l.distance); });
+      return m;
+    }
+    var xs = [0, L].concat(P).concat(loads.map(function (l) { return l.distance; }))
+      .filter(function (x) { return x >= -EPS && x <= L + EPS; }).sort(function (a, c) { return a - c; });
+    var pts = [];
+    xs.forEach(function (x) { if (!pts.length || x - pts[pts.length - 1].x > 1e-7) pts.push({ x: x }); });
+    pts.forEach(function (p) { p.vl = p.x <= EPS ? 0 : V(p.x, false); p.vr = p.x >= L - EPS ? 0 : V(p.x, true); p.m = M(p.x); });
+    // peaks inside uniformly loaded stretches, where the shear passes through zero
+    if (w > 0) for (var i = pts.length - 2; i >= 0; i--) {
+      var a = pts[i], c = pts[i + 1];
+      if (a.vr > 0 && c.vl < 0) { var xp = a.x + a.vr / w; pts.splice(i + 1, 0, { x: xp, vl: 0, vr: 0, m: M(xp), peak: true }); }
+    }
+    var out = { points: pts, w: w, length: L, maxSag: 0, maxHog: 0, maxShear: 0, atSag: 0, atHog: 0, atShear: 0 };
+    pts.forEach(function (p) {
+      if (p.m > out.maxSag) { out.maxSag = p.m; out.atSag = p.x; }
+      if (-p.m > out.maxHog) { out.maxHog = -p.m; out.atHog = p.x; }
+      var v = Math.max(Math.abs(p.vl), Math.abs(p.vr));
+      if (v > out.maxShear) { out.maxShear = v; out.atShear = p.x; }
+    });
+    out.maxMoment = Math.max(out.maxSag, out.maxHog);
+    return out;
+  }
+
+  TLA.beam = { solve: solve, expandLoads: expandLoads, thomas: thomas, diagram: diagram };
 })(typeof globalThis !== "undefined" ? globalThis : window);

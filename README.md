@@ -36,6 +36,9 @@ share them. Saved files record the app version that made them.
 - **Limits.** Span and cantilever checks against the manufacturer's UDL and center point load tables, with the
   ANSI repetitive-use factor (0.85) unless the data already includes it. Maximum cantilever is a quarter of the
   maximum span.
+- **Shear and moment.** Shear and bending-moment diagrams for every truss, checked against an allowable moment
+  and shear estimated from the manufacturer's tables. This catches bending over the supports of a continuous
+  truss and heavy loads right next to a support, which a span-by-span table check misses.
 - **Hoists.** Static load including hoist body and chain weight, and dynamic load (speed in fpm / 64 + 1,
   so 16 fpm = 1.25, or your own factor) against rated capacity. A hoist the load would push up is shown as
   slack and the rig is solved without it; a truss left with nothing to stop it tipping is flagged unstable.
@@ -57,6 +60,8 @@ share them. Saved files record the app version that made them.
   modelled.
 - Truss bending and torsional stiffness in the stiffness check are estimated from each truss's published size and
   connector type. Scale a truss's estimate with its **Stiffness (x)** field if you have better data.
+- The allowable moment and shear are estimated from the load tables, not published values. Where the
+  manufacturer publishes them, compare against those.
 - Truss and hoist data come from the original workbook's tables. Always confirm against the manufacturer's
   current publications.
 

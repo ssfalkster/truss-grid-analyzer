@@ -212,6 +212,11 @@
       limits.segments.forEach(function (s) {
         if (s.code) warnings.push({ truss: t.id, message: t.name + ": " + describeSeg(s) + " - " + s.status });
       });
+      var mb = limits.member;
+      if (mb && mb.code) warnings.push({ truss: t.id, level: "member", message: t.name + ": " + mb.status + " - " +
+        [mb.momentOver ? "bending moment " + Math.round(mb.moment) + " lb-ft is " + Math.round(mb.momentUtil * 100) + "% of about " + Math.round(mb.momentAllowed) + " lb-ft allowed" : "",
+         mb.shearOver ? "shear " + Math.round(mb.shear) + " lb is " + Math.round(mb.shearUtil * 100) + "% of about " + Math.round(mb.shearAllowed) + " lb allowed" : ""].filter(Boolean).join("; ") +
+        " (allowable estimated from the manufacturer's tables)" });
     });
 
     hoists.forEach(function (h) {
