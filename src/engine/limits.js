@@ -12,9 +12,11 @@
     return Number(arr[i - 1]) || 0;
   }
 
-  /** derate: 0.85 unless the truss data already includes the repetitive-use factor. */
+  /** derate: 0.85 unless the truss data already includes the repetitive-use factor; a truss entry can carry its own
+   * (EOT 2.4: the generic "Universal" trusses use 0.75). A rig-wide override wins over both. */
   function derate(truss, override) {
     if (typeof override === "number") return override;
+    if (typeof truss.derate === "number") return truss.derate;
     return truss.repetitive_use ? 1 : 0.85;
   }
 
@@ -123,19 +125,23 @@
       " (allowable estimated from the manufacturer's tables)";
   }
 
-  /** Hoist + chain weight added after beam analysis; status uses STATIC load (as the original). */
-  function checkHoist(hoist, chainLengthFt, reaction, extraWeight, dlfOverride, defaultDlf) {
+  /** Hoist + chain weight added after beam analysis; status uses STATIC load (as the original). addPct (EOT 2.4 "Add
+   * Percentage"): an extra % on the load and truss weight at the point (unknown cable, a margin), before the hoist,
+   * chain and hardware weight - it does not change the truss checks, as in the original. */
+  function checkHoist(hoist, chainLengthFt, reaction, extraWeight, dlfOverride, defaultDlf, addPct) {
     var h = hoist || { weight_lb: 0, chain_weight_per_ft_lb: 0, speed_fpm: 0, capacity_lb: 999999 };
     var hoistChain = (Number(h.weight_lb) || 0) + (Number(h.chain_weight_per_ft_lb) || 0) * (Number(chainLengthFt) || 0);
-    var stat = reaction + hoistChain + (Number(extraWeight) || 0);
+    var added = Number(addPct) > 0 && reaction > 0 ? reaction * Number(addPct) / 100 : 0;
+    var stat = reaction + added + hoistChain + (Number(extraWeight) || 0);
     var speed = Number(h.speed_fpm) || 0, dflt = Number(defaultDlf) > 0 ? Number(defaultDlf) : 1.25;
-    // factor: typed override, else the hoist's speed (fpm / 64 + 1, so 16 fpm = 1.25), else the default (none = 1.0)
-    var dlf = Number(dlfOverride) > 0 ? Number(dlfOverride) : speed > 0 ? speed / 64 + 1 : (Number(h.capacity_lb) >= 999999 ? 1 : dflt);
+    // factor: typed override, else the hoist's speed (fpm / 60 + 1, so 16 fpm = 1.267 - EOT 2.4; was / 64), else the
+    // default (none = 1.0)
+    var dlf = Number(dlfOverride) > 0 ? Number(dlfOverride) : speed > 0 ? speed / 60 + 1 : (Number(h.capacity_lb) >= 999999 ? 1 : dflt);
     var dyn = stat * dlf;
     var cap = Number(h.capacity_lb) || 0;
     var status = stat < 0 ? "No Load" : stat > cap ? "Overloaded" : "Good";
     return {
-      reaction: reaction, hoistChain: hoistChain, staticLoad: stat, dynamicLoad: dyn,
+      reaction: reaction, added: added, hoistChain: hoistChain, staticLoad: stat, dynamicLoad: dyn,
       dynamicFactor: dlf, capacity: cap, status: status,
       dynamicOver: dyn > cap && stat <= cap
     };

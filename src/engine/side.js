@@ -22,7 +22,7 @@
     out.spanTooLong = span > truss.max_span_ft;
     var idx = orig ? Math.ceil(span / 5) : Math.ceil(span - 1e-9);
     var udl = idx >= 1 && idx <= 100 ? Number(truss.udl_lb[idx - 1]) || 0 : 0;
-    var k = orig ? 1 : (truss.repetitive_use ? 1 : 0.85);
+    var k = orig ? 1 : TLA.limits.derate(truss);
     var base = udl * k / 2;
     out.baseLoad = base; out.derate = k;
     var u = ratio > 14.9999 && ratio < 30.001 ? base * 0.2 : 0;

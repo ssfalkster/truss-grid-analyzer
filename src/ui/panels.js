@@ -240,7 +240,7 @@
       if (s.kind === "hoist") {
         var hd0 = db.hoists.filter(function (q) { return q.id === s.hoistId; })[0], auto = sr && sr.hoist ? sr.hoist.dynamicFactor : 1.25;
         detail.appendChild(h("span", { "class": "mini", text: "DLF" }));
-        detail.appendChild(numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: fmt(auto, 3), title: "Dynamic load factor. Blank = from the hoist speed (fpm / 64 + 1; 16 fpm = 1.25), or the default in the results bar if the speed is unknown. Now " + fmt(auto, 3) }));
+        detail.appendChild(numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: fmt(auto, 3), title: "Dynamic load factor. Blank = from the hoist speed (fpm / 60 + 1; 16 fpm = 1.267), or the default in the results bar if the speed is unknown. Now " + fmt(auto, 3) }));
       }
       detail.appendChild(h("span", { "class": "mini", text: "+lb" }));
       detail.appendChild(numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { cls: "w50", title: "Hardware weight at this connection" }));
@@ -559,7 +559,7 @@
       })),
       field("Model", select(sameMfr.map(function (x) { return { value: x.id, label: x.description }; }), t.trussId, function (v) { t.trussId = parseInt(v, 10); S.commit(); })));
     container.appendChild(typeBox);
-    if (truss) container.appendChild(h("div", { "class": "sub", text: fmt(truss.weight_per_ft_lb, 2) + " lb/ft, max span " + fmt(truss.max_span_ft, 1) + " ft, max cantilever " + fmt(truss.max_span_ft / 4, 1) + " ft, " + (truss.repetitive_use ? "repetitive-use data (no 0.85 derate)" : "0.85 repetitive-use derate applies") }));
+    if (truss) container.appendChild(h("div", { "class": "sub", text: fmt(truss.weight_per_ft_lb, 2) + " lb/ft, max span " + fmt(truss.max_span_ft, 1) + " ft, max cantilever " + fmt(truss.max_span_ft / 4, 1) + " ft, " + (typeof truss.derate === "number" ? truss.derate + " derate applies (generic truss data)" : truss.repetitive_use ? "repetitive-use data (no 0.85 derate)" : "0.85 repetitive-use derate applies") }));
 
     container.appendChild(h("div", { "class": "grid3" },
       field("Truss pieces (ft)", (t.layout && t.layout.manual) || Array.isArray(t.pieces) ? h("input", { type: "number", "class": "num", value: t.pieceLength, disabled: true, title: "Set by the pieces / segments below" }) : numInput(t.pieceLength != null ? t.pieceLength : t.length, function (v) { t.pieceLength = Math.max(0.5, v); S.commit(); }, { ft: true, title: "Total length of the truss sections in this line, before corner blocks" })),
@@ -703,10 +703,12 @@
         h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), "Count truss weight against cantilever and moment/shear limits (stricter than the textbook)"),
       h("label", { "class": "mini", title: "How length boxes are shown. You can type either way in any length box." }, "Show lengths as ",
         select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); })),
-      h("label", { "class": "mini", title: "Used when a hoist has no speed listed (a custom motor). Hoists with a speed use fpm / 64 + 1 (16 fpm = 1.25). You can also type a factor on any hoist." }, "Default dynamic factor ",
+      h("label", { "class": "mini", title: "Used when a hoist has no speed listed (a custom motor). Hoists with a speed use fpm / 60 + 1 (16 fpm = 1.267). You can also type a factor on any hoist." }, "Default dynamic factor ",
         numInput(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, function (v) { st.defaultDlf = v > 0 ? v : 1.25; S.commit(); }, { cls: "w50" })),
       h("label", { "class": "mini" }, "Repetitive-use factor ",
-        select([{ value: "auto", label: "per truss data (0.85 unless the table includes it)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); })),
+        select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); })),
+      h("label", { "class": "mini", title: "An extra percentage on the load and truss weight at every hoist (unknown cable weight, a safety margin), as in the original's 'Add Percentage'. It is added before the hoist, chain and hardware weight and shows in Total Static and Dynamic; the truss checks are not changed." }, "Add % to hoist loads ",
+        numInput(Number(st.addPercent) > 0 ? st.addPercent : "", function (v) { st.addPercent = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: "0" })),
       h("label", { "class": "mini", title: "How much a hoist and its chain stretch under load, in lb per inch (for example 1500 for a 1-ton chain hoist on a long drop - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less trim-sensitive." }, "Hoist stiffness (lb/in) ",
         numInput(Number(st.hoistStiffness) > 0 ? st.hoistStiffness : "", function (v) { st.hoistStiffness = v > 0 ? v : undefined; S.commit(); }, { cls: "w60", placeholder: "rigid" }))));
 
@@ -727,10 +729,10 @@
       tb.appendChild(h("tr", { "class": S.sel.support === x.support ? "sel" : "", onclick: function () { S.sel = { truss: x.truss, support: x.support }; S.emit(); } },
         h("td", { text: x.trussName }), h("td", { "class": "r", text: String(x.layer) }), h("td", { "class": "r", text: fmt(x.distance, 2) }),
         h("td", { text: hd ? hd.description.trim() + " " + hd.capacity_label : "-" }),
-        h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: fmt(x.hoist.staticLoad - x.hoist.reaction, 1) }),
+        h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: fmt(x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0), 1) }),
         h("td", { "class": "r mut", title: "Load-path method (each carrying truss treated as unyielding) - for reference", text: fmt((x.loadPath || x).hoist.staticLoad, 1) + ((x.loadPath || x).slack ? " slack" : "") }),
         modelCell(x, "hinged"), semiCell(x), modelCell(x, "rigid"),
-        h("td", { "class": "r" + (x.compat && x.compat.higher ? " hi" : ""), title: x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" + (x.compat.higher ? " - well above the load-path method" : "") : "Load-path method (stiffness solve not available)" }, h("b", { text: fmt(x.hoist.staticLoad, 1) })),
+        h("td", { "class": "r" + (x.compat && x.compat.higher ? " hi" : ""), title: (x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" + (x.compat.higher ? " - well above the load-path method" : "") : "Load-path method (stiffness solve not available)") + (x.hoist.added ? "; includes " + fmt(x.hoist.added, 1) + " lb added (" + S.rig.settings.addPercent + "%)" : "") }, h("b", { text: fmt(x.hoist.staticLoad, 1) })),
         trimCell(x),
         h("td", { "class": "r", text: fmt(x.hoist.dynamicFactor, 3) }),
         h("td", { "class": "r", text: fmt(x.hoist.dynamicLoad, 1) }),
@@ -756,11 +758,11 @@
     mount: function (store) { S = store; },
     parseLen: parseLen, fmtFtIn: fmtFtIn, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, summary: summary, hoistsCsv: function () {
-      var rows = [["Truss", "Layer", "At ft", "Loads & Truss lb", "Hoist & Chain lb", "Load path static lb (ref.)", "Hinged joints static lb", "Semi-rigid min lb", "Semi-rigid max lb", "Rigid joints static lb", "Total Static lb", "Governing", "Trim per 1/4 in lb", "Dynamic factor", "Total Dynamic lb", "Capacity lb", "Status"]];
+      var rows = [["Truss", "Layer", "At ft", "Loads & Truss lb", "Hoist & Chain lb", "Added % lb", "Load path static lb (ref.)", "Hinged joints static lb", "Semi-rigid min lb", "Semi-rigid max lb", "Rigid joints static lb", "Total Static lb", "Governing", "Trim per 1/4 in lb", "Dynamic factor", "Total Dynamic lb", "Capacity lb", "Status"]];
       function r1(v) { return Math.round(v * 10) / 10; }
       S.results.hoists.forEach(function (x) {
         var c = x.compat || {}, semi = c.semiMin !== null && c.semiMin !== undefined;
-        rows.push([x.trussName, x.layer, x.distance, r1(x.hoist.reaction), r1(x.hoist.staticLoad - x.hoist.reaction), r1((x.loadPath || x).hoist.staticLoad),
+        rows.push([x.trussName, x.layer, x.distance, r1(x.hoist.reaction), r1(x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0)), r1(x.hoist.added || 0), r1((x.loadPath || x).hoist.staticLoad),
           x.byModel ? r1(x.byModel.hinged.staticLoad) : "", semi ? r1(c.semiMin) : "", semi ? r1(c.semiMax) : "", x.byModel ? r1(x.byModel.rigid.staticLoad) : "", r1(x.hoist.staticLoad), x.model ? TLA.grillage.MODEL_LABEL[x.model] : "load path",
           x.trim ? r1(Math.abs(x.trim.self)) : "", Math.round(x.hoist.dynamicFactor * 1000) / 1000, r1(x.hoist.dynamicLoad), x.hoist.capacity, x.hoist.status]);
       });
