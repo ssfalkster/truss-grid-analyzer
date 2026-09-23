@@ -121,6 +121,17 @@
   };
 
   /** Delete one support (a motor or a connection) from a truss. */
+  /** Set the chain length of every motor (or only those on one truss) in one undo step. Returns how many changed. */
+  S.setChains = function (len, tid) {
+    var n = 0;
+    if (!(len >= 0)) return 0;
+    S.rig.trusses.forEach(function (t) {
+      if (tid && t.id !== tid) return;
+      t.supports.forEach(function (s) { if (s.kind === "hoist") { s.chainLength = round(len); n++; } });
+    });
+    if (n) S.commit();
+    return n;
+  };
   S.removeSupport = function (tid, sid) {
     var t = S.truss(tid); if (!t) return;
     t.supports = t.supports.filter(function (s) { return s.id !== sid; });
