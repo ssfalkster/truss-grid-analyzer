@@ -21,7 +21,7 @@
   function widthIn(t, entry) {
     if (t && Number(t.widthIn) > 0) return Number(t.widthIn);
     if (entry && Number(entry.widthIn) > 0) return Number(entry.widthIn);
-    var d = String((entry && entry.description) || ""), n = d.match(/(\d+(?:\.\d+)?)/);
+    var d = String((entry && entry.description) || ""), n = entry && entry.units === "metric" ? null : d.match(/(\d+(?:\.\d+)?)/);
     if (!n) return 12;
     if (/pipe/i.test(d)) return PIPE_OD[String(parseFloat(n[1]))] || parseFloat(n[1]) + 0.4;
     return parseFloat(n[1]);
@@ -32,7 +32,7 @@
     if (!entry && t) entry = (TLA.data && TLA.data.trusses || []).filter(function (x) { return x.id === t.trussId; })[0];
     var d = String((entry && entry.description) || ""), w = widthIn(t, entry);
     if (/pipe/i.test(d)) return { w: w, h: w, round: true };
-    var m = d.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i);
+    var m = entry && entry.units === "metric" ? null : d.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i);
     var h = m && !(t && Number(t.widthIn) > 0) ? parseFloat(m[2]) : w;
     return { w: w, h: h, round: false };
   }
