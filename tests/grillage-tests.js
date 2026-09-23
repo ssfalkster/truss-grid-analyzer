@@ -9,33 +9,61 @@
     return h;
   }
 
-  add("stiffness check: example box agrees with the NumPy grillage model (hinged and rigid joints)", function () {
+  /* 1.4.0: reference values from PyNite 3.2 (the 3D frame engine behind CalcForge 3D), by tools/pynite_check.py on
+   * this tool's own export of the same rig (Euler-Bernoulli, as PyNite has no shear deformation). They follow the
+   * section estimate (section.js): if that changes on purpose, re-export and re-run the script. */
+  var PYNITE = {
+    box: { hinged: { "West@3": 159.21, "West@16": 33.05, "North@10.5": 303.12, "South@23.5": 275.73, "East@3": 121.23, "East@16": 50.05, "Inner W@15": 303.17, "Inner E@15": 181.14 },
+      rigid: { "West@3": 157.65, "West@16": 36.87, "North@10.5": 304.64, "South@23.5": 276.78, "East@3": 119.91, "East@16": 53.06, "Inner W@15": 299.83, "Inner E@15": 178.28 } },
+    noCarrier: { hinged: { "West@3": 320.65, "East@3": 320.0, "Inner W@15": 553.42, "Inner E@15": 451.27 },
+      rigid: { "West@3": 314.18, "East@3": 313.48, "Inner W@15": 565.37, "Inner E@15": 465.31 } },
+    // noCarrier with Inner W = JTE 20.5x20.5 Plated, North = JTE 12 Triangle, West = Tomcat 12x12 Spigoted, East = 1.5" pipe
+    mixed: { hinged: { "West@3": 144.93, "West@16": 105.36, "West@29": 164.01, "East@3": 135.92, "East@29": 155.0, "Inner W@15": 1016.15, "Inner E@15": 661.08 },
+      rigid: { "West@3": 208.98, "West@16": 61.55, "West@29": 231.0, "East@3": 210.61, "East@29": 226.77, "Inner W@15": 975.35, "Inner E@15": 468.19 } }
+  };
+  function againstPyNite(which) {
+    var ex = TLA.grillage.exportModel(S.rig, S.results, S.db());
+    ["hinged", "rigid"].forEach(function (m) {
+      var exp = PYNITE[which][m];
+      Object.keys(exp).forEach(function (k) {
+        var h = hoistOf(k.split("@")[0], parseFloat(k.split("@")[1])), id = h.truss + ":" + h.support;
+        near(ex.results[m].reactions[id], exp[k], 0.01, which + " " + k + " " + m);     // PyNite values are to 2 decimals
+      });
+    });
+    return ex;
+  }
+
+  add("stiffness check: the example box agrees with PyNite (hinged and rigid joints), and balances", function () {
     S.newRig(); TLA.samples.box(S); S.commit();
     var r = S.results; eq(r.compat.ok, true, "check ran");
-    // NumPy results, GJ/EI = 0.15 (this truss type is bolted/plated), hoist weights excluded (reaction only)
-    var expect = { "West@3": [159.2, 157.1], "West@16": [33.0, 38.2], "North@10.5": [303.1, 305.2], "South@23.5": [275.7, 277.2], "Inner W@15": [303.2, 298.7], "Inner E@15": [181.1, 177.2], "East@29": [121.2, 119.4] };
-    Object.keys(expect).forEach(function (k) {
-      var nm = k.split("@")[0], d = parseFloat(k.split("@")[1]), h = hoistOf(nm, d), chain = h.hoist.hoistChain;
-      near(h.compat.hinged - chain, expect[k][0], 0.25, k + " hinged"); near(h.compat.rigid - chain, expect[k][1], 0.25, k + " rigid");
-    });
+    againstPyNite("box");
     var sumH = r.hoists.reduce(function (t, h) { return t + h.compat.hinged - h.hoist.hoistChain; }, 0);
     near(sumH, r.totals.applied, 1e-6, "equilibrium: hoist reactions = everything applied");
   });
 
-  add("stiffness check: a carrier with no hoist near the connection makes the load-path method under-estimate the inner hoists", function () {
+  add("stiffness check: a carrier with no hoist near the connection makes the load-path method under-estimate the inner hoists (agrees with PyNite)", function () {
     S.newRig(); TLA.samples.box(S);
     ["North", "South"].forEach(function (n) { var t = S.rig.trusses.filter(function (x) { return x.name === n; })[0]; t.supports = t.supports.filter(function (s) { return s.kind !== "hoist"; }); });
     S.commit();
-    var iw = hoistOf("Inner W", 15), ie = hoistOf("Inner E", 15), we = hoistOf("West", 3);
-    near(iw.loadPath.reaction, 301.0, 0.2, "load-path Inner W (NumPy input)"); near(ie.loadPath.reaction, 181.0, 0.2, "load-path Inner E");
-    // 1.1.0: in this rig the West/East hoists at 16 ft would have to PUSH (the NumPy reference let them), so their
-    // chains go slack and are taken out. Values below equal the same rig with those two hoists deleted by hand.
+    var iw = hoistOf("Inner W", 15), ie = hoistOf("Inner E", 15);
+    near(iw.loadPath.reaction, 301.0, 0.2, "load-path Inner W"); near(ie.loadPath.reaction, 181.0, 0.2, "load-path Inner E");
+    // 1.1.0: in this rig the West/East hoists at 16 ft would have to PUSH, so their chains go slack and are taken out
     eq(hoistOf("West", 16).slack, true, "West @16 slack"); eq(hoistOf("East", 16).slack, true, "East @16 slack");
-    near(iw.compat.hinged - iw.hoist.hoistChain, 553.4, 0.5, "Inner W hinged"); near(iw.compat.rigid - iw.hoist.hoistChain, 569.0, 0.5, "Inner W rigid");
-    near(ie.compat.hinged - ie.hoist.hoistChain, 451.3, 0.5, "Inner E hinged"); near(ie.compat.rigid - ie.hoist.hoistChain, 469.8, 0.5, "Inner E rigid");
-    near(we.compat.hinged - we.hoist.hoistChain, 320.6, 0.5, "West @3 hinged");
+    againstPyNite("noCarrier");
+    // with shear deformation (1.4.0) the 30 ft trusses move only a little from the Euler-Bernoulli answer
+    near(iw.compat.hinged - iw.hoist.hoistChain, 553.42, 0.02 * 553.42, "Inner W hinged, near PyNite's Euler-Bernoulli value");
+    near(iw.compat.rigid - iw.hoist.hoistChain, 565.37, 0.02 * 565.37, "Inner W rigid");
     eq(iw.compat.higher, true, "flagged"); eq(ie.compat.higher, true, "flagged");
     eq(S.results.warnings.some(function (w) { return /stiffness solve, well above the load-path/.test(w.message); }), true, "a warning is raised");
+  });
+
+  add("stiffness check: mixed truss types (box, triangle, spigoted, pipe) agree with PyNite", function () {
+    S.newRig(); TLA.samples.box(S);
+    ["North", "South"].forEach(function (n) { var t = S.rig.trusses.filter(function (x) { return x.name === n; })[0]; t.supports = t.supports.filter(function (s) { return s.kind !== "hoist"; }); });
+    var ids = { "Inner W": 49, "North": 46, "West": 75, "East": 113 };
+    S.rig.trusses.forEach(function (t) { if (ids[t.name]) t.trussId = ids[t.name]; });
+    S.commit();
+    againstPyNite("mixed");
   });
 
   add("stiffness check: a single truss on two hoists changes nothing", function () {
@@ -50,27 +78,6 @@
     var t = S.addTruss({ name: "Cont", x: 0, y: 0, angle: 0, length: 40, hoists: [0, 20, 40] });
     t.loads.push({ id: S.newId("l"), distance: 10, weight: 200 }); S.commit();
     S.results.hoists.forEach(function (h) { near(h.compat.hinged, h.hoist.staticLoad, 1e-3, "hoist @" + h.distance); });
-  });
-
-  add("stiffness estimate: connector type (plated vs spigoted vs pipe) from the catalog description", function () {
-    var ct = TLA.grillage.connectorType;
-    eq(ct('12"x12" A Type Bolted'), "plated", "Christie A - bolted");
-    eq(ct('16"x16" B Type Spigoted'), "spigot", "Christie B - spigoted");
-    eq(ct('SuperTruss 12 x 12'), "spigot", "JTE SuperTruss line is spigoted");
-    eq(ct('12x12 Stl Frk Utiil'), "spigot", "steel fork = spigoted");
-    eq(ct('1.5" Steel Schedule 40 Pipe'), "pipe", "pipe");
-    eq(ct('Galaxy 240'), "plated", "no connector wording falls back to the more flexible (plated) assumption");
-  });
-
-  add("stiffness estimate: a spigoted truss of the same size is stiffer in bending, both are stiffer in torsion than the flat 0.3x used before, pipe stiffest in torsion", function () {
-    var plated = { description: "12x12 Plated" }, spigot = { description: "12x12 Spigoted" }, pipe = { description: '1.5" Steel Schedule 40 Pipe' };
-    var ep = TLA.grillage.estimateStiffness(plated, {}), es = TLA.grillage.estimateStiffness(spigot, {}), pp = TLA.grillage.estimateStiffness(pipe, {});
-    near(es.EI / ep.EI, 1.5, 1e-9, "spigoted bending bonus");
-    near(ep.GJ / ep.EI, 0.15, 1e-9, "plated GJ/EI");
-    near(es.GJ / es.EI, 0.4, 1e-9, "spigoted GJ/EI");
-    near(pp.GJ / pp.EI, 0.75, 1e-9, "pipe GJ/EI");
-    var scaled = TLA.grillage.estimateStiffness(plated, { eiScale: 2 });
-    near(scaled.EI, ep.EI * 2, 1e-6, "eiScale scales EI"); near(scaled.GJ, ep.GJ * 2, 1e-6, "and GJ, by the same factor");
   });
 
   /* ---------- 1.1.0: tension-only hoists, instability, hardware weight, equilibrium ---------- */
@@ -164,17 +171,17 @@
   }
   function trussNamed(n) { return S.rig.trusses.filter(function (x) { return x.name === n; })[0]; }
 
-  add("primary: hoist loads, status and totals come from the stiffness solve (worse of hinged and rigid), load path kept for reference", function () {
+  add("primary: hoist loads, status and totals come from the stiffness solve (worst of every joint model), load path kept for reference", function () {
     noCarrierHoists();
     var r = S.results; eq(r.primary, "grillage", "primary");
-    var iw = hoistOf("Inner W", 15);
-    near(iw.hoist.staticLoad, Math.max(iw.compat.hinged, iw.compat.rigid), 1e-9, "governing = worse model");
-    eq(iw.model, iw.compat.rigid >= iw.compat.hinged ? "rigid" : "hinged", "model named");
-    near(iw.byModel.hinged.reaction, 553.4, 0.5, "hinged reaction"); near(iw.byModel.rigid.reaction, 569.0, 0.5, "rigid reaction");
+    eq(r.models.join(","), "hinged,semi1,semi4,semi16,rigid", "hinged, the semi-rigid sweep and rigid");
+    var iw = hoistOf("Inner W", 15), all = r.models.map(function (m) { return iw.byModel[m].staticLoad; });
+    near(iw.hoist.staticLoad, Math.max.apply(null, all), 1e-9, "governing = worst model");
+    eq(iw.byModel[iw.model].staticLoad, iw.hoist.staticLoad, "model named");
+    near(iw.compat.semiMax, Math.max(iw.byModel.semi1.staticLoad, iw.byModel.semi4.staticLoad, iw.byModel.semi16.staticLoad), 1e-9, "semi-rigid range");
     near(iw.loadPath.hoist.staticLoad - iw.loadPath.hoist.hoistChain, 301.0, 0.2, "load path kept");
     near(r.totals.staticLoad, r.hoists.reduce(function (t, h) { return t + h.hoist.staticLoad; }, 0), 1e-9, "totals from the governing loads");
-    near(r.totals.byModel.hinged - r.totals.hoistChain, r.totals.applied, 1e-6, "hinged totals balance");
-    near(r.totals.byModel.rigid - r.totals.hoistChain, r.totals.applied, 1e-6, "rigid totals balance");
+    r.models.forEach(function (m) { near(r.totals.byModel[m] - r.totals.hoistChain, r.totals.applied, 1e-6, m + " totals balance"); });
     // the same record is what the plan, 3D view and support list read
     var sr = r.trusses[iw.truss].supports.filter(function (x) { return x.support.id === iw.support; })[0];
     eq(sr.hoist, iw.hoist, "support record shares the governing check");
@@ -187,7 +194,7 @@
       var r = S.results; eq(r.primary, "grillage", which + " primary");
       S.rig.trusses.forEach(function (t) {
         var res = r.trusses[t.id]; if (t.isBlock || !res.byModel) return;
-        ["hinged", "rigid"].forEach(function (m) {
+        r.models.forEach(function (m) {
           var up = res.supports.reduce(function (a, sr) { return a + sr.byModel[m]; }, 0);
           near(up, res.byModel[m].beam.totalLoad, 1e-6, which + " " + t.name + " " + m);
         });
@@ -215,9 +222,13 @@
     S.newRig();
     var c = S.addTruss({ name: "C", x: 0, y: 0, angle: 0, length: 20, hoists: [0, 10, 20] });
     c.weightless = true; c.wallWeight = 20 * 50; S.commit();                  // 50 lb/ft over two 10 ft spans
-    var g = S.results.trusses[c.id].memberForces.rigid;
-    near(g.maxHog, 50 * 100 / 8, 1e-6, "hogging over the middle hoist wL^2/8"); near(g.atHog, 10, 1e-9, "at the middle");
-    near(g.maxSag, 9 / 128 * 50 * 100, 1e-6, "span peak 9/128 wL^2"); near(g.maxShear, 5 / 8 * 50 * 10, 1e-6, "5/8 wL");
+    var g = S.results.trusses[c.id].memberForces.rigid, bm = S.results.compat.model.beams[0];
+    // Timoshenko (1.4.0): with phi = 12 EI / (GA L^2) the middle hoist takes wL (5 + phi) / (4 + phi); phi = 0 gives the
+    // textbook wL^2/8, 9/128 wL^2 and 5/8 wL
+    var w = 50, L = 10, phi = 12 * bm.EI / (bm.GA * L * L), Rend = w * L * (3 + phi) / (2 * (4 + phi));
+    eq(phi > 0.1, true, "shear deformation is significant on 10 ft spans (phi " + phi + ")");
+    near(g.maxHog, w * L * L / (2 * (4 + phi)), 1e-6, "hogging over the middle hoist"); near(g.atHog, 10, 1e-9, "at the middle");
+    near(g.maxSag, Rend * Rend / (2 * w), 1e-6, "span peak"); near(g.maxShear, w * L - Rend, 1e-6, "shear at the middle hoist");
   });
 
   add("primary: a rigid corner block carries moment across the joint (the moment diagram jumps there), a hinged one doesn't", function () {
@@ -259,11 +270,18 @@
       eq(res.limits.member.diagram, res.memberForces[res.model], t.name + ": full diagram from the stiffness solve"); n++;
     });
     eq(n > 0, true, "checked some trusses");
+    // statically determinate: exactly the load path
     S.newRig();
-    var t = S.addTruss({ name: "L", x: 0, y: 0, angle: 45, length: 30, hoists: [0, 12, 30] });
-    t.loads.push({ id: S.newId("l"), distance: 5, weight: 300 }, { id: S.newId("l"), distance: 20, weight: 500 }); S.commit();
+    var t = S.addTruss({ name: "L", x: 0, y: 0, angle: 45, length: 30, hoists: [0, 24] });
+    t.loads.push({ id: S.newId("l"), distance: 5, weight: 300 }, { id: S.newId("l"), distance: 20, weight: 500 }, { id: S.newId("l"), distance: 28, weight: 100 }); S.commit();
     var res = S.results.trusses[t.id], a = res.limits.member, b = res.loadPath.limits.member;
-    near(a.moment, b.moment, 1e-3 * b.moment, "moment (self weight left out in both)"); near(a.shear, b.shear, 1e-3 * b.shear, "shear");
+    near(a.moment, b.moment, 1e-6 * b.moment, "moment (self weight left out in both)"); near(a.shear, b.shear, 1e-6 * b.shear, "shear");
     eq(a.checked === a.diagram, false, "a separate net-of-self-weight diagram");
+    // continuous: the load path has no shear deformation, so it is close but not equal
+    S.newRig();
+    t = S.addTruss({ name: "L", x: 0, y: 0, angle: 45, length: 30, hoists: [0, 12, 30] });
+    t.loads.push({ id: S.newId("l"), distance: 5, weight: 300 }, { id: S.newId("l"), distance: 20, weight: 500 }); S.commit();
+    res = S.results.trusses[t.id]; a = res.limits.member; b = res.loadPath.limits.member;
+    near(a.moment, b.moment, 0.05 * b.moment, "moment within 5% of the three-moment answer"); near(a.shear, b.shear, 0.05 * b.shear, "shear");
   });
 })(typeof globalThis !== "undefined" ? globalThis : window);
