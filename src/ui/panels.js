@@ -712,6 +712,85 @@
     return h("td", { "class": "r" + (hot ? " hi" : ""), title: "Run this hoist 1/4\" (6 mm) high and it picks up this much (1/4\" low: the same, off)" + (t.other ? "; the hoist it affects most, " + t.other.name + ", changes by " + U.f("w", t.other.lb, 0) : "") + " (" + TLA.grillage.MODEL_LABEL[t.model] + ")", text: "±" + U.n("w", Math.abs(t.self), 0) });
   }
 
+  /* ---------- chain lengths (1.13.0) ---------- */
+  var pendingChain = null;   // row whose chain box takes the focus after the table is redrawn (Tab / Enter moves on)
+  /** Chain length typed straight into the hoist table; Tab / Enter goes on to the next motor. */
+  function chainInput(s, idx) {
+    var dir = 0;
+    var inp = numInput(s.chainLength || 0, function (v) {
+      pendingChain = dir ? idx + dir : null;
+      v = Math.max(0, v);
+      if (Math.abs((s.chainLength || 0) - v) < 1e-9) { if (pendingChain != null) S.emit(); return; }
+      s.chainLength = v; S.commit();
+    }, { cls: "w60", ft: true, title: "Chain length of this motor (Tab or Enter goes to the next one)" });
+    inp.setAttribute("data-chain", idx);
+    inp.addEventListener("keydown", function (e) { dir = e.key === "Tab" ? (e.shiftKey ? -1 : 1) : e.key === "Enter" ? 1 : 0; });
+    inp.addEventListener("click", function (e) { e.stopPropagation(); });
+    return inp;
+  }
+  /** One chain length for every motor, or for the selected truss's motors. */
+  function chainBar() {
+    var t = S.sel.truss && S.truss(S.sel.truss);
+    var inp = h("input", { type: "text", "class": "num w60", placeholder: U.metric() ? "6" : "20", autocomplete: "off", title: U.metric() ? "Chain length: metres, or cm / mm" : "Chain length: decimal feet or feet-inches (20-6)" });
+    function go(tid) {
+      var v = parseShownLen(inp.value);
+      if (!(v >= 0)) { alert(U.metric() ? "Type a chain length first (for example 6)." : "Type a chain length first (for example 20 or 20-6)."); inp.focus(); return; }
+      S.setChains(v, tid);
+    }
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") go(null); });
+    var nOn = t ? t.supports.filter(function (s) { return s.kind === "hoist"; }).length : 0;
+    return h("div", { "class": "row-btns chainbar" }, h("span", { "class": "mini", text: "Chain length (" + U.unit("len") + ")" }), inp,
+      h("button", { text: "Set all motors", title: "Give every motor in the rig this chain length (one Undo step)", onclick: function () { go(null); } }),
+      nOn ? h("button", { text: "Set on " + t.name + " (" + nOn + ")", title: "Give only the motors on the selected truss this chain length", onclick: function () { go(t.id); } }) : null);
+  }
+
+  /* ---------- per-truss checks (1.13.0) ---------- */
+  function pctCell(u, title) {
+    if (u == null) return h("td", { "class": "r mut", text: "-" });
+    var cls = !isFinite(u) || u > 1 + 1e-9 ? " over" : u >= 0.8 ? " near" : "";
+    return h("td", { "class": "r" + cls, title: title, text: isFinite(u) ? fmt(u * 100, 0) + "%" : "no table" });
+  }
+  /** One row per truss: the table checks and the moment / shear check from the solve that loads it hardest. */
+  function trussTable(container) {
+    var r = S.results, rows = S.rig.trusses.filter(function (t) { return !t.isBlock; });
+    if (!rows.length) return;
+    var L = U.unit("len");
+    container.appendChild(h("h4", { "class": "sum-h", text: "Trusses" }));
+    var tbl = h("table", { "class": "tbl hoists trusses" });
+    tbl.appendChild(h("thead", null, h("tr", null, [["Truss"], ["Type"], ["Layer", "r"], ["Length (" + L + ")", "r"], ["Longest span / max (" + L + ")", "r"], ["Span load", "r"], ["Cantilever", "r"], ["Moment", "r"], ["Shear", "r"], ["Max moment (" + U.unit("mom") + ")", "r"], ["Checked with"], ["Status"]].map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
+    var tb = h("tbody");
+    rows.forEach(function (t) {
+      var res = r.trusses[t.id], db = res && res.dbTruss;
+      var tr = h("tr", { "class": S.sel.truss === t.id && !S.sel.support ? "sel" : "", onclick: function () { S.sel = { truss: t.id, support: null }; S.emit(); } },
+        h("td", { text: t.name }), h("td", { text: db ? db.manufacturer + " " + String(db.description).trim() : "-" }));
+      if (!res) {
+        tr.appendChild(h("td", { "class": "r mut", text: "-" }));
+        tr.appendChild(h("td", { "class": "r", text: U.n("len", t.length, 2) }));
+        tr.appendChild(h("td", { colspan: 7, "class": "mut", text: "not solved - see the warnings" }));
+        tr.appendChild(h("td", null, badge("Not solved")));
+        tb.appendChild(tr); return;
+      }
+      var segs = res.limits.segments.filter(function (s) { return !s.skipped; });
+      var spans = segs.filter(function (s) { return s.type === "span"; }), cants = segs.filter(function (s) { return s.type !== "span"; });
+      function worst(list, f) { return list.length ? list.reduce(function (m, s) { return Math.max(m, f(s)); }, 0) : null; }
+      var longest = spans.reduce(function (m, s) { return !m || s.length > m.length ? s : m; }, null);
+      var mb = res.limits.member, code = res.limits.worstCode || 0;
+      tr.appendChild(h("td", { "class": "r", text: String(r.layers[t.id] || "-") }));
+      tr.appendChild(h("td", { "class": "r", text: U.n("len", t.length, 2) }));
+      tr.appendChild(h("td", { "class": "r" + (longest && longest.lengthFail ? " over" : ""), title: "Longest span between supports, and the longest span the table allows", text: longest ? U.n("len", longest.length, 2) + " / " + U.n("len", longest.maxLength, 1) : "-" }));
+      tr.appendChild(pctCell(worst(spans, function (s) { return s.utilization; }), "Worst span: its point loads as a share of the table capacity for that span (less any wall / UDL)"));
+      tr.appendChild(pctCell(worst(cants, function (s) { return Math.max(s.utilization, s.maxLength ? s.length / s.maxLength : 0); }), "Worst cantilever: its load against the table, or its length against a quarter of the maximum span, whichever is higher"));
+      tr.appendChild(pctCell(mb ? mb.momentUtil : null, "Largest bending moment against the allowable estimated from the tables"));
+      tr.appendChild(pctCell(mb ? mb.shearUtil : null, "Largest shear against the allowable estimated from the tables"));
+      tr.appendChild(h("td", { "class": "r", text: mb ? U.n("mom", mb.moment, 0) : "-" }));
+      tr.appendChild(h("td", { text: res.model ? TLA.grillage.MODEL_LABEL[res.model] : "load path" }));
+      var segCode = segs.reduce(function (m, s) { return Math.max(m, s.code || 0); }, 0);
+      tr.appendChild(h("td", null, badge(segCode ? ["Good", "TOO LONG!", "OVERLOADED", "FAILURE"][segCode] : mb && mb.code ? mb.status : code ? "FAILURE" : "Good")));
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb); container.appendChild(tbl);
+  }
+
   /* ---------- summary ---------- */
   function summary(container) {
     container.textContent = "";
@@ -752,14 +831,15 @@
     });
 
     var tbl = h("table", { "class": "tbl hoists" });
-    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["Layer", "r"], ["At (" + L + ")", "r"], ["Hoist"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["Total Static (" + W + ")", "r"], ["Trim 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["Total Dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["% cap", "r"], ["Status"], [""]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
+    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["Layer", "r"], ["At (" + L + ")", "r"], ["Hoist"], ["Chain (" + L + ")", "r"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["Total Static (" + W + ")", "r"], ["Trim 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["Total Dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["% cap", "r"], ["Status"], [""]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
     var tb = h("tbody");
-    r.hoists.forEach(function (x) {
+    r.hoists.forEach(function (x, hi) {
       var hs = S.truss(x.truss).supports.filter(function (s) { return s.id === x.support; })[0];
       var hd = S.db().hoists.filter(function (q) { return q.id === (hs && hs.hoistId); })[0];
       tb.appendChild(h("tr", { "class": S.sel.support === x.support ? "sel" : "", onclick: function () { S.sel = { truss: x.truss, support: x.support }; S.emit(); } },
         h("td", { text: x.trussName }), h("td", { "class": "r", text: String(x.layer) }), h("td", { "class": "r", text: U.n("len", x.distance, 2) }),
         h("td", { text: hd ? hd.description.trim() + " " + hd.capacity_label + (U.metric() && hd.capacity_lb < 999999 ? " (" + U.f("w", hd.capacity_lb, 0) + ")" : "") : "-" }),
+        h("td", { "class": "r" }, hs ? chainInput(hs, hi) : "-"),
         h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: U.n("w", x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0), 1) }),
         h("td", { "class": "r mut", title: "Load-path method (each carrying truss treated as unyielding) - for reference", text: U.n("w", (x.loadPath || x).hoist.staticLoad, 1) + ((x.loadPath || x).slack ? " slack" : "") }),
         modelCell(x, "hinged"), semiCell(x), modelCell(x, "rigid"),
@@ -772,7 +852,14 @@
         h("td", null, badge(x.hoist.status)),
         h("td", null, h("button", { "class": "x", title: "Delete this motor", text: "x", onclick: function (e) { e.stopPropagation(); S.removeSupport(x.truss, x.support); } }))));
     });
-    tbl.appendChild(tb); container.appendChild(tbl);
+    tbl.appendChild(tb);
+    if (r.hoists.length) container.appendChild(chainBar());
+    container.appendChild(tbl);
+    if (pendingChain != null) {
+      var nextIn = container.querySelector('input[data-chain="' + pendingChain + '"]');
+      pendingChain = null;
+      if (nextIn) { nextIn.focus(); nextIn.select(); }
+    }
     if (!r.hoists.length) container.appendChild(h("p", { "class": "sub", text: "No hoists yet - add a hoist support to a truss." }));
     if (r.primary === "grillage") container.appendChild(h("div", { "class": "row-btns" }, h("button", { "class": "lnk", text: "Export stiffness model", title: "Save this rig's stiffness model (JSON) to cross-check it in PyNite, the engine behind CalcForge 3D: python tools/pynite_check.py <file>", onclick: function () {
       var ex = TLA.grillage.exportModel(S.rig, S.results, S.db()); if (!ex) { alert("The stiffness model can't be exported for this rig."); return; }
@@ -780,6 +867,7 @@
       a.href = URL.createObjectURL(new Blob([JSON.stringify(ex, null, 1)], { type: "application/json" }));
       a.download = (S.rig.name || "rig").replace(/[^\w\- ]+/g, "") + ".grillage.json"; a.click();
     } })));
+    trussTable(container);
     container.appendChild(h("p", { "class": "sub" }, r.primary === "grillage"
       ? "* Hoist loads come from a stiffness (grillage) solve of the whole rig, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). Total static, dynamic, % and status use the largest. Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set. Trim: the change in a hoist's load if it runs 1/4\" (6 mm) high or low - large on short, stiff spans. The load-path column is the per-truss method of the original workbook, for reference only."
       : "* Stiffness solve not available" + (r.compat && r.compat.note ? " (" + U.text(r.compat.note) + ")" : "") + ": loads are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid."));

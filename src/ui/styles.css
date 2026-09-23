@@ -199,6 +199,9 @@ button.lnk { border: 0; background: none; color: var(--accent); padding: 0; font
 
 .tbl th.r { text-align: right; }
 .tbl.hoists th, .tbl.hoists td { white-space: nowrap; }
+.tbl.trusses td.over { color: var(--fail); font-weight: 600; } .tbl.trusses td.near { color: var(--warn); font-weight: 600; }
+.sum-h { margin: 12px 0 4px; } .chainbar { margin: 8px 0 4px; }
+.tbl.hoists td input.num { padding: 1px 4px; margin: -2px 0; }
 .tbl.hoists { display: block; overflow-x: auto; }
 
 .tbl.loads td:last-child { white-space: nowrap; }

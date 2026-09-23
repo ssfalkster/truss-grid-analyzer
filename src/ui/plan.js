@@ -182,9 +182,17 @@
         });
       }
       if (S.ui.showLabels && (!t.isBlock || S.sel.truss === t.id)) {
-        var c = TLA.rig.geometry.endPoint(t, t.length / 2);
-        var lab = el("text", { x: X(c.x) + nx * (bodyW / 2 + (t.isBlock ? 12 : 8)), y: Y(c.y) - ny * (bodyW / 2 + (t.isBlock ? 12 : 8)) + 4, "class": "lbl name", "text-anchor": nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle" }, grp);
-        lab.textContent = t.isBlock ? t.name : t.name + " (" + TLA.units.mark(t.length, 1) + ")";
+        var c = TLA.rig.geometry.endPoint(t, t.length / 2), lab;
+        if (t.isBlock) {
+          lab = el("text", { x: X(c.x) + nx * (bodyW / 2 + 12), y: Y(c.y) - ny * (bodyW / 2 + 12) + 4, "class": "lbl name", "text-anchor": nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle" }, grp);
+          lab.textContent = t.name;
+        } else {
+          // 1.13.0: the name runs along the truss, on its left-hand side, turned so it never reads upside down
+          var a = (((t.angle || 0) % 360) + 360) % 360, flip = a > 90 + 1e-6 && a <= 270 + 1e-6, rd = flip ? a - 180 : a > 270 ? a - 360 : a;
+          var lo = bodyW / 2 + 4, lx = X(c.x) + nx * lo, ly = Y(c.y) - ny * lo;
+          lab = el("text", { x: lx, y: ly, "class": "lbl name", "text-anchor": "middle", "dominant-baseline": flip ? "hanging" : "auto", transform: "rotate(" + (-rd) + " " + lx + " " + ly + ")" }, grp);
+          lab.textContent = t.name + " (" + TLA.units.mark(t.length, 1) + ")";
+        }
       }
     });
 
