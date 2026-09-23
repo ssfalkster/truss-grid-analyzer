@@ -786,6 +786,7 @@
 
   TLA.panels = {
     mount: function (store) { S = store; },
+    elevation: elevation, forceDiagrams: forceDiagrams,
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, summary: summary, hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
