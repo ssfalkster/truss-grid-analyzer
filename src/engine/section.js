@@ -41,7 +41,9 @@
     var d = String((entry && entry.description) || "").replace(/(\d),(\d)/g, "$1.$2"), out = {};
     out.shape = spec.shape || (/pipe/i.test(d) ? "pipe" : /\btri|tri\b|triangle/i.test(d) ? "triangle" : "box");
     out.material = spec.material || (/\bstl\b|steel/i.test(d) ? "steel" : "aluminum");
-    var m = d.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i), n = d.match(/(\d+(?:\.\d+)?)/);
+    // metric catalog names (M290, F34, H30V) are model numbers, not inches: size unknown unless given (1.6.0)
+    var sz = entry && entry.units === "metric" ? "" : d;
+    var m = sz.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i), n = sz.match(/(\d+(?:\.\d+)?)/);
     if (m) { out.widthIn = parseFloat(m[1]); out.depthIn = parseFloat(m[2]); }
     else if (n && parseFloat(n[1]) >= 6 && parseFloat(n[1]) <= 72) out.widthIn = out.depthIn = parseFloat(n[1]);
     else if (n && out.shape === "pipe") out.nominal = parseFloat(n[1]);

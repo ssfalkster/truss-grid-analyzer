@@ -165,6 +165,45 @@
     near(sp.capacity, u.cpl_lb[19] * 0.75, 1e-9, "CPL allowed = 20 ft value x 0.75");
   });
 
+  add("truss database (1.6.0): every entry says where its numbers come from and in which units; ids are unique", function () {
+    var ids = {};
+    TLA.data.trusses.forEach(function (x) {
+      eq(ids[x.id], undefined, "duplicate id " + x.id); ids[x.id] = true;
+      eq(x.source === "TLA" || x.source === "MFG", true, x.description + " source"); eq(!!x.source_ref, true, x.description + " reference");
+      eq(x.units === "imperial" || x.units === "metric", true, x.description + " units");
+      if (x.units === "metric") eq(x.udl_kg.length > 0 && x.cpl_kg.length === x.udl_kg.length && x.max_span_m > 0 && x.weight_per_m_kg > 0, true, x.description + " metric table");
+      else eq(x.udl_lb.length === 100 && x.cpl_lb.length === 100, true, x.description + " imperial table");
+      near(x.weight_per_ft_lb > 0 ? 1 : 0, 1, 0, x.description + " weight");
+    });
+    eq(TLA.data.trusses.filter(function (x) { return x.source === "MFG" && x.manufacturer === "Tomcat"; }).length, 7, "Tomcat MFG entries");
+  });
+
+  add("metric trusses (1.6.0): looked up in their own table in whole metres, kg to lb; model numbers are not inches", function () {
+    function by(m, d) { return TLA.data.trusses.filter(function (x) { return x.manufacturer === m && x.description === d; })[0]; }
+    var t = by("Prolyte", "H30V Square Truss"), KG = 2.20462262185;
+    near(TLA.limits.tableAt(t, "udl", 6.5), t.udl_kg[1] * KG, 1e-9, "6.5 ft = 1.98 m -> the 2 m row");
+    near(TLA.limits.tableAt(t, "cpl", 6.57), t.cpl_kg[2] * KG, 1e-9, "6.57 ft = 2.002 m -> the 3 m row");
+    near(TLA.limits.tableAt(t, "udl", 20 / 0.3048 + 0.01), 0, 1e-12, "past the table: nothing allowed");
+    near(t.max_span_ft, 20 / 0.3048, 1e-3, "max span 20 m"); near(t.weight_per_ft_lb, 7 * KG * 0.3048, 1e-3, "7 kg/m");
+    eq(TLA.limits.derate(t), 0.85, "repetitive-use derate applies");
+    var beam = TLA.beam.solve({ length: 20, supports: [0, 20], loads: [] }), c = TLA.limits.checkTruss(t, beam, 0, {});
+    near(c.segments.filter(function (s) { return s.type === "span"; })[0].udlMax, t.udl_kg[6] * KG * 0.85, 1e-9, "20 ft = 6.1 m -> 7 m row");
+    var m = by("Milos", "M290 Trio");
+    near(TLA.rig.widthIn(null, m), 12, 0, "M290 is not 290 in wide"); eq(TLA.section.estimate(m).notes.some(function (n) { return /size not in the description/.test(n); }), true, "size flagged as assumed");
+    eq(TLA.limits.memberCapacity(t).moment > 0, true, "moment capacity from the metric table");
+  });
+
+  add("Tomcat manufacturer data (1.6.0): a span between table rows uses the next longer row; Guardian+ is already repetitive-use data", function () {
+    function by(d) { return TLA.data.trusses.filter(function (x) { return x.manufacturer === "Tomcat" && x.description === d; })[0]; }
+    var p = by("Light Duty 12x12 Plated"), g = by("Light Duty 12x12 Guardian+");
+    near(TLA.limits.tableAt(p, "udl", 12), 3435, 0, "12 ft -> the 15 ft row"); near(TLA.limits.tableAt(p, "cpl", 10), 2613, 0, "10 ft row");
+    near(TLA.limits.tableAt(p, "udl", 51), 0, 0, "past 50 ft"); eq(p.max_span_ft, 50, "max span = last row");
+    eq(TLA.limits.derate(p), 0.85, "plated: 0.85"); eq(TLA.limits.derate(g), 1, "Guardian+: sheet already reduced");
+    eq(p.section.chordOD, 2, "chord size from the sheet");
+    function s36(d) { return TLA.data.trusses.filter(function (x) { return x.manufacturer === "Prolyte" && x.description === d; })[0]; }
+    eq(s36("S36 PRT w/ Wheels").weight_per_ft_lb > s36("S36 PRT w/o Wheels").weight_per_ft_lb, true, "S36 PRT: wheels weigh something (EOT 2.4 swap corrected)");
+  });
+
   add("loads: duplicate, and copy to another truss keeps the distance from the CENTRE", function () {
     var S = TLA.store; S.newRig();
     var a = S.addTruss({ name: "A", x: 0, y: 0, angle: 0, length: 30, hoists: [3, 27] }), b = S.addTruss({ name: "B", x: 0, y: 10, angle: 0, length: 20, hoists: [2, 18] });

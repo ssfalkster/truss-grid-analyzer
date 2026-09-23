@@ -12,7 +12,7 @@
     db.forEach(function (x) { if (mfrs.indexOf(x.manufacturer) < 0) mfrs.push(x.manufacturer); });
     return h("div", { "class": "formrow" },
       P.field("Manufacturer", P.select(mfrs.map(function (m) { return { value: m, label: m }; }), cur.manufacturer, function (v) { set(db.filter(function (x) { return x.manufacturer === v; })[0].id); render(); })),
-      P.field("Model", P.select(db.filter(function (x) { return x.manufacturer === cur.manufacturer; }).map(function (x) { return { value: x.id, label: x.description }; }), cur.id, function (v) { set(parseInt(v, 10)); render(); })));
+      P.field("Model", P.select(db.filter(function (x) { return x.manufacturer === cur.manufacturer; }).map(function (x) { return { value: x.id, label: P.trussLabel(x) }; }), cur.id, function (v) { set(parseInt(v, 10)); render(); })));
   }
 
   var current = null, holder = null;
@@ -120,7 +120,7 @@
           var o = []; for (var i = 1; i <= 100; i++) o.push(i <= Math.ceil(ms) ? (parseFloat(flat.value) || 0) : 0); return o;
         }
         var id = 1000 + u.trusses.length + 1;
-        u.trusses.push({ id: id, manufacturer: f.Manufacturer.value || "Custom", description: f.Model.value, weight_per_ft_lb: parseFloat(f["lb/ft"].value) || 0, max_span_ft: ms, repetitive_use: rep.checked, udl_lb: arr(udlList, f["UDL (lb)"]), cpl_lb: arr(cplList, f["CPL (lb)"]) });
+        u.trusses.push({ id: id, manufacturer: f.Manufacturer.value || "Custom", description: f.Model.value, weight_per_ft_lb: parseFloat(f["lb/ft"].value) || 0, max_span_ft: ms, repetitive_use: rep.checked, source: "User", units: "imperial", udl_lb: arr(udlList, f["UDL (lb)"]), cpl_lb: arr(cplList, f["CPL (lb)"]) });
         S.commit({ noUndo: true }); render();
       } })));
     card.appendChild(listBlock(u.trusses, function (x) { return x.manufacturer + " " + x.description + " - " + fmt(x.weight_per_ft_lb, 2) + " lb/ft, max span " + x.max_span_ft + " ft"; }, function (i) { u.trusses.splice(i, 1); S.commit({ noUndo: true }); render(); }));
@@ -167,7 +167,15 @@
       } })));
     box.appendChild(cc);
 
-    box.appendChild(h("div", { "class": "card" }, h("h2", { text: "Built-in data" }), h("p", { "class": "sub", text: TLA.data.trusses.length + " trusses, " + TLA.data.hoists.length + " chain hoists, " + TLA.data.fixtures.length + " fixtures from the original workbook (read-only), plus " + TLA.data.corners.length + " corner blocks from the manufacturers. Your custom entries are stored in this browser and included in saved rig files." })));
+    function srcCount(src) { return TLA.data.trusses.filter(function (x) { return x.source === src; }).length; }
+    box.appendChild(h("div", { "class": "card" }, h("h2", { text: "Built-in data" }), h("p", { "class": "sub", text: TLA.data.trusses.length + " trusses (" + srcCount("TLA") + " from the Truss Load Analyzer workbooks, " + srcCount("MFG") + " straight from manufacturers' data; " + TLA.data.trusses.filter(function (x) { return x.units === "metric"; }).length + " with native metric tables), " + TLA.data.hoists.length + " chain hoists, " + TLA.data.fixtures.length + " fixtures from the original workbook (read-only), plus " + TLA.data.corners.length + " corner blocks from the manufacturers. Your custom entries are stored in this browser and included in saved rig files." })));
+    var rows = TLA.data.trusses.map(function (x) {
+      return h("tr", { title: P.trussSource(x) }, h("td", { text: x.manufacturer }), h("td", { text: String(x.description).trim() }), h("td", { text: x.units === "metric" ? "metric" : "imperial" }),
+        h("td", { "class": "r", text: fmt(x.weight_per_ft_lb, 2) }), h("td", { "class": "r", text: fmt(x.max_span_ft, 1) }), h("td", { text: x.repetitive_use ? "yes" : "no" + (typeof x.derate === "number" ? " (" + x.derate + ")" : "") }),
+        h("td", { text: x.source === "MFG" ? "MFG" : x.source || "" }), h("td", { "class": "mut", text: x.source_ref || "" }));
+    });
+    box.appendChild(h("details", { "class": "card" }, h("summary", { text: "Built-in trusses and where their numbers come from (" + rows.length + ")" }),
+      h("table", { "class": "tbl wide" }, h("thead", null, h("tr", null, ["Manufacturer", "Model", "Native units", "lb/ft", "Max span ft", "Repetitive-use data", "Source", "Reference"].map(function (c) { return h("th", { text: c }); }))), h("tbody", null, rows))));
   }
 
   function listBlock(items, label, remove) {

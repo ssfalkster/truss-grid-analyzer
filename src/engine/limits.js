@@ -12,6 +12,16 @@
     return Number(arr[i - 1]) || 0;
   }
 
+  var KG_LB = 2.20462262185, FT_M = 0.3048;
+
+  /** A truss's allowable total UDL or centre point load (kind "udl" | "cpl", lb) on a span of len ft. 1.6.0: a truss
+   * whose data is native metric (units "metric": udl_kg / cpl_kg per whole metre of span) is looked up in its own
+   * table - the span rounded up to the next whole metre, as the original does in metric - and converted to lb. */
+  function tableAt(truss, kind, len) {
+    if (truss.units === "metric" && truss[kind + "_kg"]) return table(truss[kind + "_kg"], len * FT_M) * KG_LB;
+    return table(truss[kind + "_lb"], len);
+  }
+
   /** derate: 0.85 unless the truss data already includes the repetitive-use factor; a truss entry can carry its own
    * (EOT 2.4: the generic "Universal" trusses use 0.75). A rig-wide override wins over both. */
   function derate(truss, override) {
@@ -40,7 +50,7 @@
       var L = seg.length;
       if (L <= 1e-9) { segs.push({ type: side, length: 0, code: 0, status: "Good", skipped: true }); return; }
       var lenFail = L > maxCant + 1e-6;
-      var cap = table(truss.cpl_lb, L * 4) * k;
+      var cap = tableAt(truss, "cpl", L * 4) * k;
       var load = seg.sumF + beam.wDist * L + (opts.cantileverSelfWeight ? beam.wSelf * L : 0);
       var loadFail = load > cap + 1e-9;
       var code = (lenFail ? 1 : 0) + (loadFail ? 2 : 0);
@@ -56,10 +66,10 @@
       var L = s.L;
       if (L <= 1e-9) { segs.push({ type: "span", index: i + 1, length: 0, code: 0, status: "Good", skipped: true }); return; }
       var lenFail = L > maxSpan + 1e-9;
-      var udlMax = table(truss.udl_lb, L) * k;
+      var udlMax = tableAt(truss, "udl", L) * k;
       var udlUsed = wallPerFt * L;
       var free = udlMax > 0 ? (udlMax - udlUsed) / udlMax : 0;
-      var cap = table(truss.cpl_lb, L) * k * free;
+      var cap = tableAt(truss, "cpl", L) * k * free;
       var loadFail = s.sumF > cap + 1e-9;
       var code = (lenFail ? 1 : 0) + (loadFail ? 2 : 0);
       segs.push({
@@ -85,9 +95,11 @@
    * a lower bound on the real capacity, so it can only err on the safe side. Estimates - not published values.
    */
   function memberCapacity(truss) {
-    var mc = 0, mu = 0, v = 0, n = Math.min(Number(truss.max_span_ft) || 100, 100);
+    var metric = truss.units === "metric" && truss.udl_kg, step = metric ? 1 / FT_M : 1, f = metric ? KG_LB : 1;
+    var P = (metric ? truss.cpl_kg : truss.cpl_lb) || [], U = (metric ? truss.udl_kg : truss.udl_lb) || [];
+    var mc = 0, mu = 0, v = 0, n = Math.min(metric ? Number(truss.max_span_m) || U.length : Number(truss.max_span_ft) || 100, 100);
     for (var i = 0; i < n; i++) {
-      var L = i + 1, p = Number((truss.cpl_lb || [])[i]) || 0, u = Number((truss.udl_lb || [])[i]) || 0;
+      var L = (i + 1) * step, p = (Number(P[i]) || 0) * f, u = (Number(U[i]) || 0) * f;
       mc = Math.max(mc, p * L / 4); mu = Math.max(mu, u * L / 8); v = Math.max(v, p / 2, u / 2);
     }
     var m = mc && mu ? Math.min(mc, mu) : mc || mu;
@@ -147,5 +159,5 @@
     };
   }
 
-  TLA.limits = { checkTruss: checkTruss, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS };
+  TLA.limits = { checkTruss: checkTruss, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS };
 })(typeof globalThis !== "undefined" ? globalThis : window);

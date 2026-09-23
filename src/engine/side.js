@@ -21,7 +21,7 @@
     out.maxSpan = truss.max_span_ft;
     out.spanTooLong = span > truss.max_span_ft;
     var idx = orig ? Math.ceil(span / 5) : Math.ceil(span - 1e-9);
-    var udl = idx >= 1 && idx <= 100 ? Number(truss.udl_lb[idx - 1]) || 0 : 0;
+    var udl = orig ? (idx >= 1 && idx <= 100 ? Number((truss.udl_lb || [])[idx - 1]) || 0 : 0) : TLA.limits.tableAt(truss, "udl", span);
     var k = orig ? 1 : TLA.limits.derate(truss);
     var base = udl * k / 2;
     out.baseLoad = base; out.derate = k;

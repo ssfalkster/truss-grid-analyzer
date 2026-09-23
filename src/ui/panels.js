@@ -76,6 +76,19 @@
     i.addEventListener("change", function () { onchange(i.value); });
     return i;
   }
+  /** Model name in pickers, tagged where the data is not the original workbook's imperial table (1.6.0). */
+  function trussLabel(x) {
+    var tags = [];
+    if (x.source === "MFG") tags.push("MFG"); else if (x.source === "User") tags.push("custom");
+    if (x.units === "metric") tags.push("metric data");
+    return String(x.description).trim() + (tags.length ? " (" + tags.join(", ") + ")" : "");
+  }
+  /** Where a truss entry's numbers come from, in words. */
+  function trussSource(x) {
+    var s = x.source === "MFG" ? "manufacturer" : x.source === "User" ? "your custom entry" : x.source === "TLA" ? "Truss Load Analyzer workbook" : "";
+    return (s ? "Source: " + s + (x.source_ref ? " - " + x.source_ref : "") : "") + (x.units === "metric" ? " (native metric table, 1 m steps)" : "") + (x.note ? ". Note: " + x.note : "");
+  }
+
   function select(options, value, onchange) {
     var s = h("select");
     options.forEach(function (o) { var op = h("option", { value: o.value, text: o.label }); if (String(o.value) === String(value)) op.selected = true; s.appendChild(op); });
@@ -557,9 +570,10 @@
       field("Manufacturer", select(mfrs.map(function (m) { return { value: m, label: m }; }), cur.manufacturer, function (v) {
         var first = db.trusses.filter(function (x) { return x.manufacturer === v; })[0]; if (first) { t.trussId = first.id; S.commit(); }
       })),
-      field("Model", select(sameMfr.map(function (x) { return { value: x.id, label: x.description }; }), t.trussId, function (v) { t.trussId = parseInt(v, 10); S.commit(); })));
+      field("Model", select(sameMfr.map(function (x) { return { value: x.id, label: trussLabel(x) }; }), t.trussId, function (v) { t.trussId = parseInt(v, 10); S.commit(); })));
     container.appendChild(typeBox);
     if (truss) container.appendChild(h("div", { "class": "sub", text: fmt(truss.weight_per_ft_lb, 2) + " lb/ft, max span " + fmt(truss.max_span_ft, 1) + " ft, max cantilever " + fmt(truss.max_span_ft / 4, 1) + " ft, " + (typeof truss.derate === "number" ? truss.derate + " derate applies (generic truss data)" : truss.repetitive_use ? "repetitive-use data (no 0.85 derate)" : "0.85 repetitive-use derate applies") }));
+    if (truss && (truss.source || truss.note)) container.appendChild(h("div", { "class": "sub", text: trussSource(truss) }));
 
     container.appendChild(h("div", { "class": "grid3" },
       field("Truss pieces (ft)", (t.layout && t.layout.manual) || Array.isArray(t.pieces) ? h("input", { type: "number", "class": "num", value: t.pieceLength, disabled: true, title: "Set by the pieces / segments below" }) : numInput(t.pieceLength != null ? t.pieceLength : t.length, function (v) { t.pieceLength = Math.max(0.5, v); S.commit(); }, { ft: true, title: "Total length of the truss sections in this line, before corner blocks" })),
@@ -756,7 +770,7 @@
 
   TLA.panels = {
     mount: function (store) { S = store; },
-    parseLen: parseLen, fmtFtIn: fmtFtIn, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
+    parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, summary: summary, hoistsCsv: function () {
       var rows = [["Truss", "Layer", "At ft", "Loads & Truss lb", "Hoist & Chain lb", "Added % lb", "Load path static lb (ref.)", "Hinged joints static lb", "Semi-rigid min lb", "Semi-rigid max lb", "Rigid joints static lb", "Total Static lb", "Governing", "Trim per 1/4 in lb", "Dynamic factor", "Total Dynamic lb", "Capacity lb", "Status"]];
       function r1(v) { return Math.round(v * 10) / 10; }
