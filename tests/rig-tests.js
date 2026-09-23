@@ -375,4 +375,39 @@
     eq(one(55, 30).length, 0, "with the 0.85 the workbook row matches JTE's table");
     eq(one(12, 20).length, 0, "no maker's data for this line: nothing to compare");
   });
+
+  /* 1.12.0: Christie's corner-block rules (A Type) - warnings only, results unchanged */
+  function boxRig(hoistAt, blockCode) {
+    var a = dbId("Christie", '12"x12" A Type Bolted'), h16 = hoistId("Custom", "1/4 Ton", 16);
+    var bt = TLA.data.corners.filter(function (c) { return c.code === (blockCode || "TRUAA-90"); })[0].id;
+    function line(id, at) { return { id: id, name: id, trussId: a, length: 20, loads: [{ id: id + "l", distance: 10, weight: 100 }], supports: at.map(function (p, k) { return { id: id + "h" + k, distance: p, kind: "hoist", hoistId: h16, chainLength: 20 }; }) }; }
+    function blk(id, host, d) { return { id: id, name: id, isBlock: true, blockTypeId: bt, length: 1, host: host, loads: [], supports: [{ id: id + "s", distance: 0.5, kind: "truss", onTruss: host, onDistance: d }] }; }
+    function side(id, b1, b2) { var t = line(id, [9]); t.length = 18; t.supports.push({ id: id + "a", distance: 18, kind: "truss", onTruss: b1, onDistance: 0.5, end: "end" }, { id: id + "b", distance: 0, kind: "truss", onTruss: b2, onDistance: 0.5, end: "start" }); return t; }
+    return { settings: {}, trusses: [line("N", hoistAt), line("S", hoistAt), blk("BN1", "N", 0.5), blk("BN2", "N", 19.5), blk("BS1", "S", 0.5), blk("BS2", "S", 19.5), side("W", "BN1", "BS1"), side("E", "BN2", "BS2")] };
+  }
+  function noRules() { return { trusses: TLA.data.trusses, hoists: TLA.data.hoists, corners: TLA.data.corners.map(function (c) { var x = JSON.parse(JSON.stringify(c)); delete x.rules; return x; }) }; }
+  function corners(r) { return r.warnings.filter(function (w) { return w.kind === "corner"; }); }
+  function same(r1, r2) { return JSON.stringify([r1.totals, r1.hoists.map(function (h) { return h.reaction; }), Object.keys(r1.trusses).map(function (k) { return r1.trusses[k].limits.segments; })]) ===
+    JSON.stringify([r2.totals, r2.hoists.map(function (h) { return h.reaction; }), Object.keys(r2.trusses).map(function (k) { return r2.trusses[k].limits.segments; })]); }
+  add("corner blocks (1.12.0): a Christie A box with no hoist at its corners is flagged once, listing them; results are unchanged", function () {
+    var rig = boxRig([5, 15]), r = TLA.rig.solve(rig), w = corners(r);
+    eq(w.length, 1, "one warning for the box"); eq(/every corner/.test(w[0].message) && /4 of its corner blocks/.test(w[0].message), true, w[0].message);
+    eq(same(r, TLA.rig.solve(rig, noRules())), true, "every result as without the rule");
+    eq(corners(TLA.rig.solve(boxRig([0.5, 19.5]))).length, 0, "hoists at the corner blocks: nothing to flag");
+    var open = boxRig([5, 15]); open.trusses = open.trusses.filter(function (t) { return t.id !== "E"; });
+    eq(corners(TLA.rig.solve(open)).length, 0, "not a closed box: nothing to flag");
+    var jte = boxRig([5, 15]); jte.trusses.forEach(function (t) { if (t.isBlock) t.blockTypeId = TLA.data.corners.filter(function (c) { return /General Purpose 12 x 12/.test(c.family) && c.ways === 6; })[0].id; });
+    eq(corners(TLA.rig.solve(jte)).length, 0, "no maker's rule for JTE blocks");
+  });
+  add("corner blocks (1.12.0): an unsupported 90-degree block joining 4 sections is flagged with Christie's half-capacity note; checks keep the full table", function () {
+    var a = dbId("Christie", '12"x12" A Type Bolted'), h = hoistId("Custom", "1/4 Ton", 16), bt = TLA.data.corners.filter(function (c) { return c.code === "TRUAA-90"; })[0].id;
+    function feeder(id) { return { id: id, name: id, trussId: a, length: 18, loads: [], supports: [{ id: id + "a", distance: 18, kind: "truss", onTruss: "B", onDistance: 0.5, end: "end" }, { id: id + "h", distance: 2, kind: "hoist", hoistId: h, chainLength: 20 }] }; }
+    var rig = { settings: {}, trusses: [                                // N runs through B (2 sections) and W, E end on it: 4 sections
+      { id: "N", name: "N", trussId: a, length: 20, loads: [], supports: [2, 18].map(function (p, k) { return { id: "nh" + k, distance: p, kind: "hoist", hoistId: h, chainLength: 20 }; }) },
+      { id: "B", name: "B", isBlock: true, blockTypeId: bt, length: 1, host: "N", loads: [], supports: [{ id: "bs", distance: 0.5, kind: "truss", onTruss: "N", onDistance: 10 }] },
+      feeder("W"), feeder("E")] };
+    var r = TLA.rig.solve(rig), c = corners(r);
+    eq(c.length, 1, "one note"); eq(/joining 4 truss sections/.test(c[0].message) && /half/.test(c[0].message) && /full table capacity/.test(c[0].message), true, c[0].message);
+    eq(same(r, TLA.rig.solve(rig, noRules())), true, "checks unchanged");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);
