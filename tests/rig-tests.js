@@ -255,4 +255,59 @@
     S.renumberBlocks(t.id, 5);
     eq(S.hostedBlocks(t.id).map(function (b) { return b.name; }).join(), "T CB5,T CB6", "start number honoured");
   });
+
+  /* 1.8.0: bolted parts must be one truss family (owner's rule); stacking / clamping across families is fine. */
+  function famRig(feederMfr, feederDesc, blockCode, opts) {
+    opts = opts || {};
+    var h16 = hoistId("Custom", "1/4 Ton", 16), host = dbId(opts.hostMfr || "Christie", opts.hostDesc || '12"x12" A Type Bolted');
+    var blk = TLA.data.corners.filter(function (c) { return c.code === blockCode || c.id === blockCode; })[0];
+    var feeder = { id: "F", name: "F", length: 10, loads: [], supports: [{ id: "f1", distance: 9, kind: "hoist", hoistId: h16, chainLength: 20 },
+      { id: "f0", distance: 0, kind: "truss", onTruss: opts.direct ? "A" : "B", onDistance: opts.direct ? 10 : 0.5, mount: opts.mount }] };
+    if (feederMfr === "custom") feeder.custom = { manufacturer: "Custom", description: "my truss", weight_per_ft_lb: 5, max_span_ft: 30, udl_lb: [], cpl_lb: [] };
+    else feeder.trussId = dbId(feederMfr, feederDesc);
+    var ts = [{ id: "A", name: "A", trussId: host, length: 20, loads: [], supports: [0, 20].map(function (p, k) { return { id: "a" + k, distance: p, kind: "hoist", hoistId: h16, chainLength: 20 }; }) }];
+    if (!opts.direct) ts.push({ id: "B", name: "B", isBlock: true, blockTypeId: opts.blockId || blk.id, length: 1, host: "A", loads: [], supports: [{ id: "b0", distance: 0.5, kind: "truss", onTruss: "A", onDistance: 10 }] });
+    ts.push(feeder);
+    return { settings: {}, trusses: ts };
+  }
+  function famLevels(rig, db) {
+    return TLA.rig.solve(rig, db).warnings.filter(function (w) { return w.kind === "bolt"; }).map(function (w) { return w.level; }).join();
+  }
+  add("bolt family: matching Christie A truss, block and run - nothing to say", function () {
+    eq(famLevels(famRig("Christie", '12"x12" A Type Bolted', "TRUAA-90")), "", "Christie A throughout");
+  });
+  add("bolt family: JTE 12x12 into a Christie A block is warned (same size, different maker), never blocked", function () {
+    var r = TLA.rig.solve(famRig("JTE", "12x12 Plated", "TRUAA-90"));
+    var w = r.warnings.filter(function (x) { return x.kind === "bolt"; });
+    eq(w.length, 1, "one warning"); eq(w[0].level, "bolt"); eq(w[0].truss, "F");
+    eq(/different manufacturers/.test(w[0].message), true, w[0].message);
+    near(r.totals.hoistReaction, r.totals.applied, 1e-6, "still solves");
+  });
+  add("bolt family: stacked on top / clamped below across makes is not checked", function () {
+    eq(famLevels(famRig("JTE", "12x12 Plated", "TRUAA-90", { mount: "above" })), "", "sits above");
+    eq(famLevels(famRig("Tomcat", "20.5x20.5 Plated", null, { direct: true, mount: "below" })), "", "clamped below");
+  });
+  add("bolt family: JTE truss and JTE block must be the same family and size", function () {
+    var gp12 = TLA.data.corners.filter(function (c) { return /General Purpose 12 x 12/.test(c.family) && c.ways === 4; })[0].id;
+    var jte = { hostMfr: "JTE", hostDesc: "12x12 Plated", blockId: gp12 };
+    eq(famLevels(famRig("JTE", "12x12 Plated", null, jte)), "", "GP 12x12 throughout");
+    eq(famLevels(famRig("JTE", "SuperTruss 12 x 12", null, jte)), "bolt", "SuperTruss into a GP block");
+    eq(famLevels(famRig("JTE", "20.5x20.5 Plated", null, jte)), "bolt", "20.5 into a 12x12 block");
+  });
+  add("bolt family: truss bolted straight to a different model is warned", function () {
+    eq(famLevels(famRig("Christie", '20.5"x20.5" C Type Bolted', null, { direct: true })), "bolt", "Christie C to Christie A");
+    eq(famLevels(famRig("Christie", '12"x12" A Type Bolted', null, { direct: true })), "", "same model");
+  });
+  add("bolt family: generic / universal to branded is warned; generic-to-generic and custom get a note", function () {
+    eq(famLevels(famRig("Universal", '12"x12" Bolted', "TRUAA-90")), "bolt", "Universal into a Christie block");
+    eq(famLevels(famRig("Universal", '12"x12" Bolted', null, { direct: true })), "bolt", "Universal to a Christie truss");
+    eq(famLevels(famRig("Universal", '12"x12" Bolted', null, { direct: true, hostMfr: "Universal", hostDesc: '12"x12" Bolted' })), "", "same Universal model");
+    eq(famLevels(famRig("Universal", '12"x12" Bolted', null, { direct: true, hostMfr: "Universal", hostDesc: '20"x20" Bolted' })), "note", "two Universal models: can't check");
+    eq(famLevels(famRig("custom", null, "TRUAA-90")), "note", "custom truss into a Christie block");
+  });
+  add("bolt family: a custom block in a Christie A run still catches a JTE truss (checked against the run)", function () {
+    var db = { trusses: TLA.data.trusses, hoists: TLA.data.hoists, corners: TLA.data.corners.concat([{ id: 9001, custom: true, manufacturer: "Custom", family: "Custom", fits: "12x12", name: "my block", kind: "corner", ways: 6, weight_lb: 20 }]) };
+    eq(famLevels(famRig("JTE", "12x12 Plated", null, { blockId: 9001 }), db), "note,bolt", "block in its run: note; JTE via the block: warning");
+    eq(famLevels(famRig("Christie", '12"x12" A Type Bolted', null, { blockId: 9001 }), db), "note,note", "matching truss: notes only");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

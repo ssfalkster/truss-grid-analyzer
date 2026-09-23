@@ -711,12 +711,13 @@
     container.textContent = "";
     var r = S.results;
     var t = r.totals;
+    var warns = r.warnings.filter(function (w) { return w.level !== "note"; }), notes = r.warnings.filter(function (w) { return w.level === "note"; });
     container.appendChild(h("div", { "class": "sum-head" },
       h("div", { "class": "kpi" }, h("b", { text: U.n("w", t.staticLoad, 0) }), h("span", { text: U.unit("w") + " total static on hoists" })),
       h("div", { "class": "kpi" }, h("b", { text: U.n("w", t.dynamicLoad, 0) }), h("span", { text: U.unit("w") + " total dynamic" })),
       h("div", { "class": "kpi" }, h("b", { text: String(t.count) }), h("span", { text: "hoists" })),
       h("div", { "class": "kpi" }, h("b", { text: String(S.rig.trusses.length) }), h("span", { text: "trusses" })),
-      h("div", { "class": "kpi " + (r.warnings.length ? "fail" : "ok") }, h("b", { text: String(r.warnings.length) }), h("span", { text: "warnings" }))));
+      h("div", { "class": "kpi " + (warns.length ? "fail" : "ok") }, h("b", { text: String(warns.length) }), h("span", { text: "warnings" }))));
 
     var st = S.rig.settings || (S.rig.settings = {});
     container.appendChild(h("div", { "class": "rules" },
@@ -735,13 +736,14 @@
       h("label", { "class": "mini", title: "How much a hoist and its chain stretch under load, in " + (U.metric() ? "kg per mm (for example 27 for a 1-ton chain hoist on a long drop" : "lb per inch (for example 1500 for a 1-ton chain hoist on a long drop") + " - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less trim-sensitive." }, "Hoist stiffness (" + U.unit("stiff") + ") ",
         numInput(Number(st.hoistStiffness) > 0 ? st.hoistStiffness : "", function (v) { st.hoistStiffness = v > 0 ? v : undefined; S.commit(); }, { cls: "w60", q: "stiff", placeholder: "rigid" }))));
 
-    if (r.warnings.length) {
-      var ul = h("ul", { "class": "warnings" });
-      r.warnings.forEach(function (w) {
+    [[warns, "warnings"], [notes, "warnings notes"]].forEach(function (g) {
+      if (!g[0].length) return;
+      var ul = h("ul", { "class": g[1] });
+      g[0].forEach(function (w) {
         ul.appendChild(h("li", { onclick: function () { if (w.truss) { S.sel = { truss: w.truss, support: null }; S.emit(); } } }, U.text(w.message)));
       });
       container.appendChild(ul);
-    }
+    });
 
     var tbl = h("table", { "class": "tbl hoists" });
     tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["Layer", "r"], ["At (" + L + ")", "r"], ["Hoist"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["Total Static (" + W + ")", "r"], ["Trim 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["Total Dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["% cap", "r"], ["Status"], [""]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
