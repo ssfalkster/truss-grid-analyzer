@@ -511,7 +511,7 @@
     if (!t) {
       container.appendChild(h("div", { "class": "empty" },
         h("h3", { text: "No truss selected" }),
-        h("p", { text: "Click a truss in the plan, or add one. Drag trusses to move them; ends snap to other trusses." }),
+        h("p", { text: "Click a truss in the plan, or add one. Drag trusses to move them; ends snap to other trusses. Drag a hoist along its truss to move it (1\" steps, 2 cm in metric)." }),
         h("button", { "class": "primary", text: "Add truss", onclick: function () { S.addTruss(); } })));
       return;
     }
