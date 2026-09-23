@@ -362,7 +362,9 @@
     eq(w.length, 1, "Tomcat 12x12 spigoted, workbook row"); eq(/Light Duty 12x12 Spigoted/.test(w[0].message), true, w[0].message);
     eq(one(223, 10).length, 0, "the maker's own row");
     eq(one(106, 20).length, 0, "Christie A workbook row is not above Christie's table");
-    eq(one(55, 30).length, 1, "SuperTruss 20.5x30: the workbook row skips the 0.85 JTE asks for");
+    var st = TLA.data.trusses.filter(function (x) { return x.id === 55; })[0];
+    eq(st.repetitive_use, false, "SuperTruss 20.5x30: JTE's sheet asks for the 0.85, so the app applies it"); eq(/corrected/.test(st.note), true, "noted");
+    eq(one(55, 30).length, 0, "with the 0.85 the workbook row matches JTE's table");
     eq(one(12, 20).length, 0, "no maker's data for this line: nothing to compare");
   });
 })(typeof globalThis !== "undefined" ? globalThis : window);
