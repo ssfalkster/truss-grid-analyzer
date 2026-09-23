@@ -93,7 +93,7 @@
     near(mid.trim.other.lb, -(1 / 48) / f / 2, 1e-7 * mid.trim.self, "an end hoist");
     var end = hoistOf("T", 0), fe = 8 * L * L * L / (48 * bm.EI) + 2 * L / (4 * bm.GA);
     near(end.trim.self, (1 / 48) / (4 * fe), 1e-7 * mid.trim.self, "an end hoist raised: 1/4 of the middle's stiffness x 1/4 in");
-    eq(S.results.warnings.some(function (w) { return w.level === "trim" && /trim-sensitive/.test(w.message); }), true, "short stiff spans warn about trim");
+    eq(S.results.warnings.some(function (w) { return w.level === "trim" && /level-sensitive/.test(w.message); }), true, "short stiff spans warn about trim");
   });
 
   add("trim: long flexible spans are not trim-sensitive", function () {
