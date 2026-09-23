@@ -281,8 +281,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.9.0";
+  TLA.VERSION = "1.9.1";
   TLA.CHANGES = [
+    ["1.9.1", "2026-09-23", "G.E. Simmons Falk", "Side panel: the \"Truss and length\" and \"Corner blocks\" sections of a selected truss are now one section, \"Truss, length and corner blocks\", since both set up the same line. Nothing else changes."],
     ["1.9.0", "2026-09-23", "G.E. Simmons Falk", "Hoists can be dragged along their truss in the plan view, in 1\" steps (2 cm in metric), counted from the truss's measuring reference (start, centerline or end) so the distance stays a round number; the position is shown next to the hoist while dragging and the rig is solved again as it moves. Clicking a hoist still just selects it. No calculation changes."],
     ["1.8.0", "2026-09-23", "G.E. Simmons Falk", "Bolted parts check: bolted truss and corner blocks only fit within one manufacturer's truss family, so a truss bolted to a block, a block in a truss run, or a truss bolted straight to another truss is now warned about when the parts don't match (for example JTE 12x12 into a Christie A Type block, or SuperTruss into a General Purpose block), and the bolt is drawn red on the plan. A generic or universal truss bolted to branded parts is warned about too. Generic, universal and custom parts that can't be checked get a note (listed apart, not counted as warnings). Trusses stacked on top or clamped below are not checked - any family can sit on another. Warnings only: nothing is blocked, and no loads or checks change."],
     ["1.7.0", "2026-09-23", "G.E. Simmons Falk", "Metric or imperial: a Units switch in the toolbar (saved with the rig) shows and takes every length, weight, load, moment, hoist speed and size in feet and pounds or in metres and kilograms (kg·m, m/min, mm). It only converts what is shown and typed - the rig is still stored and solved in feet and pounds, so switching changes no result and no truss, hoist or fixture choice. Lengths can be typed as metres, cm or mm (feet-inches still work). Warnings, the hoist table and its CSV copy follow the switch. A custom truss is saved in the units it is entered in (metric trusses keep their own metric table)."],
@@ -3894,7 +3895,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
 
     // truss type
-    container = group(root, "truss", "Truss and length", true, U.f("len", t.length, 2));
+    var nBlk = t.layout && t.layout.order ? t.layout.order.length : 0;
+    container = group(root, "truss", "Truss, length and corner blocks", true, U.f("len", t.length, 2) + (nBlk ? ", " + nBlk + " block" + (nBlk > 1 ? "s" : "") : ""));
     var cur = truss || {};
     var sameMfr = db.trusses.filter(function (x) { return x.manufacturer === cur.manufacturer; });
     var typeBox = h("div", { "class": "grid2" },
@@ -3923,8 +3925,6 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         container.appendChild(h("div", { "class": "row-btns" }, h("button", { text: "Build from pieces...", title: "Assemble this stick from the standard truss lengths (8', 6', 4'...)", onclick: function () { S.startLinePieces(t); } })));
       }
     }
-    var nBlk = t.layout && t.layout.order ? t.layout.order.length : 0;
-    container = group(root, "blocks", "Corner blocks", true, nBlk ? nBlk + " in line" : "");
     layoutEditor(container, t);
     container = group(root, "place", "Position and bolting", true, t.anchor ? "bolted" : "");
     container.appendChild(h("div", { "class": "grid3" },
