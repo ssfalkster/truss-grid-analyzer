@@ -121,7 +121,7 @@
     near(TLA.rig.widthIn({ widthIn: 15 }, by(/12x12 Plated/, "Tomcat")), 15, 1e-9, "override");
   });
 
-  add("hoist output: loads & truss + hoist & chain = total static; dynamic = static x factor (16 fpm = 1.25, default 1.25, override wins)", function () {
+  add("hoist output: loads & truss + hoist & chain = total static; dynamic = static x factor (16 fpm = 1.267 as in EOT 2.4, default 1.25, override wins)", function () {
     var S = TLA.store; S.newRig();
     var t = S.addTruss({ name: "T", x: 0, y: 0, angle: 0, length: 20, hoists: [3, 17] });
     t.loads.push({ id: S.newId("l"), distance: 10, weight: 200 }); S.commit();
@@ -129,12 +129,40 @@
     near(h0.reaction + h0.hoistChain, h0.staticLoad, 1e-9, "static = reaction + hoist & chain");
     near(h0.dynamicLoad, h0.staticLoad * h0.dynamicFactor, 1e-9, "dynamic = static x factor");
     var hd = TLA.data.hoists.filter(function (x) { return x.speed_fpm === 16; })[0];
-    near(TLA.limits.checkHoist(hd, 10, 100).dynamicFactor, 1.25, 1e-12, "16 fpm hoist = 1.25");
+    near(TLA.limits.checkHoist(hd, 10, 100).dynamicFactor, 16 / 60 + 1, 1e-12, "16 fpm hoist = fpm / 60 + 1");
     near(TLA.limits.checkHoist({ weight_lb: 50, chain_weight_per_ft_lb: 1, speed_fpm: 0, capacity_lb: 2000 }, 10, 100).dynamicFactor, 1.25, 1e-12, "unknown speed -> default 1.25");
     near(TLA.limits.checkHoist({ weight_lb: 50, chain_weight_per_ft_lb: 1, speed_fpm: 0, capacity_lb: 2000 }, 10, 100, 0, 0, 1.3).dynamicFactor, 1.3, 1e-12, "settings default");
     near(TLA.limits.checkHoist(hd, 10, 100, 0, 1.5).dynamicFactor, 1.5, 1e-12, "per-hoist override");
     S.rig.trusses[0].supports[0].dlf = 1.4; S.commit();
     near(S.results.hoists[0].hoist.dynamicFactor, 1.4, 1e-12, "override reaches the results");
+  });
+
+  add("EOT 2.4: 'Add %' raises each hoist's load and truss weight, not the hoist, chain or hardware; truss checks unchanged", function () {
+    var hd = { weight_lb: 50, chain_weight_per_ft_lb: 1, speed_fpm: 16, capacity_lb: 2000 };
+    var r = TLA.limits.checkHoist(hd, 10, 400, 5, 0, 1.25, 10);
+    near(r.added, 40, 1e-9, "10% of 400"); near(r.staticLoad, 400 + 40 + 60 + 5, 1e-9, "static"); near(r.dynamicLoad, r.staticLoad * (16 / 60 + 1), 1e-9, "dynamic");
+    eq(TLA.limits.checkHoist(hd, 10, -50, 0, 0, 1.25, 10).added, 0, "nothing added to a pushing reaction");
+    var S = TLA.store; S.newRig();
+    var t = S.addTruss({ name: "T", x: 0, y: 0, angle: 0, length: 20, hoists: [3, 17] });
+    t.loads.push({ id: S.newId("l"), distance: 10, weight: 200 }); S.commit();
+    var before = S.results.hoists.map(function (x) { return x.hoist.staticLoad; }), rx = S.results.hoists.map(function (x) { return x.hoist.reaction; });
+    var segs = JSON.stringify(S.results.trusses[t.id].limits.segments);
+    S.rig.settings = S.rig.settings || {}; S.rig.settings.addPercent = 10; S.commit();
+    S.results.hoists.forEach(function (x, i) { near(x.hoist.staticLoad, before[i] + 0.1 * rx[i], 1e-9, "hoist " + i); });
+    eq(JSON.stringify(S.results.trusses[t.id].limits.segments), segs, "span checks unchanged");
+  });
+
+  add("EOT 2.4 trusses: Prolyte H30 Verto, and the generic Universal trusses carry a 0.75 derate (applied to capacity)", function () {
+    function by(m, d) { return TLA.data.trusses.filter(function (x) { return x.manufacturer === m && x.description === d; })[0]; }
+    var v = by("Prolyte", "H30 Verto"), u = by("Universal", '12"x12" Bolted');
+    eq(!!v && !!u && !!by("Universal", '20"x20" Bolted') && !!by("Universal", '26" x 30" PRT'), true, "present");
+    near(v.max_span_ft, 65.6, 1e-9, "Verto max span"); eq(TLA.limits.derate(v), 0.85, "Verto: not repetitive-use data");
+    eq(TLA.limits.derate(u), 0.75, "Universal 0.75"); eq(TLA.limits.derate(u, 1), 1, "rig-wide override still wins");
+    // a 20 ft span with 1000 lb UDL: capacity is table(20 ft) x 0.75 - not EOT 2.4's table(row 20 x 0.75 = 15 ft)
+    var beam = TLA.beam.solve({ length: 20, supports: [0, 20], loads: [] }), c = TLA.limits.checkTruss(u, beam, 0, {});
+    var sp = c.segments.filter(function (s) { return s.type === "span"; })[0];
+    eq(c.derate, 0.75, "check uses 0.75"); near(sp.udlMax, u.udl_lb[19] * 0.75, 1e-9, "UDL allowed = 20 ft value x 0.75");
+    near(sp.capacity, u.cpl_lb[19] * 0.75, 1e-9, "CPL allowed = 20 ft value x 0.75");
   });
 
   add("loads: duplicate, and copy to another truss keeps the distance from the CENTRE", function () {

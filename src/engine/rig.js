@@ -198,7 +198,7 @@
         var isSlack = !!slack[s.id], reaction = isSlack ? 0 : reactionOf[s.id];
         var rec = { support: s, reaction: reaction, slack: isSlack };
         if (s.kind === "hoist") {
-          rec.hoist = TLA.limits.checkHoist(dbHoist(s.hoistId, db), s.chainLength, reaction, s.hardwareWeight, s.dlf, settings.defaultDlf);
+          rec.hoist = TLA.limits.checkHoist(dbHoist(s.hoistId, db), s.chainLength, reaction, s.hardwareWeight, s.dlf, settings.defaultDlf, settings.addPercent);
           if (isSlack) { rec.hoist.status = "Slack"; rec.hoist.slack = true; }
           else if (isUnstable) rec.hoist.status = "UNSTABLE";      // the truss tips: this number means nothing
           hoistReaction += reaction;

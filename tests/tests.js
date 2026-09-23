@@ -69,7 +69,7 @@
   test("hoist check uses static load for status", function () {
     var h = { weight_lb: 10, chain_weight_per_ft_lb: 1, speed_fpm: 16, capacity_lb: 1000 };
     var r = TLA.limits.checkHoist(h, 20, 900);
-    near(r.staticLoad, 930, 1e-9); near(r.dynamicLoad, 930 * 1.25, 1e-9); eq(r.status, "Good");
+    near(r.staticLoad, 930, 1e-9); near(r.dynamicLoad, 930 * (16 / 60 + 1), 1e-9); eq(r.status, "Good");
     eq(TLA.limits.checkHoist(h, 20, 1000).status, "Overloaded");
     eq(TLA.limits.checkHoist(h, 20, -100).status, "No Load");
   });

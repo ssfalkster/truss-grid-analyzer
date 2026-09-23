@@ -571,7 +571,7 @@
       if (!s || MODELS.some(function (mm) { return out[mm].reactions[id] === undefined; })) return;
       var entry = hoistEntry(db, s.hoistId), by = {};
       MODELS.forEach(function (mm) {
-        by[mm] = TLA.limits.checkHoist(entry, s.chainLength, out[mm].reactions[id], s.hardwareWeight, s.dlf, st.defaultDlf);
+        by[mm] = TLA.limits.checkHoist(entry, s.chainLength, out[mm].reactions[id], s.hardwareWeight, s.dlf, st.defaultDlf, st.addPercent);
         by[mm].model = mm;
         if (out[mm].slack.indexOf(id) >= 0) { by[mm].slack = true; by[mm].status = "Slack"; }
       });
