@@ -54,7 +54,7 @@
     near(iw.compat.hinged - iw.hoist.hoistChain, 553.42, 0.02 * 553.42, "Inner W hinged, near PyNite's Euler-Bernoulli value");
     near(iw.compat.rigid - iw.hoist.hoistChain, 565.37, 0.02 * 565.37, "Inner W rigid");
     eq(iw.compat.higher, true, "flagged"); eq(ie.compat.higher, true, "flagged");
-    eq(S.results.warnings.some(function (w) { return /stiffness solve, well above the load-path/.test(w.message); }), true, "a warning is raised");
+    eq(S.results.warnings.some(function (w) { return /whole-rig analysis, well above the load-path/.test(w.message); }), true, "a warning is raised");
   });
 
   add("stiffness check: mixed truss types (box, triangle, spigoted, pipe) agree with PyNite", function () {
@@ -99,7 +99,7 @@
     eq(h2.slack, true, "far hoist slack"); eq(h2.reaction, 0, "slack carries nothing"); eq(h2.hoist.status, "Slack", "status");
     near(h2.hoist.staticLoad, h2.hoist.hoistChain, 1e-9, "only hoist + chain weight");
     eq(S.results.unstable.length, 0, "still stable");
-    eq(S.results.warnings.some(function (w) { return /SLACK/.test(w.message); }), true, "warned");
+    eq(S.results.warnings.some(function (w) { return /slack/i.test(w.message); }), true, "warned");
     // the stiffness check agrees (a single truss is the same problem)
     near(h0.compat.hinged - h0.hoist.hoistChain, 500, 1e-3, "grillage first"); near(h1.compat.rigid - h1.hoist.hoistChain, 500, 1e-3, "grillage middle");
     eq(h2.compat.slackHinged && h2.compat.slackRigid, true, "grillage slack too");
@@ -112,10 +112,10 @@
     // 30 ft truss on hoists at 0/10/20, 1000 lb at the 30 ft tip: elastic 250 / -1500 / 2250; middle out -> -500 / 1500
     var t = oneTruss(30, [0, 10, 20], [[30, 1000]]);
     eq(S.results.unstable.indexOf(t.id) >= 0, true, "load path flags the truss");
-    eq(S.results.warnings.some(function (w) { return /UNSTABLE/.test(w.message) && w.truss === t.id; }), true, "load-path warning");
+    eq(S.results.warnings.some(function (w) { return /unstable/i.test(w.message) && w.truss === t.id; }), true, "load-path warning");
     eq(hoistOf("T", 20).hoist.status, "UNSTABLE", "the last hoist is not reported Good");
     eq(S.results.compat.ok, false, "no stiffness result"); eq(S.results.compat.unstable, true, "stiffness check flags it");
-    eq(S.results.warnings.some(function (w) { return /Stiffness check: UNSTABLE/.test(w.message); }), true, "stiffness warning");
+    eq(S.results.warnings.some(function (w) { return /Whole-rig analysis: Unstable/.test(w.message); }), true, "stiffness warning");
   });
 
   add("unstable: a truss on one hoist is a mechanism, not a structure (the solver's tiny twist stiffness must not hold it up)", function () {

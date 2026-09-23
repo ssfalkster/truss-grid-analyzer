@@ -106,7 +106,7 @@
       var a = TLA.rig.geometry.endPoint(t, 0), b = TLA.rig.geometry.endPoint(t, t.length), bodyW = bw(t, res);
       var grp = el("g", { "data-truss": t.id, "class": "truss " + trussClass(t, res, results) + (S.sel.truss === t.id ? " selected" : "") + (hl && !hl[t.id] ? " dim" : "") }, svg);
       var tip = el("title", null, grp);
-      tip.textContent = t.name + " - " + TLA.units.f("len", t.length, 2) + (res ? " - layer " + results.layers[t.id] : " - not solved");
+      tip.textContent = t.name + " - " + TLA.units.f("len", t.length, 2) + (res ? " - hangs from " + TLA.panels.hangsFrom(t) : " - not solved");
       el("line", { x1: X(a.x), y1: Y(a.y), x2: X(b.x), y2: Y(b.y), "class": "body", "stroke-width": bodyW }, grp);
       el("line", { x1: X(a.x), y1: Y(a.y), x2: X(b.x), y2: Y(b.y), "class": "hit", "stroke-width": Math.max(bodyW, 14) }, grp);
       if (res) {
@@ -157,7 +157,7 @@
             var ok = sr.hoist.status === "Good" && !sr.hoist.dynamicOver;
             var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") }, grp);
             var tt = el("title", null, hg);
-            tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + sr.hoist.status + ")";
+            tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + TLA.limits.statusText(sr.hoist.status) + ")";
             el("circle", { cx: X(p.x), cy: Y(p.y), r: Math.max(6, sc * 0.5) }, hg);
             if (dragHoist && dragHoist.s === s) {
               var doff = bodyW / 2 + 12;

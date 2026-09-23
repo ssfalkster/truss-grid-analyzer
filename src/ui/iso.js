@@ -136,7 +136,7 @@
           el("line", { x1: p0.X, y1: p0.Y, x2: top.X, y2: top.Y, "class": "chain" }, hg);
           el("circle", { cx: top.X, cy: top.Y, r: 5 }, hg);
           var t2 = el("text", { x: top.X, y: top.Y - 9, "class": "lbl hoist-lbl", "text-anchor": "middle" }, hg); t2.textContent = fmt(TLA.units.v("w", sr.hoist.staticLoad));
-          var ti = el("title", null, hg); ti.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " of " + TLA.units.f("w", sr.hoist.capacity, 0) + " (" + sr.hoist.status + ")";
+          var ti = el("title", null, hg); ti.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " of " + TLA.units.f("w", sr.hoist.capacity, 0) + " (" + TLA.limits.statusText(sr.hoist.status) + ")";
         } else {
           var u = S.truss(s.onTruss);
           if (u) {

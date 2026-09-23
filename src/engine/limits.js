@@ -165,5 +165,12 @@
     };
   }
 
-  TLA.limits = { checkTruss: checkTruss, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS };
+  /** Status as shown to the user. The status values stay the workbook's words (Good, OVERLOADED...), which the code
+   * compares against; what people read is OK / Overloaded / Too long / Slack / Unstable, for trusses and hoists alike. */
+  function statusText(status) {
+    return String(status).replace(/^Good\b/, "OK").replace(/^FAILURE\b/, "Too long and overloaded").replace(/^OVERLOADED\b/, "Overloaded")
+      .replace(/^TOO LONG!/, "Too long").replace(/^UNSTABLE\b/, "Unstable").replace(/^Over$/, "Overloaded");
+  }
+
+  TLA.limits = { checkTruss: checkTruss, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
 })(typeof globalThis !== "undefined" ? globalThis : window);

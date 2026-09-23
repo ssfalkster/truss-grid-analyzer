@@ -1,4 +1,4 @@
-/* Stiffness check of the whole rig (plan-view grillage, finite elements) - the "grillage method" used for bridge
+/* Whole-rig analysis of the whole rig (plan-view grillage, finite elements) - the "grillage method" used for bridge
  * decks and other bolted grids of beams: idealize the structure as beams meeting at nodes and solve with the direct
  * stiffness (matrix) method. The textbook grillage joint is RIGID (full bending and torsional continuity at every
  * node); only the ground/hoist supports are pinned. RMMS Lesson 40 confirms this independently: its worked CalcForge
@@ -412,11 +412,11 @@
     var model = build(rig, results, db), dofs = 0;
     model.beams.forEach(function (bm) { dofs += bm.nodes.length * 3; });
     if (!model.supports.length) { out.note = "No hoists."; return out; }
-    if (dofs > 1600) { out.note = "Rig too large for the stiffness check (" + dofs + " degrees of freedom)."; return out; }
+    if (dofs > 1600) { out.note = "Rig too large for the whole-rig analysis (" + dofs + " degrees of freedom)."; return out; }
     var loose = unheldGroups(model);
     if (loose.length) {
       out.unstable = true;
-      out.note = "UNSTABLE: not held up by any hoist - " + loose.map(function (g) { return g.join(" + "); }).join("; ") + ".";
+      out.note = "Unstable: not held up by any hoist - " + loose.map(function (g) { return g.join(" + "); }).join("; ") + ".";
       return out;
     }
     // everything the model carries, to check the solve against (equilibrium) and against the load-path total
@@ -425,7 +425,7 @@
     var hinged = solveSlack(model, false), rigid = solveSlack(model, true);
     if (!rigid.ok) {
       out.unstable = true;
-      out.note = "UNSTABLE: " + (rigid.slack.length ? "once the slack hoist" + (rigid.slack.length > 1 ? "s are" : " is") + " taken out, " : "") +
+      out.note = "Unstable: " + (rigid.slack.length ? "once the slack hoist" + (rigid.slack.length > 1 ? "s are" : " is") + " taken out, " : "") +
         "the rig can't be held in place" + (rigid.names.length ? " (at " + rigid.names.join(", ") + ")" : "") + " - it would tip or swing. Add or move a hoist.";
       return out;
     }
@@ -453,7 +453,7 @@
     return out;
   }
 
-  /* ---- 1.3.0: the stiffness solve is the primary result ----
+  /* ---- 1.3.0: the whole-rig analysis is the primary result ----
    * Hoist loads, bolted-connection forces and the span/cantilever table checks all come from the grillage, for both
    * joint models side by side (1.4.0: hinged, semi-rigid sweep, rigid); each check is governed by the worst. The load-path numbers are kept on
    * every result as .loadPath for reference, and are what the app falls back to (with a warning) when the stiffness
@@ -470,7 +470,7 @@
   function maxUtil(l) { return l.segments.reduce(function (m, s) { return Math.max(m, s.utilization || 0); }, l.member ? l.member.utilization || 0 : 0); }
   function margin(lp) { return Math.max(0.05 * Math.abs(lp), 20); }
 
-  /** The force a load-path "injected" load stands for, from one stiffness solve: a bolted truss's connection force,
+  /** The force a load-path "injected" load stands for, from one whole-rig analysis: a bolted truss's connection force,
    * or a corner block's net force on the truss it sits on. Hardware at the connection rides along, as in rig.js. */
   function injectedForce(src, sol, rig, byId, results) {
     var t = byId[src.truss], s = supportOf(t, src.support), hw = Number(s && s.hardwareWeight) || 0;
@@ -486,7 +486,7 @@
     return f + (r && r.block ? r.block.weight : 0) + ownLoad(t) + hw;
   }
 
-  /** The span/cantilever table checks of one truss with the loads and slack hoists of one stiffness solve. */
+  /** The span/cantilever table checks of one truss with the loads and slack hoists of one whole-rig analysis. */
   function checkWith(t, res, sol, rig, byId, results, model) {
     var slack = {}; sol.slack.forEach(function (id) { slack[id] = true; });
     var sups = (t.supports || []).filter(function (s) { return !(s.kind === "hoist" && slack[t.id + ":" + s.id]); });
@@ -498,7 +498,7 @@
     var truss = res.dbTruss, st = rig.settings || {};
     var beam = TLA.beam.solve({ length: t.length, supports: sups.map(function (s) { return s.distance; }), loads: loads, trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless });
     beam.active = sups;
-    // moment/shear check on the stiffness solve's own diagrams, net of the truss's own weight as the tables are
+    // moment/shear check on the whole-rig analysis's own diagrams, net of the truss's own weight as the tables are
     var full = sol.forces.members[t.id], net = full, bi = -1;
     model.beams.forEach(function (bm, i) { if (bm.t.id === t.id) bi = i; });
     if (full && bi >= 0 && st.cantileverSelfWeight !== true && model.beams[bi].wSelf > 0) {
@@ -558,7 +558,7 @@
         sr.reaction = sr.byModel[m];
       });
       res.limits.segments.forEach(function (s) {
-        if (s.code) W.push({ truss: id, kind: "segment", message: t.name + ": " + describeSeg(s) + " - " + s.status + " (" + MODEL_LABEL[m] + ")" });
+        if (s.code) W.push({ truss: id, kind: "segment", message: t.name + ": " + describeSeg(s) + " - " + TLA.limits.statusText(s.status) + " (" + MODEL_LABEL[m] + ")" });
       });
       var mb = res.limits.member;
       if (mb && mb.code) W.push({ truss: id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) + " (" + MODEL_LABEL[m] + ")" });
@@ -606,11 +606,11 @@
         }
       }
       var where = names[id];
-      if (h.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": SLACK - the load would push this hoist up (with every joint model), so its chain goes slack and it carries nothing (only the hoist and chain weight). The rest of the rig carries its share; the results shown are with this hoist taken out." });
-      else if (slackIn.length) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": goes SLACK with " + slackIn.map(function (mm) { return MODEL_LABEL[mm]; }).join(", ") + " only; the " + MODEL_LABEL[m] + " result (" + Math.round(gov.staticLoad) + " lb) is used." });
-      if (!h.slack && gov.status !== "Good" && gov.status !== "UNSTABLE") W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": " + gov.status + " (" + Math.round(gov.staticLoad) + " lb static, " + MODEL_LABEL[m] + ")" });
+      if (h.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": slack - the load would push this hoist up (with every joint model), so its chain goes slack and it carries nothing (only the hoist and chain weight). The rest of the rig carries its share; the results shown are with this hoist taken out." });
+      else if (slackIn.length) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": goes slack with " + slackIn.map(function (mm) { return MODEL_LABEL[mm]; }).join(", ") + " only; the " + MODEL_LABEL[m] + " result (" + Math.round(gov.staticLoad) + " lb) is used." });
+      if (!h.slack && gov.status !== "Good" && gov.status !== "UNSTABLE") W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": " + TLA.limits.statusText(gov.status) + " (" + Math.round(gov.staticLoad) + " lb static, " + MODEL_LABEL[m] + ")" });
       else if (!h.slack && gov.dynamicOver) W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity (" + MODEL_LABEL[m] + ")" });
-      if (h.compat.higher) W.push({ truss: h.truss, kind: "hoist", level: "info", message: where + ": " + Math.round(gov.staticLoad) + " lb from the stiffness solve, well above the load-path method's " + Math.round(lps) + " lb - the truss it is bolted to sags and sheds load onto this hoist." });
+      if (h.compat.higher) W.push({ truss: h.truss, kind: "hoist", level: "info", message: where + ": " + Math.round(gov.staticLoad) + " lb from the whole-rig analysis, well above the load-path method's " + Math.round(lps) + " lb - the truss it is bolted to sags and sheds load onto this hoist." });
       if (h.trim && gov.capacity > 0 && gov.capacity < 999999 && Math.abs(h.trim.self) > TRIM_WARN * gov.capacity) touchy.push({ h: h, share: Math.abs(h.trim.self) / gov.capacity });
     });
     // one warning for every trim-sensitive hoist, led by the worst
@@ -636,7 +636,7 @@
     results.primary = "load-path";
     var hoists = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return s.kind === "hoist"; }); });
     if (out.unstable || !hoists) return;
-    results.warnings.push({ level: "fallback", message: "Stiffness solve not available" + (out.note ? " (" + out.note.replace(/\.$/, "") + ")" : "") +
+    results.warnings.push({ level: "fallback", message: "Whole-rig analysis not available" + (out.note ? " (" + out.note.replace(/\.$/, "") + ")" : "") +
       ": hoist loads and truss checks are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid." });
   }
 
@@ -647,20 +647,20 @@
     if (last.sig === sig && last.out) out = last.out;
     else { out = compute(rig, results, db, opts); last = { sig: sig, out: out }; }
     results.compat = out;
-    if (out.unstable) results.warnings.unshift({ level: "unstable", message: "Stiffness check: " + out.note });
+    if (out.unstable) results.warnings.unshift({ level: "unstable", message: "Whole-rig analysis: " + out.note });
     if (!out.ok) { fallback(rig, results, out); return out; }
-    if (out.hingedNote) results.warnings.push({ level: "info", message: "Stiffness check: " + out.hingedNote });
+    if (out.hingedNote) results.warnings.push({ level: "info", message: "Whole-rig analysis: " + out.hingedNote });
     // self-checks: the solve balances, carries the same total weight as the load-path solve, and the connection
     // forces account for every node
     var tol = 0.5 + 1e-6 * out.load, applied = results.totals && results.totals.applied;
     var bad = out.order.filter(function (mm) { return Math.abs(out[mm].equilibriumError) > tol; })[0];
-    if (bad) results.warnings.push({ level: "internal", message: "Stiffness check does not balance (" + Math.round(out[bad].equilibriumError) + " lb, " + MODEL_LABEL[bad] + ") - please report this rig." });
+    if (bad) results.warnings.push({ level: "internal", message: "Whole-rig analysis does not balance (" + Math.round(out[bad].equilibriumError) + " lb, " + MODEL_LABEL[bad] + ") - please report this rig." });
     if (typeof applied === "number" && Math.abs(out.load - applied) > tol)
-      results.warnings.push({ level: "internal", message: "Stiffness check carries " + Math.round(out.load) + " lb but the load-path solve carries " + Math.round(applied) + " lb - please report this rig." });
+      results.warnings.push({ level: "internal", message: "Whole-rig analysis carries " + Math.round(out.load) + " lb but the load-path solve carries " + Math.round(applied) + " lb - please report this rig." });
     out.order.forEach(function (mm) {
       var f = out[mm].forces;
-      if (f.loop) results.warnings.push({ level: "internal", message: "Stiffness check (" + MODEL_LABEL[mm] + "): bolted connections meet in a closed loop at one point, so their forces can't be split - please report this rig." });
-      else if (f.residual > tol) results.warnings.push({ level: "internal", message: "Stiffness check (" + MODEL_LABEL[mm] + "): connection forces are " + Math.round(f.residual) + " lb out - please report this rig." });
+      if (f.loop) results.warnings.push({ level: "internal", message: "Whole-rig analysis (" + MODEL_LABEL[mm] + "): bolted connections meet in a closed loop at one point, so their forces can't be split - please report this rig." });
+      else if (f.residual > tol) results.warnings.push({ level: "internal", message: "Whole-rig analysis (" + MODEL_LABEL[mm] + "): connection forces are " + Math.round(f.residual) + " lb out - please report this rig." });
     });
     applyPrimary(rig, results, db, out);
     return out;
@@ -689,7 +689,7 @@
     return { reaction: h.reaction, hoistChain: h.hoist.hoistChain, staticLoad: h.hoist.staticLoad, parts: cache[id], model: h.model };
   }
 
-  /** The stiffness model of a rig for an outside cross-check (tools/pynite_check.py builds it in PyNite, the engine
+  /** The whole-rig model of a rig for an outside cross-check (tools/pynite_check.py builds it in PyNite, the engine
    * behind CalcForge 3D): Euler-Bernoulli beams (PyNite has no shear deformation, so GA is left out here), hinged and
    * rigid joints, hoist springs, with this tool's own reactions and member forces for the same model. Lengths ft,
    * forces lb, EI/GJ lb-ft2, k lb/ft. */
