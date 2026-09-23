@@ -571,7 +571,8 @@
     }
 
     // truss type
-    container = group(root, "truss", "Truss and length", true, U.f("len", t.length, 2));
+    var nBlk = t.layout && t.layout.order ? t.layout.order.length : 0;
+    container = group(root, "truss", "Truss, length and corner blocks", true, U.f("len", t.length, 2) + (nBlk ? ", " + nBlk + " block" + (nBlk > 1 ? "s" : "") : ""));
     var cur = truss || {};
     var sameMfr = db.trusses.filter(function (x) { return x.manufacturer === cur.manufacturer; });
     var typeBox = h("div", { "class": "grid2" },
@@ -600,8 +601,6 @@
         container.appendChild(h("div", { "class": "row-btns" }, h("button", { text: "Build from pieces...", title: "Assemble this stick from the standard truss lengths (8', 6', 4'...)", onclick: function () { S.startLinePieces(t); } })));
       }
     }
-    var nBlk = t.layout && t.layout.order ? t.layout.order.length : 0;
-    container = group(root, "blocks", "Corner blocks", true, nBlk ? nBlk + " in line" : "");
     layoutEditor(container, t);
     container = group(root, "place", "Position and bolting", true, t.anchor ? "bolted" : "");
     container.appendChild(h("div", { "class": "grid3" },
