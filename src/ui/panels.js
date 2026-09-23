@@ -90,9 +90,10 @@
     if (x.units === "metric") tags.push("metric data");
     return String(x.description).trim() + (tags.length ? " (" + tags.join(", ") + ")" : "");
   }
-  /** Models of one maker for a picker: the manufacturer's own data first (1.10.0), then the workbook's and custom rows. */
-  function modelsOf(list, maker) {
-    var same = list.filter(function (x) { return x.manufacturer === maker; });
+  /** Models of one maker for a picker: the manufacturer's own data first (1.10.0), then the workbook's and custom rows.
+   * Hidden entries (kept only so older saved rigs open, 1.11.0) are left out unless `keep` is that entry's id. */
+  function modelsOf(list, maker, keep) {
+    var same = list.filter(function (x) { return x.manufacturer === maker && (!x.hidden || x.id === keep); });
     return same.filter(function (x) { return x.source === "MFG"; }).concat(same.filter(function (x) { return x.source !== "MFG"; }));
   }
   /** Where a truss entry's numbers come from, in words. */
@@ -579,7 +580,7 @@
     var nBlk = t.layout && t.layout.order ? t.layout.order.length : 0;
     container = group(root, "truss", "Truss, length and corner blocks", true, U.f("len", t.length, 2) + (nBlk ? ", " + nBlk + " block" + (nBlk > 1 ? "s" : "") : ""));
     var cur = truss || {};
-    var sameMfr = modelsOf(db.trusses, cur.manufacturer);
+    var sameMfr = modelsOf(db.trusses, cur.manufacturer, t.trussId);
     var typeBox = h("div", { "class": "grid2" },
       field("Manufacturer", select(mfrs.map(function (m) { return { value: m, label: m }; }), cur.manufacturer, function (v) {
         var first = modelsOf(db.trusses, v)[0]; if (first) { t.trussId = first.id; S.commit(); }
