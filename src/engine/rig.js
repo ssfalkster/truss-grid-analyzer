@@ -121,6 +121,9 @@
       layer[id2] = l;
     });
 
+    var corner = cornerRules(rig, db, ways);
+    corner.warnings.forEach(function (w) { warnings.push(w); });
+
     var results = {}, hoists = [], applied = 0, hoistReaction = 0;
 
     order.forEach(function (id3) {
@@ -371,6 +374,83 @@
         if (v) out.push({ truss: t.id, support: s.id, onTruss: u.id, level: v.level,
           message: t.name + " (" + A.label + ") is bolted to " + u.name + " (" + B.label + "): " + v.why + (v.level === "warn" ? ". Use matching parts, or stack / clamp it instead." : ".") });
       });
+    });
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ corner-block rules from the maker (1.11.0)
+   * A block type may carry `rules` from its maker's corner-block data (so far Christie Lites A Type):
+   *   boxEveryCorner - "when using the 90-degree corner block to create box trusses, the box truss structure must be
+   *                    supported at every corner": blocks on a closed loop of bolted truss with no hoist at them are
+   *                    warned about (one warning per box);
+   *   unsupported    - [[sections, factor], ...]: the maker allows only that share of the truss table capacity where an
+   *                    unsupported block joins that many truss sections or more (1/2 at 4 sections; hubs 1/3 at 6).
+   * Owner's call (2026-09-23): these only WARN that the rig is outside the maker's corner-block rules - every check and
+   * result is shown exactly as without them.
+   * "At" the block: a hoist on the block, on the truss it sits in within its footprint + 6", or on a bolted truss within
+   * 6" of the bolted end. */
+  var AT_BLOCK = 0.5;
+  function cornerRules(rig, db, ways) {
+    var byId = {}, adj = {}, out = { warnings: [] };
+    rig.trusses.forEach(function (t) { byId[t.id] = t; adj[t.id] = []; });
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "truss" || s.mount || !byId[s.onTruss] || s.onTruss === t.id) return;
+        adj[t.id].push(s.onTruss); adj[s.onTruss].push(t.id);
+      });
+    });
+    function onLoop(id) {                                    // is there a path between two neighbours that avoids the block?
+      var nb = adj[id].filter(function (x, i, a) { return a.indexOf(x) === i; });
+      if (nb.length < 2) return false;
+      var seen = {}; seen[id] = true; seen[nb[0]] = true;
+      var q = [nb[0]];
+      while (q.length) {
+        var c = q.shift();
+        for (var i = 0; i < adj[c].length; i++) {
+          var n = adj[c][i];
+          if (seen[n]) continue;
+          if (nb.indexOf(n) > 0) return true;
+          seen[n] = true; q.push(n);
+        }
+      }
+      return false;
+    }
+    function componentKey(id) {
+      var seen = {}, q = [id]; seen[id] = true;
+      while (q.length) adj[q.shift()].forEach(function (n) { if (!seen[n]) { seen[n] = true; q.push(n); } });
+      return Object.keys(seen).sort()[0];
+    }
+    function hoistNear(t, d, tol) { return (t.supports || []).some(function (h) { return h.kind === "hoist" && Math.abs((Number(h.distance) || 0) - d) <= tol + 1e-6; }); }
+    var boxes = {}, order = [];
+    rig.trusses.forEach(function (b) {
+      if (!b.isBlock) return;
+      var c = dbCorner(b, db), rules = c && c.rules;
+      if (!rules) return;
+      var meets = [];                                        // every truss meeting the block, and where along it
+      (b.supports || []).forEach(function (s) { if (s.kind === "truss" && !s.mount && byId[s.onTruss]) meets.push({ t: byId[s.onTruss], d: Number(s.onDistance) || 0, host: true }); });
+      rig.trusses.forEach(function (u) {
+        (u.supports || []).forEach(function (s) { if (s.kind === "truss" && !s.mount && s.onTruss === b.id) meets.push({ t: u, d: Number(s.distance) || 0 }); });
+      });
+      var supported = hoistNear(b, b.length / 2, b.length) || meets.some(function (m) { return hoistNear(m.t, m.d, (m.host ? b.length / 2 : 0) + AT_BLOCK); });
+      if (supported) return;
+      if (rules.boxEveryCorner && onLoop(b.id)) {
+        var key = componentKey(b.id);
+        if (!boxes[key]) { boxes[key] = []; order.push(key); }
+        boxes[key].push(b);
+      }
+      var n = ways[b.id] || 0, f = 1;
+      (rules.unsupported || []).forEach(function (r) { if (n >= r[0]) f = Math.min(f, r[1]); });
+      if (f < 1) {
+        out.warnings.push({ truss: b.id, kind: "corner", level: "corner", message: b.name + ": " + c.name + " joining " + n + " truss sections with no hoist at it. The maker's corner-block data (" + c.manufacturer +
+          ") allows only " + (Math.abs(f - 0.5) < 1e-9 ? "half" : Math.abs(f - 1 / 3) < 1e-9 ? "a third" : Math.round(f * 100) + "%") +
+          " of the truss table capacity for the trusses meeting it there - the checks shown here use the full table capacity. Put a hoist at the block, or have it reviewed by a qualified person." });
+      }
+    });
+    order.forEach(function (k) {
+      var bl = boxes[k];
+      out.warnings.push({ truss: bl[0].id, kind: "corner", level: "corner", message: "Box truss: outside the manufacturer's corner-block rules - a box built with 90-degree corner blocks must be supported at every corner, and " +
+        bl.length + " of its corner blocks " + (bl.length === 1 ? "has" : "have") + " no hoist at " + (bl.length === 1 ? "it" : "them") + " (" + bl.map(function (b) { return b.name; }).join(", ") +
+        "). The results shown do not account for this. Hang a hoist at each corner block, or have the rig reviewed by a qualified person." });
     });
     return out;
   }
