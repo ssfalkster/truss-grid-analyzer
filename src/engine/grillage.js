@@ -129,16 +129,21 @@
       return F;
     }
     var free = []; for (i = 0; i < n; i++) if (!fixed[i]) free.push(i);
-    var m = free.length, A = [], maxd = 0, maxEl = 0;
-    for (i = 0; i < m; i++) { A.push(new Float64Array(m)); for (var j = 0; j < m; j++) A[i][j] = K[free[i]][free[j]]; if (A[i][i] > maxd) maxd = A[i][i]; if (diagEl[free[i]] > maxEl) maxEl = diagEl[free[i]]; }
+    var m = free.length, A = [], diag = new Float64Array(m), maxEl = 0;
+    for (i = 0; i < m; i++) { A.push(new Float64Array(m)); for (var j = 0; j < m; j++) A[i][j] = K[free[i]][free[j]]; if (diagEl[free[i]] > maxEl) maxEl = diagEl[free[i]]; }
     var rotDof = {}; dofs.forEach(function (bn) { bn.forEach(function (x) { rotDof[x[1]] = rotDof[x[2]] = true; }); });
-    var eps = maxEl * 1e-12;                                               // 1.4.0: was 1e-9, which held a soft truss (pipe) slightly
-    for (i = 0; i < m; i++) if (rotDof[free[i]]) A[i][i] += eps;      // removes torsion rigid-body modes in the hinged model
-    // LU factorisation with partial pivoting (in place; multipliers below the diagonal), kept for more load cases
+    // A tiny twist stiffness removes torsion rigid-body modes in the hinged model. 1.5.0: sized per dof (1e-12 x that
+    // dof's own truss stiffness), not 1e-12 x the stiffest dof in the rig - a 0.002 ft stub element (~1e14 without
+    // shear deformation) made it strong enough to hold up a soft pipe, and the leak check then called the pipe UNSTABLE.
+    var eps = new Float64Array(m);
+    for (i = 0; i < m; i++) if (rotDof[free[i]]) { eps[i] = 1e-12 * (diagEl[free[i]] > 0 ? diagEl[free[i]] : maxEl); A[i][i] += eps[i]; }
+    for (i = 0; i < m; i++) diag[i] = Math.abs(A[i][i]);
+    // LU factorisation with partial pivoting (in place; multipliers below the diagonal), kept for more load cases.
+    // 1.5.0: a pivot is "zero" relative to its own column's stiffness, not the stiffest dof in the rig.
     var perm = []; for (i = 0; i < m; i++) perm.push(i);
     for (var cidx = 0; cidx < m; cidx++) {
       var p = cidx; for (var r2 = cidx + 1; r2 < m; r2++) if (Math.abs(A[r2][cidx]) > Math.abs(A[p][cidx])) p = r2;
-      if (Math.abs(A[p][cidx]) < 1e-14 * (maxd || 1)) return { ok: false, dof: free[cidx], dofs: dofs };
+      if (!(Math.abs(A[p][cidx]) >= 1e-14 * (diag[cidx] || maxEl || 1))) return { ok: false, dof: free[cidx], dofs: dofs };
       var tmp = A[cidx]; A[cidx] = A[p]; A[p] = tmp; var tp = perm[cidx]; perm[cidx] = perm[p]; perm[p] = tp;
       var piv = A[cidx];
       for (r2 = cidx + 1; r2 < m; r2++) {
@@ -177,7 +182,7 @@
     // free to rotate (tip) - a mechanism, not a structure.
     var fsum = 0; for (i = 0; i < n; i++) fsum += Math.abs(F[i]);
     var leak = 0, leakDof = -1;
-    for (i = 0; i < m; i++) if (rotDof[free[i]] && Math.abs(eps * sol.u[i]) > leak) { leak = Math.abs(eps * sol.u[i]); leakDof = free[i]; }
+    for (i = 0; i < m; i++) if (eps[i] && Math.abs(eps[i] * sol.u[i]) > leak) { leak = Math.abs(eps[i] * sol.u[i]); leakDof = free[i]; }
     if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof, dofs: dofs };
     return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
   }
