@@ -83,6 +83,7 @@ main { --side-w: 420px; --bottom-h: 250px; position: relative; flex: 1; min-heig
 .bear { fill: var(--ink); opacity: .85; }
 .ring { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .mismatch { stroke: var(--fail); stroke-dasharray: 3 3; stroke-width: 1.5; }
+.bear.fam-warn { fill: var(--fail); stroke: var(--fail); }
 .arrow { fill: var(--ink); } .load.ghost { opacity: .5; }
 .marks .load, .marks .lbl, .marks .bear, .marks .mismatch, .ring { pointer-events: none; }
 
@@ -125,7 +126,7 @@ input.note { width: 100%; }
 .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
 .sum-head { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 6px; }
 .kpi b { font-size: 20px; display: block; line-height: 1.1; } .kpi span { color: var(--muted); font-size: 11px; } .kpi.fail b { color: var(--fail); } .kpi.ok b { color: var(--ok); }
-.warnings { margin: 4px 0 8px; padding-left: 18px; color: var(--fail); } .warnings li { cursor: pointer; }
+.warnings { margin: 4px 0 8px; padding-left: 18px; color: var(--fail); } .warnings li { cursor: pointer; } .warnings.notes { color: var(--muted); }
 dialog { max-width: 720px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
 dialog::backdrop { background: rgba(0,0,0,.4); }
 @media (max-width: 900px) { .split { display: none; } main { grid-template-columns: 1fr; grid-template-rows: 55vh auto 260px; } #inspector { grid-column: 1; grid-row: 2; } #summary { grid-column: 1; grid-row: 3; } }
@@ -283,6 +284,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   TLA.VERSION = "1.9.0";
   TLA.CHANGES = [
     ["1.9.0", "2026-09-23", "G.E. Simmons Falk", "Hoists can be dragged along their truss in the plan view, in 1\" steps (2 cm in metric), counted from the truss's measuring reference (start, centerline or end) so the distance stays a round number; the position is shown next to the hoist while dragging and the rig is solved again as it moves. Clicking a hoist still just selects it. No calculation changes."],
+    ["1.8.0", "2026-09-23", "G.E. Simmons Falk", "Bolted parts check: bolted truss and corner blocks only fit within one manufacturer's truss family, so a truss bolted to a block, a block in a truss run, or a truss bolted straight to another truss is now warned about when the parts don't match (for example JTE 12x12 into a Christie A Type block, or SuperTruss into a General Purpose block), and the bolt is drawn red on the plan. A generic or universal truss bolted to branded parts is warned about too. Generic, universal and custom parts that can't be checked get a note (listed apart, not counted as warnings). Trusses stacked on top or clamped below are not checked - any family can sit on another. Warnings only: nothing is blocked, and no loads or checks change."],
     ["1.7.0", "2026-09-23", "G.E. Simmons Falk", "Metric or imperial: a Units switch in the toolbar (saved with the rig) shows and takes every length, weight, load, moment, hoist speed and size in feet and pounds or in metres and kilograms (kg·m, m/min, mm). It only converts what is shown and typed - the rig is still stored and solved in feet and pounds, so switching changes no result and no truss, hoist or fixture choice. Lengths can be typed as metres, cm or mm (feet-inches still work). Warnings, the hoist table and its CSV copy follow the switch. A custom truss is saved in the units it is entered in (metric trusses keep their own metric table)."],
     ["1.6.0", "2026-09-23", "G.E. Simmons Falk", "Truss database: every truss now records where its numbers come from - the Truss Load Analyzer workbook (TLA, with the version) or the manufacturer's own data sheet (MFG) - and whether its table is native imperial or metric; the Databases tab lists them all. Added from EOT 2.4: Prolyte S36 PRT with and without wheels (EOT 2.4 has their weights swapped; corrected from its own metric rows) and Total Structures Totalite 11.5\", and EOT 2.4's metric database - 101 trusses from CLS, Eurotruss, Global Truss, HOF, Litec, Milos and Prolyte (Eurotruss HD44 left out: no weight). Metric trusses are checked against their own table in whole-metre steps (span rounded up to the next metre) and get the usual 0.85 repetitive-use derate (EOT 2.4 applies none to metric trusses). Their model numbers are no longer read as inches; their size is unknown, so the stiffness solve assumes a 20.5 in box and says so. Added from Tomcat's published data sheets (L/100 deflection-limited, 2024-2026): Light Duty 12x12 Plated, Spigoted, Guardian and Guardian+ (already reduced for repetitive use), Medium Duty 20.5x20.5 Plated and the 20.5 Triangle Plated and Spigoted, with chord sizes where the sheet gives them; a span between table rows uses the next longer row. The workbook's older Tomcat entries are kept alongside for comparison. Existing trusses' numbers are unchanged."],
     ["1.5.0", "2026-09-23", "G.E. Simmons Falk", "Stiffness solve: the tiny twist stiffness that keeps a truss from spinning about its own axis (which nothing loads) is now sized for each joint from that truss's own stiffness, instead of from the stiffest point anywhere in the rig, and the solver's singularity test is likewise relative to each joint. A very short element (a 0.002 ft stub, without shear deformation as in the PyNite export) could make it stiff enough to hold up a soft pipe, and the rig was then wrongly reported UNSTABLE. Hoist loads move by less than 0.00001 lb on the test rigs; a rig can now pass that was falsely flagged. From Truss Load Analyzer - EOT 2.4 (Sogoian, Multi v1.24): the hoist dynamic factor from speed is now fpm / 60 + 1 (16 fpm = 1.267, was fpm / 64 + 1 = 1.25), which raises dynamic loads by about 1.3% at 16 fpm; an optional 'Add %' on hoist loads (the load and truss weight at each hoist, before hoist and chain weight); new trusses Prolyte H30 Verto and the generic Universal 12\"x12\" bolted, 20\"x20\" bolted and 26\" x 30\" PRT, which carry a 0.75 derate on their table capacities. EOT 2.4's span check multiplies the span-table row number by the derate instead of the capacity, which reads a shorter span and skips the derate; that is not copied - capacities are derated as before."],
@@ -1048,6 +1050,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       else if (h.hoist.dynamicOver) warnings.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity" });
     });
 
+    var bolts = boltFamilies(rig, db);
+    bolts.forEach(function (b) { warnings.push({ truss: b.truss, kind: "bolt", level: b.level === "warn" ? "bolt" : "note", message: b.message }); });
+
     var totals = hoists.reduce(function (a, h) {
       a.staticLoad += h.hoist.staticLoad; a.dynamicLoad += h.hoist.dynamicLoad; a.hoistChain += h.hoist.hoistChain; a.count++;
       return a;
@@ -1055,7 +1060,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     totals.applied = applied;
     totals.hoistReaction = hoistReaction;
 
-    return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable };
+    return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable, bolts: bolts };
   }
 
   function describeSeg(s) {
@@ -1103,6 +1108,96 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
 
+  /* ------------------------------------------------------------------ bolted parts must be one truss family
+   * Bolted truss and corner blocks only mate within one manufacturer's truss family (plates, bolt patterns and
+   * spigots differ even at the same nominal size): JTE 12x12 does not bolt to Christie A Type. Stacking on top /
+   * clamping below (support.mount) works across families and is not checked. Branded parts that don't match are
+   * warned about; generic, universal and custom parts can't be checked, so they get a note - except a generic or
+   * universal truss bolted to a branded part, which is warned about. Never blocks anything. */
+
+  var UNBRANDED = /^(generic|universal|custom)$/;
+  function makerKey(m) {
+    var s = String(m || "").trim().toLowerCase();
+    if (/^(jte|james thomas)/.test(s)) return "jte";
+    return s.split(/\s+/)[0] || "custom";
+  }
+  function sizeKey(s) {
+    s = String(s || "").toLowerCase();
+    if (/pre-?rig|\bprt\b/.test(s)) return "prerig";
+    var tri = s.match(/(\d+(?:\.\d+)?)\s*"?\s*(?:tri|triangle)/);
+    if (tri) return parseFloat(tri[1]) + "tri";
+    var sq = s.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/);
+    return sq ? parseFloat(sq[1]) + "x" + parseFloat(sq[2]) : null;
+  }
+  /** The family of one rig part: a truss (its database model) or a corner block (its maker's truss family). */
+  function partFamily(t, db) {
+    if (t.isBlock) {
+      var c = dbCorner(t, db);
+      if (!c) return { block: true, branded: false, generic: false, label: "unknown block type" };
+      var mk = makerKey(c.manufacturer);
+      return { block: true, maker: mk, branded: !c.custom && !UNBRANDED.test(mk), generic: false, type: c,
+        label: (mk !== "jte" && c.family.toLowerCase().indexOf(mk) === 0 ? "" : (mk === "jte" ? "JTE" : c.manufacturer) + " ") + c.family + " block" };
+    }
+    var e = dbTruss(t, db);
+    if (!e) return { block: false, branded: false, generic: false, label: "unknown truss" };
+    var m = makerKey(e.manufacturer), custom = !!t.custom || e.source === "User";
+    return { block: false, maker: m, branded: !custom && !UNBRANDED.test(m), generic: !custom && /^(generic|universal)$/.test(m), entry: e,
+      label: (e.manufacturer || "Custom") + " " + String(e.description || "").trim() };
+  }
+  /** Does a branded truss model belong to the same family as a branded block of the same maker? null = can't tell. */
+  function trussFitsBlock(e, c) {
+    var d = String(e.description || ""), f = String(c.family || "");
+    if (makerKey(e.manufacturer) === "christie") {
+      var a = (d.match(/\b([A-H]) Type\b/i) || d.match(/\bType ([A-H])\b/i) || [])[1], b = (f.match(/\b([A-H]) Type\b/i) || [])[1];
+      return a && b ? a.toUpperCase() === b.toUpperCase() : null;
+    }
+    var ts = sizeKey(d), bs = c.fits === "prerig" ? "prerig" : sizeKey(c.fits) || sizeKey(f);
+    if (!ts || !bs) return null;
+    if (ts !== bs) return false;
+    if (makerKey(e.manufacturer) === "jte") return /supertruss/i.test(d) === /supertruss/i.test(f);
+    return null;
+  }
+  /** "warn" / "note" / null for one bolted pair, with the reason. */
+  function familyVerdict(A, B) {
+    if (!A.block && !B.block && A.entry === B.entry) return null;          // one model bolts to itself
+    if (!A.branded || !B.branded) {
+      if ((A.generic && B.branded) || (B.generic && A.branded)) return { level: "warn", why: "a generic or universal truss does not bolt to branded truss parts" };
+      return { level: "note", why: "generic, universal or custom parts - the app can't check that they bolt together; make sure they are the same truss family" };
+    }
+    if (A.maker !== B.maker) return { level: "warn", why: "different manufacturers' truss parts don't bolt together, even at the same size" };
+    if (A.block && B.block) return A.type.family === B.type.family ? null : { level: "warn", why: "different truss families don't bolt together" };
+    if (!A.block && !B.block) return A.entry === B.entry ? null : { level: "warn", why: "different truss models don't bolt together" };
+    var fit = trussFitsBlock((A.block ? B : A).entry, (A.block ? A : B).type);
+    if (fit === false) return { level: "warn", why: "the corner block is from a different truss family" };
+    if (fit === null) return { level: "note", why: "the app can't tell whether this block is from the same truss family - check it" };
+    return null;
+  }
+  function boltFamilies(rig, db) {
+    var byId = {}, out = [], seen = {};
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "truss" || s.mount) return;                 // stacked / clamped: any family
+        var u = byId[s.onTruss];
+        if (!u || u === t) return;
+        var key = [t.id, u.id].sort().join("|");
+        if (seen[key]) return;
+        seen[key] = true;
+        var A = partFamily(t, db), B = partFamily(u, db);
+        if (!(A.entry || A.type) || !(B.entry || B.type)) return;   // unknown type: warned about elsewhere
+        var v = familyVerdict(A, B);
+        // a custom block says nothing: compare the truss with the run the block sits in
+        if (v && v.level === "note" && !t.isBlock && u.isBlock && !B.branded && u.host && byId[u.host] && u.host !== t.id) {
+          var H = partFamily(byId[u.host], db), vh = familyVerdict(A, H);
+          if (vh && vh.level === "warn") { v = vh; B = { label: B.label + " in " + byId[u.host].name + " (" + H.label + ")" }; }
+        }
+        if (v) out.push({ truss: t.id, support: s.id, onTruss: u.id, level: v.level,
+          message: t.name + " (" + A.label + ") is bolted to " + u.name + " (" + B.label + "): " + v.why + (v.level === "warn" ? ". Use matching parts, or stack / clamp it instead." : ".") });
+      });
+    });
+    return out;
+  }
+
   /** Where does a hoist's load come from? Superposition: solve with only one truss' own weights active at a time. */
   function attribution(rig, dbIn, trussId, supportId) {
     var db = dbIn || TLA.data || {};
@@ -1124,7 +1219,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -3081,7 +3176,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
             }
           } else {
             var u = S.truss(s.onTruss);
-            el("path", { d: "M" + X(p.x) + " " + (Y(p.y) - 6) + " l 6 6 l -6 6 l -6 -6 z", "class": "bear" }, grp);
+            var fam = (S.results.bolts || []).filter(function (b) { return b.level === "warn" && b.truss === t.id && b.support === s.id; })[0];
+            el("path", { d: "M" + X(p.x) + " " + (Y(p.y) - 6) + " l 6 6 l -6 6 l -6 -6 z", "class": "bear" + (fam ? " fam-warn" : "") }, grp);
             if (u) {
               var q = TLA.rig.geometry.endPoint(u, s.onDistance);
               var off = Math.hypot(q.x - p.x, q.y - p.y);
@@ -3939,12 +4035,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     container.textContent = "";
     var r = S.results;
     var t = r.totals;
+    var warns = r.warnings.filter(function (w) { return w.level !== "note"; }), notes = r.warnings.filter(function (w) { return w.level === "note"; });
     container.appendChild(h("div", { "class": "sum-head" },
       h("div", { "class": "kpi" }, h("b", { text: U.n("w", t.staticLoad, 0) }), h("span", { text: U.unit("w") + " total static on hoists" })),
       h("div", { "class": "kpi" }, h("b", { text: U.n("w", t.dynamicLoad, 0) }), h("span", { text: U.unit("w") + " total dynamic" })),
       h("div", { "class": "kpi" }, h("b", { text: String(t.count) }), h("span", { text: "hoists" })),
       h("div", { "class": "kpi" }, h("b", { text: String(S.rig.trusses.length) }), h("span", { text: "trusses" })),
-      h("div", { "class": "kpi " + (r.warnings.length ? "fail" : "ok") }, h("b", { text: String(r.warnings.length) }), h("span", { text: "warnings" }))));
+      h("div", { "class": "kpi " + (warns.length ? "fail" : "ok") }, h("b", { text: String(warns.length) }), h("span", { text: "warnings" }))));
 
     var st = S.rig.settings || (S.rig.settings = {});
     container.appendChild(h("div", { "class": "rules" },
@@ -3963,13 +4060,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       h("label", { "class": "mini", title: "How much a hoist and its chain stretch under load, in " + (U.metric() ? "kg per mm (for example 27 for a 1-ton chain hoist on a long drop" : "lb per inch (for example 1500 for a 1-ton chain hoist on a long drop") + " - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less trim-sensitive." }, "Hoist stiffness (" + U.unit("stiff") + ") ",
         numInput(Number(st.hoistStiffness) > 0 ? st.hoistStiffness : "", function (v) { st.hoistStiffness = v > 0 ? v : undefined; S.commit(); }, { cls: "w60", q: "stiff", placeholder: "rigid" }))));
 
-    if (r.warnings.length) {
-      var ul = h("ul", { "class": "warnings" });
-      r.warnings.forEach(function (w) {
+    [[warns, "warnings"], [notes, "warnings notes"]].forEach(function (g) {
+      if (!g[0].length) return;
+      var ul = h("ul", { "class": g[1] });
+      g[0].forEach(function (w) {
         ul.appendChild(h("li", { onclick: function () { if (w.truss) { S.sel = { truss: w.truss, support: null }; S.emit(); } } }, U.text(w.message)));
       });
       container.appendChild(ul);
-    }
+    });
 
     var tbl = h("table", { "class": "tbl hoists" });
     tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["Layer", "r"], ["At (" + L + ")", "r"], ["Hoist"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["Total Static (" + W + ")", "r"], ["Trim 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["Total Dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["% cap", "r"], ["Status"], [""]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
@@ -4432,6 +4530,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<h3>Method and assumptions</h3><ul>",
     "<li>Each truss is a continuous beam with cantilevers, solved with Clapeyron's three-moment equation; reactions at supports are exact for the entered loads.</li>",
     "<li>Where a truss is bolted to another truss, its end reaction at that connection (plus any hardware weight, such as a corner block) is passed to the connected truss as a point load. Trusses are solved in order along the load path down to the hoists. Loops (A bolted to B and B bolted to A) are flagged, not solved. This matches how the original workbooks linked trusses. Since 1.3.0 it is shown for reference only (the Load path column): the stiffness solve below is the primary result.</li>",
+    "<li><b>Bolted parts</b>: bolted truss and corner blocks only fit within one manufacturer's truss family - JTE 12x12 does not bolt to Christie A Type, even at the same size. The app warns (and draws the bolt red) when bolted parts don't match, including a generic or universal truss bolted to branded parts; generic, universal and custom parts it can't check get a note. A truss stacked on top or clamped below can be any family. It never stops you building the rig.</li>",
     "<li>Span and cantilever limits use the manufacturer tables, rounding the span up to the next foot. Maximum cantilever is one quarter of the maximum span. Point-load capacity of a span is the tabulated center point load, reduced by the share of the UDL capacity already used by any wall weight.</li>",
     "<li><b>Checked against Rigging Math Made Simple</b> (Delbert L. Hall): reactions are the statics equations from the book (load x distance to the opposite leg / span, cantilever loads subtract on the far leg, truss weight added as a load at the center of the span and of each cantilever); a span is not overloaded if the point loads on it do not exceed the table CPL for that span, reduced by the share of the UDL capacity already used by any wall weight; a cantilever must be no longer than a quarter of the maximum span and carry no more than the CPL for a span four times the cantilever length. Manufacturers' tables already subtract the truss weight, so the truss's own weight is not counted against those limits unless you tick the stricter option below the plan.</li>",
     "<li><b>Stiffness solve (primary, since 1.3.0)</b>: the load-path method treats every truss that carries another as an unyielding support. That is exact when the carrying truss is held up at each connection, but if a truss with its own hoist is bolted to a carrier that has no hoist near the connection, the carrier sags and the bolted truss sheds load to its own hoist, which the load-path method under-estimates (in a test rig by more than 2 times). So the app solves the whole rig with the grillage method: a matrix (direct-stiffness) analysis of the box as beams meeting at the corner blocks, the standard technique for a bolted grid such as a bridge deck. Hoist loads, the forces in the bolted connections, the loads each span and cantilever check sees, and the bending moment and shear used by the moment and shear check (below) all come from this solve - with rigid joints that includes moment passed through the corner blocks. Since no manufacturer publishes a stiffness for the corner-block hardware itself, the joints are modelled several ways and shown side by side - hinged (the bolt carries vertical force only), semi-rigid (since 1.4.0: the block as a rotational spring of 1, 4 and 16 x EI/L of the lighter truss it joins, the range between nominally pinned and rigid, because a hoist's share can peak in between) and rigid (bending and torsion also pass through the block, the textbook grillage assumption, and the one an independent 3D frame analysis of a similar grid also implies). Every check uses the worst of them: a hoist's total static, dynamic load and status use the largest load, and each truss is checked with the joint model that loads it hardest (named on the truss).</li>",

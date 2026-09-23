@@ -171,7 +171,8 @@
             }
           } else {
             var u = S.truss(s.onTruss);
-            el("path", { d: "M" + X(p.x) + " " + (Y(p.y) - 6) + " l 6 6 l -6 6 l -6 -6 z", "class": "bear" }, grp);
+            var fam = (S.results.bolts || []).filter(function (b) { return b.level === "warn" && b.truss === t.id && b.support === s.id; })[0];
+            el("path", { d: "M" + X(p.x) + " " + (Y(p.y) - 6) + " l 6 6 l -6 6 l -6 -6 z", "class": "bear" + (fam ? " fam-warn" : "") }, grp);
             if (u) {
               var q = TLA.rig.geometry.endPoint(u, s.onDistance);
               var off = Math.hypot(q.x - p.x, q.y - p.y);

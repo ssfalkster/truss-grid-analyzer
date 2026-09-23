@@ -222,6 +222,9 @@
       else if (h.hoist.dynamicOver) warnings.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity" });
     });
 
+    var bolts = boltFamilies(rig, db);
+    bolts.forEach(function (b) { warnings.push({ truss: b.truss, kind: "bolt", level: b.level === "warn" ? "bolt" : "note", message: b.message }); });
+
     var totals = hoists.reduce(function (a, h) {
       a.staticLoad += h.hoist.staticLoad; a.dynamicLoad += h.hoist.dynamicLoad; a.hoistChain += h.hoist.hoistChain; a.count++;
       return a;
@@ -229,7 +232,7 @@
     totals.applied = applied;
     totals.hoistReaction = hoistReaction;
 
-    return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable };
+    return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable, bolts: bolts };
   }
 
   function describeSeg(s) {
@@ -277,6 +280,96 @@
   }
 
 
+  /* ------------------------------------------------------------------ bolted parts must be one truss family
+   * Bolted truss and corner blocks only mate within one manufacturer's truss family (plates, bolt patterns and
+   * spigots differ even at the same nominal size): JTE 12x12 does not bolt to Christie A Type. Stacking on top /
+   * clamping below (support.mount) works across families and is not checked. Branded parts that don't match are
+   * warned about; generic, universal and custom parts can't be checked, so they get a note - except a generic or
+   * universal truss bolted to a branded part, which is warned about. Never blocks anything. */
+
+  var UNBRANDED = /^(generic|universal|custom)$/;
+  function makerKey(m) {
+    var s = String(m || "").trim().toLowerCase();
+    if (/^(jte|james thomas)/.test(s)) return "jte";
+    return s.split(/\s+/)[0] || "custom";
+  }
+  function sizeKey(s) {
+    s = String(s || "").toLowerCase();
+    if (/pre-?rig|\bprt\b/.test(s)) return "prerig";
+    var tri = s.match(/(\d+(?:\.\d+)?)\s*"?\s*(?:tri|triangle)/);
+    if (tri) return parseFloat(tri[1]) + "tri";
+    var sq = s.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/);
+    return sq ? parseFloat(sq[1]) + "x" + parseFloat(sq[2]) : null;
+  }
+  /** The family of one rig part: a truss (its database model) or a corner block (its maker's truss family). */
+  function partFamily(t, db) {
+    if (t.isBlock) {
+      var c = dbCorner(t, db);
+      if (!c) return { block: true, branded: false, generic: false, label: "unknown block type" };
+      var mk = makerKey(c.manufacturer);
+      return { block: true, maker: mk, branded: !c.custom && !UNBRANDED.test(mk), generic: false, type: c,
+        label: (mk !== "jte" && c.family.toLowerCase().indexOf(mk) === 0 ? "" : (mk === "jte" ? "JTE" : c.manufacturer) + " ") + c.family + " block" };
+    }
+    var e = dbTruss(t, db);
+    if (!e) return { block: false, branded: false, generic: false, label: "unknown truss" };
+    var m = makerKey(e.manufacturer), custom = !!t.custom || e.source === "User";
+    return { block: false, maker: m, branded: !custom && !UNBRANDED.test(m), generic: !custom && /^(generic|universal)$/.test(m), entry: e,
+      label: (e.manufacturer || "Custom") + " " + String(e.description || "").trim() };
+  }
+  /** Does a branded truss model belong to the same family as a branded block of the same maker? null = can't tell. */
+  function trussFitsBlock(e, c) {
+    var d = String(e.description || ""), f = String(c.family || "");
+    if (makerKey(e.manufacturer) === "christie") {
+      var a = (d.match(/\b([A-H]) Type\b/i) || d.match(/\bType ([A-H])\b/i) || [])[1], b = (f.match(/\b([A-H]) Type\b/i) || [])[1];
+      return a && b ? a.toUpperCase() === b.toUpperCase() : null;
+    }
+    var ts = sizeKey(d), bs = c.fits === "prerig" ? "prerig" : sizeKey(c.fits) || sizeKey(f);
+    if (!ts || !bs) return null;
+    if (ts !== bs) return false;
+    if (makerKey(e.manufacturer) === "jte") return /supertruss/i.test(d) === /supertruss/i.test(f);
+    return null;
+  }
+  /** "warn" / "note" / null for one bolted pair, with the reason. */
+  function familyVerdict(A, B) {
+    if (!A.block && !B.block && A.entry === B.entry) return null;          // one model bolts to itself
+    if (!A.branded || !B.branded) {
+      if ((A.generic && B.branded) || (B.generic && A.branded)) return { level: "warn", why: "a generic or universal truss does not bolt to branded truss parts" };
+      return { level: "note", why: "generic, universal or custom parts - the app can't check that they bolt together; make sure they are the same truss family" };
+    }
+    if (A.maker !== B.maker) return { level: "warn", why: "different manufacturers' truss parts don't bolt together, even at the same size" };
+    if (A.block && B.block) return A.type.family === B.type.family ? null : { level: "warn", why: "different truss families don't bolt together" };
+    if (!A.block && !B.block) return A.entry === B.entry ? null : { level: "warn", why: "different truss models don't bolt together" };
+    var fit = trussFitsBlock((A.block ? B : A).entry, (A.block ? A : B).type);
+    if (fit === false) return { level: "warn", why: "the corner block is from a different truss family" };
+    if (fit === null) return { level: "note", why: "the app can't tell whether this block is from the same truss family - check it" };
+    return null;
+  }
+  function boltFamilies(rig, db) {
+    var byId = {}, out = [], seen = {};
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "truss" || s.mount) return;                 // stacked / clamped: any family
+        var u = byId[s.onTruss];
+        if (!u || u === t) return;
+        var key = [t.id, u.id].sort().join("|");
+        if (seen[key]) return;
+        seen[key] = true;
+        var A = partFamily(t, db), B = partFamily(u, db);
+        if (!(A.entry || A.type) || !(B.entry || B.type)) return;   // unknown type: warned about elsewhere
+        var v = familyVerdict(A, B);
+        // a custom block says nothing: compare the truss with the run the block sits in
+        if (v && v.level === "note" && !t.isBlock && u.isBlock && !B.branded && u.host && byId[u.host] && u.host !== t.id) {
+          var H = partFamily(byId[u.host], db), vh = familyVerdict(A, H);
+          if (vh && vh.level === "warn") { v = vh; B = { label: B.label + " in " + byId[u.host].name + " (" + H.label + ")" }; }
+        }
+        if (v) out.push({ truss: t.id, support: s.id, onTruss: u.id, level: v.level,
+          message: t.name + " (" + A.label + ") is bolted to " + u.name + " (" + B.label + "): " + v.why + (v.level === "warn" ? ". Use matching parts, or stack / clamp it instead." : ".") });
+      });
+    });
+    return out;
+  }
+
   /** Where does a hoist's load come from? Superposition: solve with only one truss' own weights active at a time. */
   function attribution(rig, dbIn, trussId, supportId) {
     var db = dbIn || TLA.data || {};
@@ -298,5 +391,5 @@
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);
