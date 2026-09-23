@@ -98,12 +98,18 @@
     var metric = truss.units === "metric" && truss.udl_kg, step = metric ? 1 / FT_M : 1, f = metric ? KG_LB : 1;
     var P = (metric ? truss.cpl_kg : truss.cpl_lb) || [], U = (metric ? truss.udl_kg : truss.udl_lb) || [];
     var mc = 0, mu = 0, v = 0, n = Math.min(metric ? Number(truss.max_span_m) || U.length : Number(truss.max_span_ft) || 100, 100);
+    // the table row each figure comes from (row = span in the table's own unit), for the calculation sheet
+    var at = { point: null, uniform: null, shear: null };
+    function row(i, L, load, kind) { return { row: i + 1, unit: metric ? "m" : "ft", length: L, load: load, kind: kind }; }
     for (var i = 0; i < n; i++) {
       var L = (i + 1) * step, p = (Number(P[i]) || 0) * f, u = (Number(U[i]) || 0) * f;
-      mc = Math.max(mc, p * L / 4); mu = Math.max(mu, u * L / 8); v = Math.max(v, p / 2, u / 2);
+      if (p * L / 4 > mc) { mc = p * L / 4; at.point = row(i, L, p, "cpl"); }
+      if (u * L / 8 > mu) { mu = u * L / 8; at.uniform = row(i, L, u, "udl"); }
+      if (p / 2 > v) { v = p / 2; at.shear = row(i, L, p, "cpl"); }
+      if (u / 2 > v) { v = u / 2; at.shear = row(i, L, u, "udl"); }
     }
     var m = mc && mu ? Math.min(mc, mu) : mc || mu;
-    return { moment: m, shear: v, momentFromPoint: mc, momentFromUniform: mu };
+    return { moment: m, shear: v, momentFromPoint: mc, momentFromUniform: mu, at: at };
   }
 
   /** Bending moment and shear along the truss (continuous-beam statics) against the table-derived capacity. Like the
