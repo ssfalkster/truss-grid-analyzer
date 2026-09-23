@@ -310,4 +310,59 @@
     eq(famLevels(famRig("JTE", "12x12 Plated", null, { blockId: 9001 }), db), "note,bolt", "block in its run: note; JTE via the block: warning");
     eq(famLevels(famRig("Christie", '12"x12" A Type Bolted', null, { blockId: 9001 }), db), "note,note", "matching truss: notes only");
   });
+
+  /* 1.10.0: manufacturer data for Christie Lites, JTE and Tyler Truss (Christie/, JTE/, Tyler/ PDFs), product-line keys */
+  function mfg(m, d) { var e = TLA.data.trusses.filter(function (x) { return x.manufacturer === m && x.description === d; })[0]; if (!e) throw new Error("missing " + m + " " + d); return e; }
+  add("manufacturer data (1.10.0): Christie, JTE and Tyler tables read as printed; a span between rows uses the next longer row", function () {
+    eq(TLA.data.trusses.filter(function (x) { return x.source === "MFG" && /^(Christie|JTE|Tyler Truss)$/.test(x.manufacturer); }).length, 51, "new MFG entries");
+    var a = mfg("Christie", 'A Type 12"x12" Bolted'), wb = TLA.data.trusses.filter(function (x) { return x.id === 106; })[0];
+    eq(JSON.stringify(a.udl_lb), JSON.stringify(wb.udl_lb), "Christie's own A Type table is the workbook's"); eq(JSON.stringify(a.cpl_lb), JSON.stringify(wb.cpl_lb), "A Type CPL");
+    var b = mfg("Christie", 'B Type 16"x16" Spigoted');
+    eq(b.repetitive_use, true, "B Type table already includes 0.85"); near(TLA.limits.tableAt(b, "cpl", 20), 1880, 0, "20 ft uses the 24 ft row"); near(TLA.limits.tableAt(b, "udl", 48), 1536, 0, "48 ft");
+    near(TLA.limits.tableAt(b, "cpl", 49), 0, 0, "past the table");
+    var f = mfg("Christie", "F Type Track");
+    near(TLA.limits.tableAt(f, "cpl", 7), 3119, 0, "7 ft on the 7'-10\" row"); near(TLA.limits.tableAt(f, "cpl", 8), 1477, 0, "8 ft on the 15'-8\" row");
+    var g = mfg("JTE", "General Purpose 12x12");
+    eq(g.repetitive_use, false, "JTE tables are not reduced for repetitive use"); near(TLA.limits.tableAt(g, "cpl", 10), 4497, 0, "GP 12x12 10 ft"); near(TLA.limits.tableAt(g, "udl", 31), 855, 0, "31 ft uses 40 ft");
+    var t = mfg("Tyler Truss", "20.5x20.5 Medium Duty Bolt Plate");
+    near(TLA.limits.tableAt(t, "cpl", 30), 1923, 0, "Tyler 20.5 bolt 30 ft"); near(t.weight_per_ft_lb, 8.34, 0.005, "10' 83.43 lb");
+    TLA.data.trusses.forEach(function (x) {
+      if (x.source !== "MFG") return;
+      for (var k = 1; k < 100; k++) if (x.udl_lb[k] > 0) eq(x.udl_lb[k - 1] > 0, true, x.description + ": no gap in the table at " + k + " ft");
+    });
+  });
+  add("product lines (1.10.0): the workbook's and the maker's rows of one line bolt together; every block's line has a truss", function () {
+    var keys = {}; TLA.data.trusses.forEach(function (x) { if (x.family_key) keys[x.family_key] = true; });
+    TLA.data.corners.forEach(function (c) { eq(!!keys[c.family_key], true, c.family + " " + c.name + " has a truss line"); });
+    var h16 = hoistId("Custom", "1/4 Ton", 16), blk = TLA.data.corners.filter(function (c) { return c.code === "TRUAA-90"; })[0];
+    function pair(hostId, feederId, blockId) {
+      var ts = [{ id: "A", name: "A", trussId: hostId, length: 20, loads: [], supports: [0, 20].map(function (p, k) { return { id: "a" + k, distance: p, kind: "hoist", hoistId: h16, chainLength: 20 }; }) },
+        { id: "F", name: "F", trussId: feederId, length: 10, loads: [], supports: [{ id: "f1", distance: 9, kind: "hoist", hoistId: h16, chainLength: 20 }, { id: "f0", distance: 0, kind: "truss", onTruss: blockId ? "B" : "A", onDistance: blockId ? 0.5 : 10 }] }];
+      if (blockId) ts.push({ id: "B", name: "B", isBlock: true, blockTypeId: blockId, length: 1, host: "A", loads: [], supports: [{ id: "b0", distance: 0.5, kind: "truss", onTruss: "A", onDistance: 10 }] });
+      return TLA.rig.solve({ settings: {}, trusses: ts }).warnings.filter(function (w) { return w.kind === "bolt"; }).map(function (w) { return w.level; }).join();
+    }
+    var a = mfg("Christie", 'A Type 12"x12" Bolted').id, c = mfg("Christie", 'C Type 20.5"x20.5" Bolted').id, jte = mfg("JTE", "General Purpose 12x12").id;
+    eq(pair(106, a), "", "workbook Christie A to Christie's own A Type data");
+    eq(pair(a, a, blk.id), "", "MFG A Type in an A Type block");
+    eq(pair(106, a, blk.id), "", "workbook run, A Type block, MFG A Type feeder");
+    eq(pair(a, c, blk.id), "bolt", "C Type into an A Type block");
+    eq(pair(a, jte, blk.id), "bolt", "JTE GP into a Christie block");
+    var gp12 = TLA.data.corners.filter(function (x) { return x.family_key === "jte-gp-12x12" && x.ways === 4; })[0].id;
+    eq(pair(44, jte, gp12), "", "workbook and JTE's own GP 12x12 in a GP 12x12 block");
+  });
+  add("workbook vs maker (1.10.0): Christie A's 11-13 ft copy error is fixed; a truss on a workbook row is warned where the maker's table is lower", function () {
+    var a = TLA.data.trusses.filter(function (x) { return x.id === 106; })[0];
+    eq(a.udl_lb.slice(8, 16).join(), "1680,1680,1680,1680,1680,1680,1680,1680", "9-16 ft all 1680"); eq(/corrected/.test(a.note), true, "the correction is noted");
+    var h16 = hoistId("Custom", "1/4 Ton", 16);
+    function one(id, L) {
+      var rig = { settings: {}, trusses: [{ id: "T", name: "T", trussId: id, length: L, loads: [], supports: [0, L].map(function (p, k) { return { id: "h" + k, distance: p, kind: "hoist", hoistId: h16, chainLength: 20 }; }) }] };
+      return TLA.rig.solve(rig).warnings.filter(function (w) { return w.kind === "data"; });
+    }
+    var w = one(75, 10);
+    eq(w.length, 1, "Tomcat 12x12 spigoted, workbook row"); eq(/Light Duty 12x12 Spigoted/.test(w[0].message), true, w[0].message);
+    eq(one(223, 10).length, 0, "the maker's own row");
+    eq(one(106, 20).length, 0, "Christie A workbook row is not above Christie's table");
+    eq(one(55, 30).length, 1, "SuperTruss 20.5x30: the workbook row skips the 0.85 JTE asks for");
+    eq(one(12, 20).length, 0, "no maker's data for this line: nothing to compare");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

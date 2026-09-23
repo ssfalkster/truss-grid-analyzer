@@ -90,6 +90,11 @@
     if (x.units === "metric") tags.push("metric data");
     return String(x.description).trim() + (tags.length ? " (" + tags.join(", ") + ")" : "");
   }
+  /** Models of one maker for a picker: the manufacturer's own data first (1.10.0), then the workbook's and custom rows. */
+  function modelsOf(list, maker) {
+    var same = list.filter(function (x) { return x.manufacturer === maker; });
+    return same.filter(function (x) { return x.source === "MFG"; }).concat(same.filter(function (x) { return x.source !== "MFG"; }));
+  }
   /** Where a truss entry's numbers come from, in words. */
   function trussSource(x) {
     var s = x.source === "MFG" ? "manufacturer" : x.source === "User" ? "your custom entry" : x.source === "TLA" ? "Truss Load Analyzer workbook" : "";
@@ -574,10 +579,10 @@
     var nBlk = t.layout && t.layout.order ? t.layout.order.length : 0;
     container = group(root, "truss", "Truss, length and corner blocks", true, U.f("len", t.length, 2) + (nBlk ? ", " + nBlk + " block" + (nBlk > 1 ? "s" : "") : ""));
     var cur = truss || {};
-    var sameMfr = db.trusses.filter(function (x) { return x.manufacturer === cur.manufacturer; });
+    var sameMfr = modelsOf(db.trusses, cur.manufacturer);
     var typeBox = h("div", { "class": "grid2" },
       field("Manufacturer", select(mfrs.map(function (m) { return { value: m, label: m }; }), cur.manufacturer, function (v) {
-        var first = db.trusses.filter(function (x) { return x.manufacturer === v; })[0]; if (first) { t.trussId = first.id; S.commit(); }
+        var first = modelsOf(db.trusses, v)[0]; if (first) { t.trussId = first.id; S.commit(); }
       })),
       field("Model", select(sameMfr.map(function (x) { return { value: x.id, label: trussLabel(x) }; }), t.trussId, function (v) { t.trussId = parseInt(v, 10); S.commit(); })));
     container.appendChild(typeBox);
@@ -781,7 +786,7 @@
 
   TLA.panels = {
     mount: function (store) { S = store; },
-    parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
+    parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, summary: summary, hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
       var rows = [["Truss", "Layer", "At " + L, "Loads & Truss " + W, "Hoist & Chain " + W, "Added % " + W, "Load path static " + W + " (ref.)", "Hinged joints static " + W, "Semi-rigid min " + W, "Semi-rigid max " + W, "Rigid joints static " + W, "Total Static " + W, "Governing", "Trim per 1/4 in " + W, "Dynamic factor", "Total Dynamic " + W, "Capacity " + W, "Status"]];
