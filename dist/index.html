@@ -75,7 +75,8 @@ main { --side-w: 420px; --bottom-h: 250px; position: relative; flex: 1; min-heig
 .dim { opacity: .22; }
 .lbl { font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: var(--plan-bg); stroke-width: 3px; }
 .lbl.small { font-size: 10px; fill: var(--muted); } .lbl.name { font-weight: 600; }
-.hoist circle { fill: var(--panel); stroke-width: 2.5; cursor: pointer; }
+.hoist circle { fill: var(--panel); stroke-width: 2.5; cursor: grab; }
+.lbl.drag-lbl { font-weight: 700; fill: var(--accent); }
 .hoist.c-ok circle { stroke: var(--ok); } .hoist.c-warn circle { stroke: var(--warn); } .hoist.c-fail circle { stroke: var(--fail); fill: color-mix(in srgb, var(--fail) 25%, var(--panel)); }
 .hoist.selected circle { stroke-width: 4; }
 .hoist-lbl { font-weight: 600; }
@@ -266,7 +267,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     <div id="iso" hidden></div>
     <div class="viewctl" id="isoctl" hidden>3D view <label>Rotate <input type="range" id="r-yaw" min="-180" max="180" value="35"></label> <label>Tilt <input type="range" id="r-pitch" min="5" max="85" value="32"></label> <span>drag = orbit, shift+drag = pan</span></div>
     <div id="legend" class="legend"></div>
-    <div class="hint">Drag trusses to move (ends snap; hold Alt to disable). Wheel = zoom, drag background = pan. Click a motor to trace its load path; Delete removes the selected motor (or the selected truss).</div>
+    <div class="hint">Drag trusses to move (ends snap; hold Alt to disable). Wheel = zoom, drag background = pan. Click a motor to trace its load path, drag it along its truss to move it (1" / 2 cm steps); Delete removes the selected motor (or the selected truss).</div>
   </section>
   <aside id="inspector"></aside>
   <section id="summary"></section>
@@ -283,6 +284,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   TLA.VERSION = "1.9.1";
   TLA.CHANGES = [
     ["1.9.1", "2026-09-23", "G.E. Simmons Falk", "Side panel: the \"Truss and length\" and \"Corner blocks\" sections of a selected truss are now one section, \"Truss, length and corner blocks\", since both set up the same line. Nothing else changes."],
+    ["1.9.0", "2026-09-23", "G.E. Simmons Falk", "Hoists can be dragged along their truss in the plan view, in 1\" steps (2 cm in metric), counted from the truss's measuring reference (start, centerline or end) so the distance stays a round number; the position is shown next to the hoist while dragging and the rig is solved again as it moves. Clicking a hoist still just selects it. No calculation changes."],
     ["1.8.0", "2026-09-23", "G.E. Simmons Falk", "Bolted parts check: bolted truss and corner blocks only fit within one manufacturer's truss family, so a truss bolted to a block, a block in a truss run, or a truss bolted straight to another truss is now warned about when the parts don't match (for example JTE 12x12 into a Christie A Type block, or SuperTruss into a General Purpose block), and the bolt is drawn red on the plan. A generic or universal truss bolted to branded parts is warned about too. Generic, universal and custom parts that can't be checked get a note (listed apart, not counted as warnings). Trusses stacked on top or clamped below are not checked - any family can sit on another. Warnings only: nothing is blocked, and no loads or checks change."],
     ["1.7.0", "2026-09-23", "G.E. Simmons Falk", "Metric or imperial: a Units switch in the toolbar (saved with the rig) shows and takes every length, weight, load, moment, hoist speed and size in feet and pounds or in metres and kilograms (kg·m, m/min, mm). It only converts what is shown and typed - the rig is still stored and solved in feet and pounds, so switching changes no result and no truss, hoist or fixture choice. Lengths can be typed as metres, cm or mm (feet-inches still work). Warnings, the hoist table and its CSV copy follow the switch. A custom truss is saved in the units it is entered in (metric trusses keep their own metric table)."],
     ["1.6.0", "2026-09-23", "G.E. Simmons Falk", "Truss database: every truss now records where its numbers come from - the Truss Load Analyzer workbook (TLA, with the version) or the manufacturer's own data sheet (MFG) - and whether its table is native imperial or metric; the Databases tab lists them all. Added from EOT 2.4: Prolyte S36 PRT with and without wheels (EOT 2.4 has their weights swapped; corrected from its own metric rows) and Total Structures Totalite 11.5\", and EOT 2.4's metric database - 101 trusses from CLS, Eurotruss, Global Truss, HOF, Litec, Milos and Prolyte (Eurotruss HD44 left out: no weight). Metric trusses are checked against their own table in whole-metre steps (span rounded up to the next metre) and get the usual 0.85 repetitive-use derate (EOT 2.4 applies none to metric trusses). Their model numbers are no longer read as inches; their size is unknown, so the stiffness solve assumes a 20.5 in box and says so. Added from Tomcat's published data sheets (L/100 deflection-limited, 2024-2026): Light Duty 12x12 Plated, Spigoted, Guardian and Guardian+ (already reduced for repetitive use), Medium Duty 20.5x20.5 Plated and the 20.5 Triangle Plated and Spigoted, with chord sizes where the sheet gives them; a span between table rows uses the next longer row. The workbook's older Tomcat entries are kept alongside for comparison. Existing trusses' numbers are unchanged."],
@@ -3163,6 +3165,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
             var tt = el("title", null, hg);
             tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + sr.hoist.status + ")";
             el("circle", { cx: X(p.x), cy: Y(p.y), r: Math.max(6, sc * 0.5) }, hg);
+            if (dragHoist && dragHoist.s === s) {
+              var doff = bodyW / 2 + 12;
+              var dt = el("text", { x: X(p.x) + nx * doff, y: Y(p.y) - ny * doff + 4, "class": "lbl drag-lbl", "text-anchor": nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle" }, hg);
+              dt.textContent = posText(t, s);
+            }
             if (sc >= 4 && S.ui.showLabels) {
               var off = bodyW / 2 + 9;
               var lt = el("text", { x: X(p.x) - nx * off, y: Y(p.y) + ny * off + 4, "class": "lbl hoist-lbl", "text-anchor": nx > 0.3 ? "end" : nx < -0.3 ? "start" : "middle" }, hg);
@@ -3198,6 +3205,24 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     });
   }
 
+  /* Hoist drag (1.9.0): a hoist slides along its truss in 1" steps (2 cm in metric), counted from the truss's
+   * measuring reference (start / centerline / end), so the typed distance stays a round number. */
+  var dragHoist = null;
+  function hoistStep() { return TLA.units.metric() ? 0.02 / TLA.units.FT_M : 1 / 12; }
+  function snapHoist(t, s, along) {
+    var L = t.length, d = Math.max(0, Math.min(L, along)), st = hoistStep();
+    var shown = Math.round(S.measureDisplay({ distance: d, from: s.from }, L) / st) * st;
+    var back = s.from === "end" ? L - shown : s.from === "center" ? L / 2 + shown : shown;
+    if (back < -1e-9) shown += s.from === "end" ? -st : st;          // a step past the truss end -> back onto it
+    else if (back > L + 1e-9) shown += s.from === "end" ? st : -st;
+    return Math.round(shown * 10000) / 10000;
+  }
+  function posText(t, s) {
+    var v = S.measureDisplay(s, t.length), ref = s.from === "center" ? " from center" : s.from === "end" ? " from end" : "";
+    if (TLA.units.metric()) return (Math.round(v * TLA.units.FT_M * 100) / 100).toFixed(2) + " m" + ref;
+    return (TLA.panels && TLA.panels.fmtFtIn ? TLA.panels.fmtFtIn(v) : TLA.units.mark(v, 2)) + ref;
+  }
+
   function worldFromEvent(e) {
     var r = root.getBoundingClientRect(), v = S.ui.view;
     return { x: (e.clientX - r.left - v.ox) / v.scale, y: (v.oy - (e.clientY - r.top)) / v.scale };
@@ -3208,11 +3233,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     root.addEventListener("pointerdown", function (e) {
       var hoist = e.target.closest && e.target.closest("[data-hoist]");
       var tr = e.target.closest && e.target.closest("[data-truss]");
+      try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or released pointer */ }
       if (hoist) {
-        S.sel = { truss: hoist.getAttribute("data-truss-of"), support: hoist.getAttribute("data-hoist") };
+        var ht = S.truss(hoist.getAttribute("data-truss-of")), hid = hoist.getAttribute("data-hoist");
+        var hs = ht && ht.supports.filter(function (x) { return x.id === hid; })[0];
+        S.sel = { truss: ht ? ht.id : null, support: hid };
+        if (hs) drag = { kind: "hoist", t: ht, s: hs, cx: e.clientX, cy: e.clientY, moved: false };
         S.emit(); return;
       }
-      try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or released pointer */ }
       if (tr) {
         var t = S.truss(tr.getAttribute("data-truss"));
         S.sel = { truss: t.id, support: null };
@@ -3231,6 +3259,16 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (drag.kind === "pan") {
         S.ui.view.ox = drag.ox + (e.clientX - drag.cx); S.ui.view.oy = drag.oy + (e.clientY - drag.cy);
         drag.moved = true; render(); return;
+      }
+      if (drag.kind === "hoist") {
+        if (!drag.moved && Math.hypot(e.clientX - drag.cx, e.clientY - drag.cy) < 4) return;
+        drag.moved = true; dragHoist = drag;
+        var ht = drag.t, a = (ht.angle || 0) * Math.PI / 180, o = TLA.rig.geometry.endPoint(ht, 0), hw = worldFromEvent(e);
+        var along = (hw.x - o.x) * Math.cos(a) + (hw.y - o.y) * Math.sin(a);
+        var val = snapHoist(ht, drag.s, along), cur = S.measureDisplay(drag.s, ht.length);
+        if (Math.abs(val - cur) < 1e-6) { render(); return; }
+        S.measureSet(drag.s, val, ht.length);
+        S.emit(); return;
       }
       var w = worldFromEvent(e), t = drag.t;
       var dx = w.x - drag.sx, dy = w.y - drag.sy;
@@ -3257,8 +3295,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       S.reconnect(); S.emit();
     });
     function end() {
-      if (drag && drag.kind === "truss" && drag.moved) S.commit();
+      if (drag && (drag.kind === "truss" || drag.kind === "hoist") && drag.moved) S.commit();
       drag = null;
+      if (dragHoist) { dragHoist = null; render(); }
     }
     root.addEventListener("pointerup", end);
     root.addEventListener("pointercancel", end);
@@ -3796,7 +3835,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (!t) {
       container.appendChild(h("div", { "class": "empty" },
         h("h3", { text: "No truss selected" }),
-        h("p", { text: "Click a truss in the plan, or add one. Drag trusses to move them; ends snap to other trusses." }),
+        h("p", { text: "Click a truss in the plan, or add one. Drag trusses to move them; ends snap to other trusses. Drag a hoist along its truss to move it (1\" steps, 2 cm in metric)." }),
         h("button", { "class": "primary", text: "Add truss", onclick: function () { S.addTruss(); } })));
       return;
     }
