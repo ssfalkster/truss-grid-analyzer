@@ -18,6 +18,7 @@
     "<li><b>Cross-check</b>: <i>Export stiffness model</i> (under the hoist table) saves the rig's stiffness model with this app's results; <code>python tools/pynite_check.py file</code> rebuilds it in PyNite, the 3D frame engine behind CalcForge, and compares hoist reactions and member forces (without shear deformation, which PyNite doesn't model). If the stiffness solve can't run (a load-path loop, or a very large rig) the app says so and falls back to the load-path method.</li>",
     "<li><b>Moment and shear check</b>: the span and cantilever checks compare each span on its own with the tables. A continuous truss also bends over its supports (hogging) from loads in the next span, and a heavy load right beside a support puts most of its weight into shear. So the bending moment and shear are also worked out all along the truss (shown under its diagram) and compared with an allowable moment and shear <b>estimated from the manufacturer's tables</b>: every table entry is a load the maker says the truss carries, so it demonstrates a moment (point load x span / 4, or uniform load x span / 8) and a shear (half the load). The allowable moment is the largest the tables demonstrate - the smaller of the point-load and uniform-load figures - and the allowable shear the largest shear any entry demonstrates (a safe-side estimate), both with the repetitive-use factor. These are estimates, not published values; use the maker's published moment and shear where you have them. Truss self weight is left out, as in the tables, unless you tick the stricter option below the plan.</li>",
     "<li><b>Slack hoists</b>: a chain can only pull. If the loads would push a hoist up (a negative reaction - typically a hoist next to a heavily loaded span or cantilever), its chain goes slack: the hoist is shown as <b>Slack</b>, carries only its own weight, and the truss is solved again without it, so the other hoists and the span checks see the real, longer spans. If that leaves a truss with a single support point, it would tip: it is flagged <b>UNSTABLE</b> and its numbers must not be used.</li>",
+    "<li><b>Units</b>: the Units switch in the toolbar shows and takes everything in feet and pounds or in metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm). Only the display changes: the rig is stored and solved the same way, so every result and every truss or hoist choice stays exactly as it was. Trusses whose manufacturer data is metric are checked against their own metric table in either mode.</li>",
     "<li>Loads are based on ANSI repetitive-use rules: capacities are multiplied by 0.85 unless the truss data is marked as already including the repetitive-use factor (the generic <i>Universal</i> trusses from EOT 2.4 use 0.75).</li>",
     "<li>Hoist status compares the <b>static</b> load with capacity (as the original). Dynamic load = static x the hoist's dynamic load factor (speed fpm / 60 + 1, so 16 fpm = 1.267, as in EOT 2.4; a hoist with no listed speed uses the default 1.25, and any hoist can be given its own factor) and is flagged separately when it exceeds capacity.</li>",
     "<li><b>Cantilever</b>: the part of a truss that extends past its outermost support (a hoist or a bolted connection). The ANSI standards supplied (E1.2 and others) do not define it; the tool uses the rule in the original workbook and in manufacturer guidance: the maximum cantilever is one quarter of the maximum span, and the load on a cantilever must not exceed the manufacturer's center point load (CPL) for a span four times the cantilever length. Span (ANSI E1.2, 2.33) is the distance between support points.</li>",
@@ -35,12 +36,13 @@
     if (mode === "layer") items = [["l1", "Layer 1 (passes load into other trusses)"], ["l2", "Layer 2"], ["l3", "Layer 3"], ["l4", "Layer 4+"]];
     else items = [["ok", mode === "hoist" ? "Hoist under 80% of capacity" : mode === "status" ? "All checks pass" : "Under 80%"], ["warn", "80-100%"], ["fail", mode === "status" ? "Failing / overloaded" : "Over 100% / failing"]];
     $("legend").innerHTML = items.map(function (i) { return '<div><i style="background:var(--' + i[0] + ')"></i>' + i[1] + "</div>"; }).join("") +
-      '<div><i style="background:var(--panel);border:2px solid var(--ok);border-radius:50%"></i>Hoist (static lb)</div><div><i style="background:var(--ink);transform:rotate(45deg) scale(.8)"></i>Bolted connection</div>';
+      '<div><i style="background:var(--panel);border:2px solid var(--ok);border-radius:50%"></i>Hoist (static load)</div><div><i style="background:var(--ink);transform:rotate(45deg) scale(.8)"></i>Bolted connection</div>';
   }
 
   function renderAll() {
     $("rigname").textContent = S.rig.name;
     $("s-color").value = S.ui.colorMode;
+    $("s-units").value = TLA.units.metric() ? "metric" : "imperial";
     if (S.ui.tab !== "plan" && S.ui.tab !== "iso") return;
     legend();
     if (S.ui.tab === "iso") {
@@ -100,6 +102,7 @@
     $("b-undo").onclick = function () { S.undo(); };
     $("b-redo").onclick = function () { S.redo(); };
     $("s-color").onchange = function (e) { S.ui.colorMode = e.target.value; S.persist(); renderAll(); };
+    $("s-units").onchange = function (e) { var st = S.rig.settings || (S.rig.settings = {}); st.units = e.target.value === "metric" ? "metric" : undefined; S.commit(); };
     $("c-loads").onchange = function (e) { S.ui.showLoads = e.target.checked; renderAll(); };
     $("c-labels").onchange = function (e) { S.ui.showLabels = e.target.checked; renderAll(); };
     $("b-img").onclick = saveImage;

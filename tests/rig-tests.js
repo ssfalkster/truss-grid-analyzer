@@ -204,6 +204,25 @@
     eq(s36("S36 PRT w/ Wheels").weight_per_ft_lb > s36("S36 PRT w/o Wheels").weight_per_ft_lb, true, "S36 PRT: wheels weigh something (EOT 2.4 swap corrected)");
   });
 
+  add("units (1.7.0): the metric switch converts only what is shown - results, trusses and hoists are untouched", function () {
+    var S = TLA.store, U = TLA.units; S.newRig(); TLA.samples.box(S); S.commit();
+    var before = JSON.stringify(S.results.hoists.map(function (x) { return [x.truss, x.support, x.hoist.staticLoad, x.hoist.dynamicLoad]; }));
+    var picks = JSON.stringify(S.rig.trusses.map(function (t) { return [t.trussId, t.length, (t.supports || []).map(function (s) { return [s.hoistId, s.distance, s.chainLength]; })]; }));
+    S.rig.settings = S.rig.settings || {}; S.rig.settings.units = "metric"; S.commit();
+    eq(U.metric(), true, "metric on");
+    eq(JSON.stringify(S.results.hoists.map(function (x) { return [x.truss, x.support, x.hoist.staticLoad, x.hoist.dynamicLoad]; })), before, "same results");
+    eq(JSON.stringify(S.rig.trusses.map(function (t) { return [t.trussId, t.length, (t.supports || []).map(function (s) { return [s.hoistId, s.distance, s.chainLength]; })]; })), picks, "same trusses, hoists, positions");
+    near(U.v("len", 10), 3.048, 1e-12, "10 ft = 3.048 m"); near(U.back("len", 2), 2 / 0.3048, 1e-12, "2 m = 6.56168 ft");
+    near(U.v("w", 100), 45.359237, 1e-9, "100 lb = 45.36 kg"); near(U.back("w", U.v("w", 123.4)), 123.4, 1e-9, "round trip");
+    eq(U.f("len", 10, 2), "3.048 m", "one more decimal in metres"); eq(U.unit("wpl"), "kg/m", "kg/m");
+    near(U.parseLength("2.5", TLA.panels ? TLA.panels.parseLen : function () { return NaN; }), 2.5 / 0.3048, 1e-9, "metres");
+    near(U.parseLength("250 cm", function () { return NaN; }), 2.5 / 0.3048, 1e-9, "cm"); near(U.parseLength("2500mm", function () { return NaN; }), 2.5 / 0.3048, 1e-9, "mm");
+    near(U.parseLength("8'", function (s) { return s === "8'" ? 8 : NaN; }), 8, 0, "feet still work");
+    eq(U.text("West hoist at 16 ft adds about 905 lb"), "West hoist at 4.88 m adds about 411 kg", "engine text converted");
+    S.rig.settings.units = undefined; S.commit();
+    eq(U.metric(), false, "back to imperial"); eq(U.text("905 lb"), "905 lb", "imperial text untouched"); eq(U.f("len", 10, 2), "10 ft", "imperial");
+  });
+
   add("loads: duplicate, and copy to another truss keeps the distance from the CENTRE", function () {
     var S = TLA.store; S.newRig();
     var a = S.addTruss({ name: "A", x: 0, y: 0, angle: 0, length: 30, hoists: [3, 27] }), b = S.addTruss({ name: "B", x: 0, y: 10, angle: 0, length: 20, hoists: [2, 18] });

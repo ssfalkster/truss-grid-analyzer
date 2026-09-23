@@ -79,7 +79,7 @@
       var t = it.t, z = it.z, res = results.trusses[t.id];
       var dim = hl && !hl[t.id];
       var grp = el("g", { "data-truss": t.id, "class": "truss " + TLA.plan.trussClass(t, res, results) + (S.sel.truss === t.id ? " selected" : "") + (dim ? " dim" : "") }, svg);
-      var tip = el("title", null, grp); tip.textContent = t.name + " - " + t.length + " ft";
+      var tip = el("title", null, grp); tip.textContent = t.name + " - " + TLA.units.f("len", t.length, 2);
       var A = TLA.rig.geometry.endPoint(t, 0), B = TLA.rig.geometry.endPoint(t, t.length), bodyW = Math.max(3, v.scale * (t.isBlock ? 1 : TLA.rig.widthFt(t, res && res.dbTruss)));
       var pa = project(A.x, A.y, z), pb = project(B.x, B.y, z);
       // vertical drop shadow to ground for depth cue
@@ -135,8 +135,8 @@
           var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + cls + (S.sel.support === s.id ? " selected" : "") + (dim ? " dim" : "") }, svg);
           el("line", { x1: p0.X, y1: p0.Y, x2: top.X, y2: top.Y, "class": "chain" }, hg);
           el("circle", { cx: top.X, cy: top.Y, r: 5 }, hg);
-          var t2 = el("text", { x: top.X, y: top.Y - 9, "class": "lbl hoist-lbl", "text-anchor": "middle" }, hg); t2.textContent = fmt(sr.hoist.staticLoad);
-          var ti = el("title", null, hg); ti.textContent = (s.name || "Hoist") + ": " + fmt(sr.hoist.staticLoad) + " lb of " + fmt(sr.hoist.capacity) + " lb (" + sr.hoist.status + ")";
+          var t2 = el("text", { x: top.X, y: top.Y - 9, "class": "lbl hoist-lbl", "text-anchor": "middle" }, hg); t2.textContent = fmt(TLA.units.v("w", sr.hoist.staticLoad));
+          var ti = el("title", null, hg); ti.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " of " + TLA.units.f("w", sr.hoist.capacity, 0) + " (" + sr.hoist.status + ")";
         } else {
           var u = S.truss(s.onTruss);
           if (u) {

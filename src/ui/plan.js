@@ -106,7 +106,7 @@
       var a = TLA.rig.geometry.endPoint(t, 0), b = TLA.rig.geometry.endPoint(t, t.length), bodyW = bw(t, res);
       var grp = el("g", { "data-truss": t.id, "class": "truss " + trussClass(t, res, results) + (S.sel.truss === t.id ? " selected" : "") + (hl && !hl[t.id] ? " dim" : "") }, svg);
       var tip = el("title", null, grp);
-      tip.textContent = t.name + " - " + t.length + " ft" + (res ? " - layer " + results.layers[t.id] : " - not solved");
+      tip.textContent = t.name + " - " + TLA.units.f("len", t.length, 2) + (res ? " - layer " + results.layers[t.id] : " - not solved");
       el("line", { x1: X(a.x), y1: Y(a.y), x2: X(b.x), y2: Y(b.y), "class": "body", "stroke-width": bodyW }, grp);
       el("line", { x1: X(a.x), y1: Y(a.y), x2: X(b.x), y2: Y(b.y), "class": "hit", "stroke-width": Math.max(bodyW, 14) }, grp);
       if (res) {
@@ -127,7 +127,7 @@
       var bg = el("g", { "data-truss": t.id, "class": "blockg" + (S.sel.truss === t.id ? " selected" : "") + (dim ? " dim" : "") }, svg);
       var half = Math.max(6, sc * t.length * 0.5);
       var ti = el("title", null, bg);
-      ti.textContent = t.name + (res && res.block ? " - " + (res.block.type ? res.block.type.manufacturer + " " + res.block.type.name : "") + ", " + Math.round(res.block.weight * 10) / 10 + " lb, " + res.block.waysUsed + (res.block.waysAvailable ? "/" + res.block.waysAvailable : "") + " ways used" : "");
+      ti.textContent = t.name + (res && res.block ? " - " + (res.block.type ? res.block.type.manufacturer + " " + res.block.type.name : "") + ", " + TLA.units.f("w", res.block.weight, 1) + ", " + res.block.waysUsed + (res.block.waysAvailable ? "/" + res.block.waysAvailable : "") + " ways used" : "");
       el("rect", { x: X(c.x) - half, y: Y(c.y) - half, width: half * 2, height: half * 2, transform: "rotate(" + (-(t.angle || 0)) + " " + X(c.x) + " " + Y(c.y) + ")", "class": "blk" + (res && res.block && res.block.waysAvailable && res.block.waysUsed > res.block.waysAvailable ? " bad" : "") }, bg);
     });
 
@@ -145,7 +145,7 @@
           el("path", { d: "M" + X(p.x) + " " + (Y(p.y) - 2) + " l -4 -9 l 8 0 z", "class": "arrow" }, lg);
           if (sc >= 6) {
             var tx = el("text", { x: X(p.x), y: Y(p.y) - 14, "class": "lbl small", "text-anchor": "middle" }, lg);
-            tx.textContent = fmt(l.weight);
+            tx.textContent = fmt(TLA.units.v("w", l.weight));
           }
         });
       }
@@ -157,12 +157,12 @@
             var ok = sr.hoist.status === "Good" && !sr.hoist.dynamicOver;
             var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") }, grp);
             var tt = el("title", null, hg);
-            tt.textContent = (s.name || "Hoist") + ": " + fmt(sr.hoist.staticLoad) + " lb static / " + fmt(sr.hoist.capacity) + " lb capacity (" + sr.hoist.status + ")";
+            tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + sr.hoist.status + ")";
             el("circle", { cx: X(p.x), cy: Y(p.y), r: Math.max(6, sc * 0.5) }, hg);
             if (sc >= 4 && S.ui.showLabels) {
               var off = bodyW / 2 + 9;
               var lt = el("text", { x: X(p.x) - nx * off, y: Y(p.y) + ny * off + 4, "class": "lbl hoist-lbl", "text-anchor": nx > 0.3 ? "end" : nx < -0.3 ? "start" : "middle" }, hg);
-              lt.textContent = fmt(sr.hoist.staticLoad);
+              lt.textContent = fmt(TLA.units.v("w", sr.hoist.staticLoad));
             }
           } else {
             var u = S.truss(s.onTruss);
@@ -178,7 +178,7 @@
       if (S.ui.showLabels && (!t.isBlock || S.sel.truss === t.id)) {
         var c = TLA.rig.geometry.endPoint(t, t.length / 2);
         var lab = el("text", { x: X(c.x) + nx * (bodyW / 2 + (t.isBlock ? 12 : 8)), y: Y(c.y) - ny * (bodyW / 2 + (t.isBlock ? 12 : 8)) + 4, "class": "lbl name", "text-anchor": nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle" }, grp);
-        lab.textContent = t.isBlock ? t.name : t.name + " (" + fmt(t.length) + "')";
+        lab.textContent = t.isBlock ? t.name : t.name + " (" + TLA.units.mark(t.length, 1) + ")";
       }
     });
 
