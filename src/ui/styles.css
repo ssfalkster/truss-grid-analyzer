@@ -68,7 +68,8 @@ main { --side-w: 420px; --bottom-h: 250px; position: relative; flex: 1; min-heig
 .dim { opacity: .22; }
 .lbl { font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: var(--plan-bg); stroke-width: 3px; }
 .lbl.small { font-size: 10px; fill: var(--muted); } .lbl.name { font-weight: 600; }
-.hoist circle { fill: var(--panel); stroke-width: 2.5; cursor: pointer; }
+.hoist circle { fill: var(--panel); stroke-width: 2.5; cursor: grab; }
+.lbl.drag-lbl { font-weight: 700; fill: var(--accent); }
 .hoist.c-ok circle { stroke: var(--ok); } .hoist.c-warn circle { stroke: var(--warn); } .hoist.c-fail circle { stroke: var(--fail); fill: color-mix(in srgb, var(--fail) 25%, var(--panel)); }
 .hoist.selected circle { stroke-width: 4; }
 .hoist-lbl { font-weight: 600; }

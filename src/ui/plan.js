@@ -159,6 +159,11 @@
             var tt = el("title", null, hg);
             tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + sr.hoist.status + ")";
             el("circle", { cx: X(p.x), cy: Y(p.y), r: Math.max(6, sc * 0.5) }, hg);
+            if (dragHoist && dragHoist.s === s) {
+              var doff = bodyW / 2 + 12;
+              var dt = el("text", { x: X(p.x) + nx * doff, y: Y(p.y) - ny * doff + 4, "class": "lbl drag-lbl", "text-anchor": nx > 0.3 ? "start" : nx < -0.3 ? "end" : "middle" }, hg);
+              dt.textContent = posText(t, s);
+            }
             if (sc >= 4 && S.ui.showLabels) {
               var off = bodyW / 2 + 9;
               var lt = el("text", { x: X(p.x) - nx * off, y: Y(p.y) + ny * off + 4, "class": "lbl hoist-lbl", "text-anchor": nx > 0.3 ? "end" : nx < -0.3 ? "start" : "middle" }, hg);
@@ -193,6 +198,24 @@
     });
   }
 
+  /* Hoist drag (1.9.0): a hoist slides along its truss in 1" steps (2 cm in metric), counted from the truss's
+   * measuring reference (start / centerline / end), so the typed distance stays a round number. */
+  var dragHoist = null;
+  function hoistStep() { return TLA.units.metric() ? 0.02 / TLA.units.FT_M : 1 / 12; }
+  function snapHoist(t, s, along) {
+    var L = t.length, d = Math.max(0, Math.min(L, along)), st = hoistStep();
+    var shown = Math.round(S.measureDisplay({ distance: d, from: s.from }, L) / st) * st;
+    var back = s.from === "end" ? L - shown : s.from === "center" ? L / 2 + shown : shown;
+    if (back < -1e-9) shown += s.from === "end" ? -st : st;          // a step past the truss end -> back onto it
+    else if (back > L + 1e-9) shown += s.from === "end" ? st : -st;
+    return Math.round(shown * 10000) / 10000;
+  }
+  function posText(t, s) {
+    var v = S.measureDisplay(s, t.length), ref = s.from === "center" ? " from center" : s.from === "end" ? " from end" : "";
+    if (TLA.units.metric()) return (Math.round(v * TLA.units.FT_M * 100) / 100).toFixed(2) + " m" + ref;
+    return (TLA.panels && TLA.panels.fmtFtIn ? TLA.panels.fmtFtIn(v) : TLA.units.mark(v, 2)) + ref;
+  }
+
   function worldFromEvent(e) {
     var r = root.getBoundingClientRect(), v = S.ui.view;
     return { x: (e.clientX - r.left - v.ox) / v.scale, y: (v.oy - (e.clientY - r.top)) / v.scale };
@@ -203,11 +226,14 @@
     root.addEventListener("pointerdown", function (e) {
       var hoist = e.target.closest && e.target.closest("[data-hoist]");
       var tr = e.target.closest && e.target.closest("[data-truss]");
+      try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or released pointer */ }
       if (hoist) {
-        S.sel = { truss: hoist.getAttribute("data-truss-of"), support: hoist.getAttribute("data-hoist") };
+        var ht = S.truss(hoist.getAttribute("data-truss-of")), hid = hoist.getAttribute("data-hoist");
+        var hs = ht && ht.supports.filter(function (x) { return x.id === hid; })[0];
+        S.sel = { truss: ht ? ht.id : null, support: hid };
+        if (hs) drag = { kind: "hoist", t: ht, s: hs, cx: e.clientX, cy: e.clientY, moved: false };
         S.emit(); return;
       }
-      try { root.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or released pointer */ }
       if (tr) {
         var t = S.truss(tr.getAttribute("data-truss"));
         S.sel = { truss: t.id, support: null };
@@ -226,6 +252,16 @@
       if (drag.kind === "pan") {
         S.ui.view.ox = drag.ox + (e.clientX - drag.cx); S.ui.view.oy = drag.oy + (e.clientY - drag.cy);
         drag.moved = true; render(); return;
+      }
+      if (drag.kind === "hoist") {
+        if (!drag.moved && Math.hypot(e.clientX - drag.cx, e.clientY - drag.cy) < 4) return;
+        drag.moved = true; dragHoist = drag;
+        var ht = drag.t, a = (ht.angle || 0) * Math.PI / 180, o = TLA.rig.geometry.endPoint(ht, 0), hw = worldFromEvent(e);
+        var along = (hw.x - o.x) * Math.cos(a) + (hw.y - o.y) * Math.sin(a);
+        var val = snapHoist(ht, drag.s, along), cur = S.measureDisplay(drag.s, ht.length);
+        if (Math.abs(val - cur) < 1e-6) { render(); return; }
+        S.measureSet(drag.s, val, ht.length);
+        S.emit(); return;
       }
       var w = worldFromEvent(e), t = drag.t;
       var dx = w.x - drag.sx, dy = w.y - drag.sy;
@@ -252,8 +288,9 @@
       S.reconnect(); S.emit();
     });
     function end() {
-      if (drag && drag.kind === "truss" && drag.moved) S.commit();
+      if (drag && (drag.kind === "truss" || drag.kind === "hoist") && drag.moved) S.commit();
       drag = null;
+      if (dragHoist) { dragHoist = null; render(); }
     }
     root.addEventListener("pointerup", end);
     root.addEventListener("pointercancel", end);
