@@ -222,6 +222,7 @@
       else if (h.hoist.dynamicOver) warnings.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity" });
     });
 
+    mfgCheck(rig, db, results, settings).forEach(function (w) { warnings.push(w); });
     var bolts = boltFamilies(rig, db);
     bolts.forEach(function (b) { warnings.push({ truss: b.truss, kind: "bolt", level: b.level === "warn" ? "bolt" : "note", message: b.message }); });
 
@@ -301,19 +302,21 @@
     var sq = s.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/);
     return sq ? parseFloat(sq[1]) + "x" + parseFloat(sq[2]) : null;
   }
-  /** The family of one rig part: a truss (its database model) or a corner block (its maker's truss family). */
+  /** The family of one rig part: a truss (its database model) or a corner block (its maker's truss family); `fam` is the
+   * database's product-line key (family_key), shared by every entry of one line (e.g. the workbook's and the maker's own
+   * Christie A Type data). */
   function partFamily(t, db) {
     if (t.isBlock) {
       var c = dbCorner(t, db);
       if (!c) return { block: true, branded: false, generic: false, label: "unknown block type" };
       var mk = makerKey(c.manufacturer);
-      return { block: true, maker: mk, branded: !c.custom && !UNBRANDED.test(mk), generic: false, type: c,
+      return { block: true, maker: mk, branded: !c.custom && !UNBRANDED.test(mk), generic: false, type: c, fam: c.family_key || null,
         label: (mk !== "jte" && c.family.toLowerCase().indexOf(mk) === 0 ? "" : (mk === "jte" ? "JTE" : c.manufacturer) + " ") + c.family + " block" };
     }
     var e = dbTruss(t, db);
     if (!e) return { block: false, branded: false, generic: false, label: "unknown truss" };
     var m = makerKey(e.manufacturer), custom = !!t.custom || e.source === "User";
-    return { block: false, maker: m, branded: !custom && !UNBRANDED.test(m), generic: !custom && /^(generic|universal)$/.test(m), entry: e,
+    return { block: false, maker: m, branded: !custom && !UNBRANDED.test(m), generic: !custom && /^(generic|universal)$/.test(m), entry: e, fam: e.family_key || null,
       label: (e.manufacturer || "Custom") + " " + String(e.description || "").trim() };
   }
   /** Does a branded truss model belong to the same family as a branded block of the same maker? null = can't tell. */
@@ -337,6 +340,8 @@
       return { level: "note", why: "generic, universal or custom parts - the app can't check that they bolt together; make sure they are the same truss family" };
     }
     if (A.maker !== B.maker) return { level: "warn", why: "different manufacturers' truss parts don't bolt together, even at the same size" };
+    // the database's product-line key (family_key) decides when both parts have one; names are the fallback
+    if (A.fam && B.fam) return A.fam === B.fam ? null : { level: "warn", why: A.block !== B.block ? "the corner block is from a different truss family" : "different truss families don't bolt together" };
     if (A.block && B.block) return A.type.family === B.type.family ? null : { level: "warn", why: "different truss families don't bolt together" };
     if (!A.block && !B.block) return A.entry === B.entry ? null : { level: "warn", why: "different truss models don't bolt together" };
     var fit = trussFitsBlock((A.block ? B : A).entry, (A.block ? A : B).type);
@@ -366,6 +371,42 @@
         if (v) out.push({ truss: t.id, support: s.id, onTruss: u.id, level: v.level,
           message: t.name + " (" + A.label + ") is bolted to " + u.name + " (" + B.label + "): " + v.why + (v.level === "warn" ? ". Use matching parts, or stack / clamp it instead." : ".") });
       });
+    });
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ workbook data vs the maker's own table
+   * Some Truss Load Analyzer workbook rows (source TLA) allow more than the manufacturer's current table for the same
+   * product line (family_key). For each truss on a TLA row, every span and cantilever it actually has is looked up in
+   * both (after the repetitive-use derate, as the checks use them); where the maker's table is lower, warn and name
+   * the maker's row. The TLA numbers are still what the checks use - switching the truss is the rigger's call. */
+  function mfgCheck(rig, db, results, settings) {
+    var out = [], trusses = db.trusses || [];
+    rig.trusses.forEach(function (t) {
+      var e = t.isBlock || t.custom ? null : dbTruss(t, db), r = results[t.id];
+      if (!e || e.source !== "TLA" || !e.family_key || !r) return;
+      var mfg = trusses.filter(function (x) { return x.source === "MFG" && x.family_key === e.family_key; });
+      if (!mfg.length) return;
+      var ov = typeof settings.derate === "number" ? settings.derate : undefined;
+      function cap(x, kind, L) { return TLA.limits.tableAt(x, kind, L) * TLA.limits.derate(x, ov); }
+      var worst = null;
+      r.limits.segments.forEach(function (sg) {
+        if (sg.skipped || !(sg.length > 0)) return;
+        var cant = sg.type !== "span", L = cant ? sg.length * 4 : sg.length;
+        (cant ? ["cpl"] : ["cpl", "udl"]).forEach(function (kind) {
+          var a = cap(e, kind, L);
+          mfg.forEach(function (m) {
+            var b = cap(m, kind, L);
+            if (a > 0 && b < a * 0.995 && (!worst || b / a < worst.ratio))
+              worst = { ratio: b / a, m: m, kind: kind, a: a, b: b, seg: sg };
+          });
+        });
+      });
+      if (!worst) return;
+      var sg = worst.seg, where = (sg.type === "span" ? "span " + sg.index : sg.type === "cantilever-left" ? "left cantilever" : "right cantilever") + " (" + (Math.round(sg.length * 10) / 10) + " ft)";
+      out.push({ truss: t.id, kind: "data", level: "data", message: t.name + ": its truss data is from the Truss Load Analyzer workbook, and the manufacturer's own table (" +
+        worst.m.description + ") allows less on its " + where + ": " + (worst.kind === "udl" ? "uniform load " : "point load ") + Math.round(worst.b) + " lb against the workbook's " +
+        Math.round(worst.a) + " lb. The checks still use the workbook's numbers - switch this truss to the manufacturer's row." });
     });
     return out;
   }
