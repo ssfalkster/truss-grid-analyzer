@@ -120,8 +120,8 @@
     }
   };
 
-  /** Delete one support (a motor or a connection) from a truss. */
-  /** Set the chain length of every motor (or only those on one truss) in one undo step. Returns how many changed. */
+  /** Delete one support (a hoist or a connection) from a truss. */
+  /** Set the chain length of every hoist (or only those on one truss) in one undo step. Returns how many changed. */
   S.setChains = function (len, tid) {
     var n = 0;
     if (!(len >= 0)) return 0;

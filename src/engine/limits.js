@@ -35,7 +35,7 @@
    * beam: result of TLA.beam.solve; wallWeight: lb spread over the full length.
    * opts.derate: override the repetitive-use factor. opts.cantileverSelfWeight: also count the truss's own weight
    * against the cantilever limit. Rigging Math Made Simple (Lesson 21) says manufacturers' tables already subtract the
-   * truss weight, so by default only the loads (and any wall/UDL weight) are compared; the original workbook also
+   * truss weight, so by default only the loads (and any UDL) are compared; the original workbook also
    * counted self weight (stricter).
    */
   function checkTruss(truss, beam, wallWeight, opts) {

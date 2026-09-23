@@ -138,9 +138,9 @@
     s1.appendChild(table("kv", null, [
       h("tr", null, td("Method (primary result)"), td(grill ? "Stiffness (grillage) solve of the whole rig; every check uses the worst of the joint models " + MODELS.map(modelName).join(", ") : "Load-path method (stiffness solve not available" + (r.compat && r.compat.note ? ": " + U.text(r.compat.note) : "") + ")")),
       h("tr", null, td("Trusses / corner blocks / hoists"), td(lines.length + " / " + blocks.length + " / " + tot.count)),
-      h("tr", null, td("Total weight carried by the rig"), td(W(tot.applied, 1) + " (loads, truss and block self weight, wall/UDL, hardware at bolted connections)")),
-      h("tr", null, td("Total static load on hoists"), td(W(tot.staticLoad, 1) + " (incl. hoists, chain and hoist hardware" + (Number(st.addPercent) > 0 ? ", + " + st.addPercent + "%" : "") + ")")),
-      h("tr", null, td("Total dynamic load on hoists"), td(W(tot.dynamicLoad, 1))),
+      h("tr", null, td("Total weight carried by the rig"), td(W(tot.applied, 1) + " (loads, truss and block self weight, UDL, hardware at bolted connections)")),
+      h("tr", null, td("Total high hook load, static"), td(W(tot.staticLoad, 1) + " (incl. hoists, chain and hoist hardware" + (Number(st.addPercent) > 0 ? ", + " + st.addPercent + "%" : "") + ")")),
+      h("tr", null, td("Total high hook load, dynamic"), td(W(tot.dynamicLoad, 1))),
       h("tr", null, td("Highest hoist utilization"), td(maxH ? pct(maxH.u) + " - " + hid[maxH.x.truss + ":" + maxH.x.support] + " on " + maxH.x.trussName : "-")),
       h("tr", null, td("Highest truss utilization"), td(maxT ? pct(maxT.u) + " - " + maxT.t.name + ", " + maxT.what : "-")),
       h("tr", null, td("Warnings"), td(warns.length ? warns.length + " (section 9)" : "none") )
@@ -149,17 +149,17 @@
     /* ---- 2. basis ---- */
     var s2 = sec(sheet, next(), "Basis of calculation");
     s2.appendChild(h("ul", { "class": "basis" },
-      h("li", { text: "Trusses are beams along their centerline, carrying point loads, their own weight and any wall/UDL spread over the whole length. Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
+      h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight and any UDL spread over the whole length. Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
       grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a stiffness (grillage) solve of the whole rig: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
       h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is " + (grill ? "shown for reference." : "the result used here.") }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is UNSTABLE." }),
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var fx = [
-      ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_wall x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
-      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_wall x L_c" + (st.cantileverSelfWeight === true ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
-      ["F3", "Moment / shear", "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). Estimates from the tables, not published values. Diagrams " + (st.cantileverSelfWeight === true ? "include" : "leave out") + " the truss's own weight" + (st.cantileverSelfWeight === true ? "." : ", as the tables do.")],
-      ["F4", "Hoist static", "Static = R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if static <= rated capacity."],
-      ["F5", "Hoist dynamic", "Dynamic = static x DLF,  DLF = hoist speed (fpm) / 60 + 1 unless typed on the hoist; " + fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3) + " if the speed is unknown. Flagged if dynamic > capacity."],
+      ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
+      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (st.cantileverSelfWeight === true ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
+      ["F3", "Moment / shear", "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). Estimates from the tables, not published values. Diagrams " + (st.cantileverSelfWeight === true ? "include" : "leave out") + " the truss's self weight" + (st.cantileverSelfWeight === true ? "." : ", as the tables do.")],
+      ["F4", "High hook static", "High hook = low hook R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if high hook <= rated capacity."],
+      ["F5", "High hook dynamic", "Dynamic = high hook x DLF,  DLF = hoist speed (fpm) / 60 + 1 unless typed on the hoist; " + fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3) + " if the speed is unknown. Flagged if dynamic > capacity."],
       ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."]
     ];
     s2.appendChild(table("fx", ["", "Check", "Formula"], fx.map(function (f) { return h("tr", null, td(f[0], "mono b"), td(f[1]), td(f[2])); })));
@@ -180,8 +180,8 @@
     var s4 = sec(sheet, next(), "Hoists");
     if (!r.hoists.length) s4.appendChild(para("No hoists.", "mut"));
     else {
-      s4.appendChild(para("4a. Reaction at each hoist (the load the rig puts on it) from each method; the governing value (largest) is used below.", "cap"));
-      var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model", ["Load path, ref.", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["R used", "r"], "From"]);
+      s4.appendChild(para("4a. Low hook load R at each hoist (the reaction: what the rig hangs on the hook) from each method; the governing value (largest) is used below.", "cap"));
+      var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model", ["Load path, ref.", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
       s4.appendChild(table("small", headA.map(function (c) { return typeof c === "string" ? c : c; }), r.hoists.map(function (x) {
         var e0 = hoistEntry(supportOf(byId[x.truss], x.support) || {}) || {};
         var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw"), tdr(Wn((x.loadPath || x).reaction) + ((x.loadPath || x).slack ? " slack" : ""), "mut")];
@@ -204,9 +204,9 @@
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"), tdr(x.trim ? "±" + Wn(Math.abs(x.trim.self), 0) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
-      s4.appendChild(table("small", ["Hoist", ["R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["Static", "r"], ["DLF", "r"], ["Dynamic", "r"], ["Capacity", "r"], ["% cap", "r"], ["Trim 1/4\"", "r"], "Status"], rowsB,
+      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["% cap", "r"], ["Level sens. 1/4\"", "r"], "Status"], rowsB,
         h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". Static = R + Add % + Hoist + Chain + Hardware. Trim: the change in the hoist's load if it runs 1/4\" (6 mm) high or low, in its governing joint model (a hoist is flagged when this passes 10% of its capacity).", "cap"));
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware. Level sensitivity: the change in the hoist's load if it runs 1/4\" (6 mm) high or low, in its governing joint model (a hoist is flagged when this passes 10% of its capacity).", "cap"));
     }
 
     /* ---- 5. equilibrium ---- */
@@ -306,7 +306,7 @@
       ["Truss", (e.manufacturer || "Custom") + " " + String(e.description || "").trim() + (e.source ? " (" + (e.source === "MFG" ? "manufacturer data" : e.source === "TLA" ? "Truss Load Analyzer workbook" : e.source === "User" ? "custom entry" : e.source) + ")" : "")],
       ["Data source", src.replace(/^Source: /, "") || "-"],
       ["Self weight", t.weightless ? "not counted (weightless)" : U.f("wpl", e.weight_per_ft_lb, 2) + " x " + Lf(beam.length, 3) + " = " + W(beam.wSelf * beam.length, 1)],
-      ["Wall / UDL", Number(t.wallWeight) ? W(t.wallWeight, 1) + " over the whole line = " + U.f("wpl", beam.wDist, 2) : "none"],
+      ["UDL", Number(t.wallWeight) ? W(t.wallWeight, 1) + " over the whole line = " + U.f("wpl", beam.wDist, 2) : "none"],
       ["Line length", Lf(t.length, 3) + (t.blocksAdded ? " (" + Lf(t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss + " + Lf(t.blocksAdded, 3) + " corner blocks)" : "")],
       ["Maximum span / cantilever", Lf(lim.maxSpan, 2) + " / " + Lf(lim.maxCantilever, 2) + " (= max span / 4)"],
       ["Repetitive-use factor k", fmt(k, 3) + " (" + derateWhy(e, k) + ")"]
@@ -327,7 +327,7 @@
     });
     var pSum = beam.loads.reduce(function (a, l) { return a + l.weight; }, 0);
     if (beam.wSelf) lrows.push(h("tr", null, td("w_self", "b"), tdr("0 - " + Ln(beam.length, 3)), tdr(Wn(beam.wSelf * beam.length)), td(U.f("wpl", beam.wSelf, 2) + " self weight"), td("")));
-    if (beam.wDist) lrows.push(h("tr", null, td("w_wall", "b"), tdr("0 - " + Ln(beam.length, 3)), tdr(Wn(beam.wDist * beam.length)), td(U.f("wpl", beam.wDist, 2) + " wall / UDL"), td("")));
+    if (beam.wDist) lrows.push(h("tr", null, td("w_udl", "b"), tdr("0 - " + Ln(beam.length, 3)), tdr(Wn(beam.wDist * beam.length)), td(U.f("wpl", beam.wDist, 2) + " UDL"), td("")));
     box.appendChild(para("Loads on the truss", "sub"));
     box.appendChild(table("small", ["", ["At (" + U.unit("len") + ")", "r"], ["Weight (" + U.unit("w") + ")", "r"], "Load", "On"], lrows,
       h("tr", null, td("Total"), td(""), tdr(Wn(beam.totalLoad), "b"), td("point loads " + W(pSum, 1) + " + uniform " + W(beam.w * beam.length, 1)), td(""))));
@@ -382,13 +382,13 @@
         txt = segName(s) + " (" + Ln(rg[0], 3) + " - " + Ln(rg[1], 3) + "), L = " + Lf(s.length, 3) + " <= " + Lf(s.maxLength, 1) + (s.lengthFail ? " FAILS" : "") + ". " +
           "CPL at the " + rowText(cp) + " = " + W(cp.value, 0) + ", UDL = " + W(ud.value, 0) + ". " +
           (!(s.udlMax > 0) ? "The UDL row is 0, so f = 0 (no capacity is taken from this row). Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3) + " x 0" :
-            s.udlUsed > 0 ? "f = (" + Wn(s.udlMax) + " - " + U.n("wpl", beam.wDist, 2) + " x " + Ln(s.length, 3) + ") / " + Wn(s.udlMax) + " = " + fmt(s.freeFraction, 4) + ". Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3) + " x " + fmt(s.freeFraction, 4) : "No wall load, f = 1. Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3)) +
+            s.udlUsed > 0 ? "f = (" + Wn(s.udlMax) + " - " + U.n("wpl", beam.wDist, 2) + " x " + Ln(s.length, 3) + ") / " + Wn(s.udlMax) + " = " + fmt(s.freeFraction, 4) + ". Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3) + " x " + fmt(s.freeFraction, 4) : "No UDL, f = 1. Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3)) +
           " = " + W(s.capacity, 1) + ". Load = " + (onIt.length ? onIt.join(" + ") : "no point loads") + " = " + W(s.load, 1) + " -> " + pct(s.utilization) + ".";
       } else {
         var cc = lookup(e, "cpl", s.length * 4), selfPart = st.cantileverSelfWeight === true ? beam.wSelf * s.length : 0, sumP = s.load - beam.wDist * s.length - selfPart;
         txt = segName(s) + " (" + Ln(rg[0], 3) + " - " + Ln(rg[1], 3) + "), L_c = " + Lf(s.length, 3) + " <= " + Lf(s.maxLength, 2) + (s.lengthFail ? " FAILS" : "") + ". " +
           "4 x L_c = " + Lf(s.length * 4, 3) + ": CPL at the " + rowText(cc) + " = " + W(cc.value, 0) + ". Capacity = " + Wn(cc.value, 0) + " x " + fmt(k, 3) + " = " + W(s.capacity, 1) + ". " +
-          "Load = " + (onIt.length ? onIt.join(" + ") + (beam.wDist || selfPart ? " (" + W(sumP, 1) + ")" : "") : "no point loads") + (beam.wDist ? " + " + U.n("wpl", beam.wDist, 2) + " x " + Ln(s.length, 3) + " wall" : "") + (selfPart ? " + " + U.n("wpl", beam.wSelf, 2) + " x " + Ln(s.length, 3) + " self weight" : "") + " = " + W(s.load, 1) + " -> " + pct(s.utilization) + ".";
+          "Load = " + (onIt.length ? onIt.join(" + ") + (beam.wDist || selfPart ? " (" + W(sumP, 1) + ")" : "") : "no point loads") + (beam.wDist ? " + " + U.n("wpl", beam.wDist, 2) + " x " + Ln(s.length, 3) + " UDL" : "") + (selfPart ? " + " + U.n("wpl", beam.wSelf, 2) + " x " + Ln(s.length, 3) + " self weight" : "") + " = " + W(s.load, 1) + " -> " + pct(s.utilization) + ".";
       }
       crows.push(h("tr", null, td(segName(s)), tdr(Ln(s.length, 3)), tdr(Ln(s.maxLength, 2)), tdr(Wn(s.capacity)), tdr(Wn(s.load)), tdr(pct(s.utilization)), statusCell(s.status, bad)));
       works.push(work(txt));

@@ -243,7 +243,7 @@
   }
 
   function supportsTable(container, t, res, db) {
-    container.appendChild(h("div", { "class": "row-btns" }, h("button", { "class": "primary", text: "+ Add hoist", title: "Add a motor in the middle of this truss, then set its position", onclick: function () { S.addHoist(t.id); } })));
+    container.appendChild(h("div", { "class": "row-btns" }, h("button", { "class": "primary", text: "+ Add hoist", title: "Add a hoist in the middle of this truss, then set its position", onclick: function () { S.addHoist(t.id); } })));
     var stbl = h("table", { "class": "tbl sup" });
     stbl.appendChild(h("thead", null, h("tr", null, h("th", { text: "At (" + U.unit("len") + ") from" }), h("th", { text: "Type" }), h("th", { text: "Detail" }), h("th", { text: "Load" }), h("th"))));
     var tb = h("tbody");
@@ -280,7 +280,7 @@
           S.commit();
         })),
         h("td", null, detail), h("td", null, load),
-        h("td", null, h("button", { "class": "del", title: s.kind === "hoist" ? "Delete this motor" : "Delete this connection", text: s.kind === "hoist" ? "Delete motor" : "Delete", onclick: function (e) { e.stopPropagation(); S.removeSupport(t.id, s.id); } }))));
+        h("td", null, h("button", { "class": "del", title: s.kind === "hoist" ? "Delete this hoist" : "Delete this connection", text: s.kind === "hoist" ? "Delete hoist" : "Delete", onclick: function (e) { e.stopPropagation(); S.removeSupport(t.id, s.id); } }))));
     });
     stbl.appendChild(tb); container.appendChild(stbl);
 
@@ -535,7 +535,7 @@
         h("button", { "class": "danger", text: "Delete", onclick: function () { if (confirm("Delete " + t.name + "?")) S.removeTruss(t.id); } })));
     container.appendChild(head);
     container.appendChild(h("div", { "class": "quick" },
-      h("button", { "class": "primary", text: "+ Hoist", title: "Add a motor to this truss", onclick: function () { S.addHoist(t.id); } }),
+      h("button", { "class": "primary", text: "+ Hoist", title: "Add a hoist to this truss", onclick: function () { S.addHoist(t.id); } }),
       h("button", { text: "+ Load", title: "Add a load to this truss", onclick: function () { t.loads.push(S.applyMeasure({ id: S.newId("l"), distance: round(t.length / 2), weight: 0, note: "", mirror: false }, t)); S.commit(); } }),
       h("button", { "class": "danger", text: "Clear loads" + (t.loads.length ? " (" + t.loads.length + ")" : ""), disabled: !t.loads.length, title: "Remove every load from this truss (Undo brings them back)", onclick: function () { if (confirm("Remove all " + t.loads.length + " loads from " + t.name + "? (Undo brings them back.)")) S.clearLoads(t.id); } })));
     container.appendChild(h("div", { "class": "grp-tools" },
@@ -547,11 +547,11 @@
       if (a) {
         var ss = t.supports.filter(function (x) { return x.id === S.sel.support; })[0];
         var at = h("table", { "class": "tbl" }, h("tbody", null,
-          a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (own weight)" : "") }), h("td", { "class": "r", text: U.f("w", p.weight, 1) })); }),
+          a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (self weight)" : "") }), h("td", { "class": "r", text: U.f("w", p.weight, 1) })); }),
           h("tr", null, h("td", { text: "Hoist + chain" }), h("td", { "class": "r", text: U.f("w", a.hoistChain, 1) })),
-          h("tr", null, h("td", null, h("b", { text: "Total static" })), h("td", { "class": "r" }, h("b", { text: U.f("w", a.staticLoad, 1) })))));
-        container.appendChild(h("div", { "class": "loadpath" }, h("h4", { text: "Selected motor at " + U.f("len", ss ? ss.distance : 0, 2) + " on " + t.name + (a.model === "load-path" ? " (load-path method)" : " (stiffness solve, " + TLA.grillage.MODEL_LABEL[a.model] + ")") }),
-          h("div", { "class": "row-btns" }, h("button", { "class": "danger", text: "Delete this motor", onclick: function () { S.removeSupport(t.id, S.sel.support); } })), at));
+          h("tr", null, h("td", null, h("b", { text: "High hook load (static)" })), h("td", { "class": "r" }, h("b", { text: U.f("w", a.staticLoad, 1) })))));
+        container.appendChild(h("div", { "class": "loadpath" }, h("h4", { text: "Selected hoist at " + U.f("len", ss ? ss.distance : 0, 2) + " on " + t.name + (a.model === "load-path" ? " (load-path method)" : " (stiffness solve, " + TLA.grillage.MODEL_LABEL[a.model] + ")") }),
+          h("div", { "class": "row-btns" }, h("button", { "class": "danger", text: "Delete this hoist", onclick: function () { S.removeSupport(t.id, S.sel.support); } })), at));
       }
     }
     container = group(root, "result", "Diagram and checks", true, res ? (TLA.plan.trussStatus(res).bad ? "warnings" : "all pass") : "not solved");
@@ -592,7 +592,7 @@
 
     container.appendChild(h("div", { "class": "grid3" },
       field("Truss pieces (" + U.unit("len") + ")", (t.layout && t.layout.manual) || Array.isArray(t.pieces) ? h("input", { type: "number", "class": "num", value: Math.round(U.v("len", t.pieceLength) * 10000) / 10000, disabled: true, title: "Set by the pieces / segments below" }) : numInput(t.pieceLength != null ? t.pieceLength : t.length, function (v) { t.pieceLength = Math.max(0.5, v); S.commit(); }, { ft: true, title: "Total length of the truss sections in this line, before corner blocks" })),
-      field("Wall / UDL (" + U.unit("w") + ")", numInput(t.wallWeight, function (v) { t.wallWeight = v; S.commit(); }, { q: "w", title: "Total weight spread over the full length" })),
+      field("UDL (" + U.unit("w") + ")", numInput(t.wallWeight, function (v) { t.wallWeight = v; S.commit(); }, { q: "w", title: "UDL (uniformly distributed load): total weight spread evenly over the full length, e.g. a drape or LED wall" })),
       field("Weightless", h("input", { type: "checkbox", checked: t.weightless, onchange: function (e) { t.weightless = e.target.checked; S.commit(); } }), "check")));
     container.appendChild(h("div", { "class": "linelen" },
       h("span", null, U.f("len", t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss"),
@@ -714,7 +714,7 @@
 
   /* ---------- chain lengths (1.13.0) ---------- */
   var pendingChain = null;   // row whose chain box takes the focus after the table is redrawn (Tab / Enter moves on)
-  /** Chain length typed straight into the hoist table; Tab / Enter goes on to the next motor. */
+  /** Chain length typed straight into the hoist table; Tab / Enter goes on to the next hoist. */
   function chainInput(s, idx) {
     var dir = 0;
     var inp = numInput(s.chainLength || 0, function (v) {
@@ -722,13 +722,13 @@
       v = Math.max(0, v);
       if (Math.abs((s.chainLength || 0) - v) < 1e-9) { if (pendingChain != null) S.emit(); return; }
       s.chainLength = v; S.commit();
-    }, { cls: "w60", ft: true, title: "Chain length of this motor (Tab or Enter goes to the next one)" });
+    }, { cls: "w60", ft: true, title: "Chain length of this hoist (Tab or Enter goes to the next one)" });
     inp.setAttribute("data-chain", idx);
     inp.addEventListener("keydown", function (e) { dir = e.key === "Tab" ? (e.shiftKey ? -1 : 1) : e.key === "Enter" ? 1 : 0; });
     inp.addEventListener("click", function (e) { e.stopPropagation(); });
     return inp;
   }
-  /** One chain length for every motor, or for the selected truss's motors. */
+  /** One chain length for every hoist, or for the selected truss's hoists. */
   function chainBar() {
     var t = S.sel.truss && S.truss(S.sel.truss);
     var inp = h("input", { type: "text", "class": "num w60", placeholder: U.metric() ? "6" : "20", autocomplete: "off", title: U.metric() ? "Chain length: metres, or cm / mm" : "Chain length: decimal feet or feet-inches (20-6)" });
@@ -740,8 +740,8 @@
     inp.addEventListener("keydown", function (e) { if (e.key === "Enter") go(null); });
     var nOn = t ? t.supports.filter(function (s) { return s.kind === "hoist"; }).length : 0;
     return h("div", { "class": "row-btns chainbar" }, h("span", { "class": "mini", text: "Chain length (" + U.unit("len") + ")" }), inp,
-      h("button", { text: "Set all motors", title: "Give every motor in the rig this chain length (one Undo step)", onclick: function () { go(null); } }),
-      nOn ? h("button", { text: "Set on " + t.name + " (" + nOn + ")", title: "Give only the motors on the selected truss this chain length", onclick: function () { go(t.id); } }) : null);
+      h("button", { text: "Set all hoists", title: "Give every hoist in the rig this chain length (one Undo step)", onclick: function () { go(null); } }),
+      nOn ? h("button", { text: "Set on " + t.name + " (" + nOn + ")", title: "Give only the hoists on the selected truss this chain length", onclick: function () { go(t.id); } }) : null);
   }
 
   /* ---------- per-truss checks (1.13.0) ---------- */
@@ -778,7 +778,7 @@
       tr.appendChild(h("td", { "class": "r", text: String(r.layers[t.id] || "-") }));
       tr.appendChild(h("td", { "class": "r", text: U.n("len", t.length, 2) }));
       tr.appendChild(h("td", { "class": "r" + (longest && longest.lengthFail ? " over" : ""), title: "Longest span between supports, and the longest span the table allows", text: longest ? U.n("len", longest.length, 2) + " / " + U.n("len", longest.maxLength, 1) : "-" }));
-      tr.appendChild(pctCell(worst(spans, function (s) { return s.utilization; }), "Worst span: its point loads as a share of the table capacity for that span (less any wall / UDL)"));
+      tr.appendChild(pctCell(worst(spans, function (s) { return s.utilization; }), "Worst span: its point loads as a share of the table capacity for that span (less any UDL)"));
       tr.appendChild(pctCell(worst(cants, function (s) { return Math.max(s.utilization, s.maxLength ? s.length / s.maxLength : 0); }), "Worst cantilever: its load against the table, or its length against a quarter of the maximum span, whichever is higher"));
       tr.appendChild(pctCell(mb ? mb.momentUtil : null, "Largest bending moment against the allowable estimated from the tables"));
       tr.appendChild(pctCell(mb ? mb.shearUtil : null, "Largest shear against the allowable estimated from the tables"));
@@ -812,13 +812,13 @@
         select([{ value: "imperial", label: "imperial (ft, lb)" }, { value: "metric", label: "metric (m, kg)" }], U.metric() ? "metric" : "imperial", function (v) { st.units = v === "metric" ? "metric" : undefined; S.commit(); })),
       U.metric() ? null : h("label", { "class": "mini", title: "How length boxes are shown. You can type either way in any length box." }, "Show lengths as ",
         select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); })),
-      h("label", { "class": "mini", title: "Used when a hoist has no speed listed (a custom motor). Hoists with a speed use speed in fpm / 60 + 1 (16 fpm = 4.9 m/min = 1.267). You can also type a factor on any hoist." }, "Default dynamic factor ",
+      h("label", { "class": "mini", title: "Used when a hoist has no speed listed (a custom hoist). Hoists with a speed use speed in fpm / 60 + 1 (16 fpm = 4.9 m/min = 1.267). You can also type a factor on any hoist." }, "Default dynamic factor ",
         numInput(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, function (v) { st.defaultDlf = v > 0 ? v : 1.25; S.commit(); }, { cls: "w50" })),
       h("label", { "class": "mini" }, "Repetitive-use factor ",
         select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); })),
-      h("label", { "class": "mini", title: "An extra percentage on the load and truss weight at every hoist (unknown cable weight, a safety margin), as in the original's 'Add Percentage'. It is added before the hoist, chain and hardware weight and shows in Total Static and Dynamic; the truss checks are not changed." }, "Add % to hoist loads ",
+      h("label", { "class": "mini", title: "An extra percentage on the load and truss weight at every hoist (unknown cable weight, a safety margin), as in the original's 'Add Percentage'. It is added before the hoist, chain and hardware weight and shows in the high hook static and dynamic loads; the truss checks are not changed." }, "Add % to hoist loads ",
         numInput(Number(st.addPercent) > 0 ? st.addPercent : "", function (v) { st.addPercent = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: "0" })),
-      h("label", { "class": "mini", title: "How much a hoist and its chain stretch under load, in " + (U.metric() ? "kg per mm (for example 27 for a 1-ton chain hoist on a long drop" : "lb per inch (for example 1500 for a 1-ton chain hoist on a long drop") + " - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less trim-sensitive." }, "Hoist stiffness (" + U.unit("stiff") + ") ",
+      h("label", { "class": "mini", title: "How much a hoist and its chain stretch under load, in " + (U.metric() ? "kg per mm (for example 27 for a 1-ton chain hoist on a long drop" : "lb per inch (for example 1500 for a 1-ton chain hoist on a long drop") + " - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive." }, "Hoist stiffness (" + U.unit("stiff") + ") ",
         numInput(Number(st.hoistStiffness) > 0 ? st.hoistStiffness : "", function (v) { st.hoistStiffness = v > 0 ? v : undefined; S.commit(); }, { cls: "w60", q: "stiff", placeholder: "rigid" }))));
 
     [[warns, "warnings"], [notes, "warnings notes"]].forEach(function (g) {
@@ -831,7 +831,7 @@
     });
 
     var tbl = h("table", { "class": "tbl hoists" });
-    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["Layer", "r"], ["At (" + L + ")", "r"], ["Hoist"], ["Chain (" + L + ")", "r"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["Total Static (" + W + ")", "r"], ["Trim 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["Total Dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["% cap", "r"], ["Status"], [""]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
+    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["Layer", "r"], ["At (" + L + ")", "r"], ["Hoist"], ["Chain (" + L + ")", "r"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["High hook static (" + W + ")", "r"], ["Level sens. 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["High hook dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["% cap", "r"], ["Status"], [""]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
     var tb = h("tbody");
     r.hoists.forEach(function (x, hi) {
       var hs = S.truss(x.truss).supports.filter(function (s) { return s.id === x.support; })[0];
@@ -850,7 +850,7 @@
         h("td", { "class": "r", text: x.hoist.capacity >= 999999 ? "none" : U.n("w", x.hoist.capacity, 0) }),
         h("td", { "class": "r", text: x.hoist.capacity >= 999999 ? "-" : fmt(x.hoist.staticLoad / x.hoist.capacity * 100, 0) + "%" }),
         h("td", null, badge(x.hoist.status)),
-        h("td", null, h("button", { "class": "x", title: "Delete this motor", text: "x", onclick: function (e) { e.stopPropagation(); S.removeSupport(x.truss, x.support); } }))));
+        h("td", null, h("button", { "class": "x", title: "Delete this hoist", text: "x", onclick: function (e) { e.stopPropagation(); S.removeSupport(x.truss, x.support); } }))));
     });
     tbl.appendChild(tb);
     if (r.hoists.length) container.appendChild(chainBar());
@@ -869,7 +869,7 @@
     } })));
     trussTable(container);
     container.appendChild(h("p", { "class": "sub" }, r.primary === "grillage"
-      ? "* Hoist loads come from a stiffness (grillage) solve of the whole rig, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). Total static, dynamic, % and status use the largest. Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set. Trim: the change in a hoist's load if it runs 1/4\" (6 mm) high or low - large on short, stiff spans. The load-path column is the per-truss method of the original workbook, for reference only."
+      ? "* Hoist loads come from a stiffness (grillage) solve of the whole rig, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set. Level sensitivity: the change in a hoist's load if it runs 1/4\" (6 mm) high or low - large on short, stiff spans. The load-path column is the per-truss method of the original workbook, for reference only."
       : "* Stiffness solve not available" + (r.compat && r.compat.note ? " (" + U.text(r.compat.note) + ")" : "") + ": loads are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid."));
   }
 
@@ -879,7 +879,7 @@
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, summary: summary, hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
-      var rows = [["Truss", "Layer", "At " + L, "Loads & Truss " + W, "Hoist & Chain " + W, "Added % " + W, "Load path static " + W + " (ref.)", "Hinged joints static " + W, "Semi-rigid min " + W, "Semi-rigid max " + W, "Rigid joints static " + W, "Total Static " + W, "Governing", "Trim per 1/4 in " + W, "Dynamic factor", "Total Dynamic " + W, "Capacity " + W, "Status"]];
+      var rows = [["Truss", "Layer", "At " + L, "Low hook " + W, "Hoist & Chain " + W, "Added % " + W, "Load path high hook " + W + " (ref.)", "Hinged joints high hook " + W, "Semi-rigid min high hook " + W, "Semi-rigid max high hook " + W, "Rigid joints high hook " + W, "High hook static " + W, "Governing", "Level sensitivity per 1/4 in " + W, "Dynamic factor", "High hook dynamic " + W, "Capacity " + W, "Status"]];
       function r1(v) { return Math.round(U.v("w", v) * 10) / 10; }
       S.results.hoists.forEach(function (x) {
         var c = x.compat || {}, semi = c.semiMin !== null && c.semiMin !== undefined;
