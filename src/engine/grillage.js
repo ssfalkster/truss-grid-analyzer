@@ -10,61 +10,34 @@
  * load-path method UNDER-estimates that hoist. This module solves the whole rig with deflection compatibility and is
  * used as a check on the load-path numbers.
  *
- * Model: every truss is an Euler-Bernoulli beam (bending EI, torsion GJ) in the horizontal plane, loaded vertically.
- * Hoists are rigid vertical supports. Bolted connections (corner blocks) always share vertical deflection; two joint
- * models bracket how much of the real bolted corner's moment/torsion actually carries across, since no manufacturer
- * publishes a stiffness for the corner-block hardware itself (RMMS Lesson 39: this is "precision guesswork"):
- *   hinged - connections carry vertical force only (the grillage method's rigid-joint assumption relaxed to a lower
- *            bound, for a corner block that turns out not to hold the joint square under load)
- *   rigid  - the textbook grillage assumption: bending and torsion also pass through the corner block
- * EI and GJ are estimated per truss type from its connector (RMMS Lesson 39):
- *   - EI is scaled from the manufacturer's published deflection (RMMS Lesson 21, 20.5 x 20.5 PLATED: about
- *     2.4e9 lb-in2) by depth cubed. That anchor point is itself a plated truss, so plated/bolted trusses (and any
- *     truss type this can't classify) use it as-is. A spigoted truss keeps its chord continuous through every
- *     joint instead of relying on a bolted end plate, and Lesson 39's own worked example (a 20.5" truss's real
- *     bending stiffness falls to about a fifth of a solid beam's once you use its 13.75" bolt-hole spacing instead
- *     of its nominal depth) points the same way for stiffness, so spigoted types get a modest, capped bonus rather
- *     than that full ratio - a lattice truss is not a solid beam, and no direct measurement is available.
- *   - GJ/EI is a connector-dependent ratio, not a flat constant: a truss cross-section (box or triangle) is a closed
- *     loop, and a closed thin-walled section is far stiffer in torsion than an open one - but a plated joint breaks
- *     that loop's continuity every panel length, while a spigoted joint (a continuous pin through both chord halves)
- *     mostly preserves it. Pipe is a true closed round section. Can be scaled per truss (truss.eiScale, applied to
- *     both EI and GJ). */
+ * Model: every truss is a Timoshenko beam (bending EI, shear GA, torsion GJ - see section.js) in the horizontal plane,
+ * loaded vertically. Hoists are rigid vertical supports, or springs when a hoist stiffness is given. Bolted connections
+ * (corner blocks) always share vertical deflection; the joint models bracket how much of the real bolted corner's
+ * moment/torsion actually carries across, since no manufacturer publishes a stiffness for the corner-block hardware
+ * itself (RMMS Lesson 39: this is "precision guesswork"):
+ *   hinged     - connections carry vertical force only (the grillage method's rigid-joint assumption relaxed to a
+ *                lower bound, for a corner block that turns out not to hold the joint square under load)
+ *   semi-rigid - (1.4.0) a rotational spring in the corner block, k = alpha x EI/L of the weaker truss it joins
+ *                (alpha = 1, 4, 16: the range between "nominally pinned" and "rigid" in steel-joint classification),
+ *                because a load share can peak between the two extremes
+ *   rigid      - the textbook grillage assumption: bending and torsion also pass through the corner block
+ * Every check uses the worst of all of them. Stiffness can be scaled per truss (truss.eiScale, applied to EI, GA, GJ). */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
 
-  var GJ_RATIO = { pipe: 0.75, spigot: 0.4, plated: 0.15 };
-
-  /** Best guess at a truss's connector type from its catalog description. Falls back to "plated" (the more flexible
-   * assumption, and the one the EI baseline itself is anchored to) when the wording doesn't say. */
-  function connectorType(d) {
-    if (/pipe/i.test(d)) return "pipe";
-    if (/spigot|\bfork\b|\bfrk\b|supertruss/i.test(d)) return "spigot";
-    return "plated";
-  }
-
-  function estimateStiffness(entry, t) {
-    var d = String((entry && entry.description) || ""), kind = connectorType(d), ei;
-    if (kind === "pipe") ei = 9e6;
-    else {
-      var m = d.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)/i);
-      if (m) ei = 2.4e9 * Math.pow(Math.min(parseFloat(m[1]), parseFloat(m[2])) / 20.5, 3);
-      else { var n = d.match(/(\d+(?:\.\d+)?)/); ei = n ? 2.4e9 * Math.pow(parseFloat(n[1]) / 20.5, 3) * 0.6 : 1e9; }
-      if (kind === "spigot") ei *= 1.5;
-    }
-    ei = (ei / 144) * ((t && t.eiScale) || 1);          // lb-ft2
-    return { EI: ei, GJ: ei * GJ_RATIO[kind] };
-  }
+  function estimateStiffness(entry, t) { return TLA.section.estimate(entry, t); }
   function estimateEI(entry, t) { return estimateStiffness(entry, t).EI; }
 
-  function key(x, y) { return Math.round(x * 1000) + "," + Math.round(y * 1000); }
+  var SWEEP = [1, 4, 16];     // semi-rigid corner blocks: rotational spring = alpha x EI/L
 
   /** One beam element between two nodes of a truss: local stiffness Kl on [w, slope, twist] at each end, the
    * transform T (local = T * global [w, thetaX, thetaY]), Kg = T' Kl T, and the local fixed-end loads for 1 lb/ft
-   * down. w and forces are positive UP; slope = dw/dx along the truss. */
+   * down. w and forces are positive UP; slope = dw/dx along the truss. Timoshenko bending: phi = 12 EI / (GA L^2) is
+   * the shear flexibility (0 = Euler-Bernoulli); the fixed-end loads of a uniform load are the same either way. */
   function element(bm, L) {
-    var c = bm.c, s = bm.s, k = bm.EI / (L * L * L), r, q, m;
-    var kb = [[12, 6 * L, -12, 6 * L], [6 * L, 4 * L * L, -6 * L, 2 * L * L], [-12, -6 * L, 12, -6 * L], [6 * L, 2 * L * L, -6 * L, 4 * L * L]];
+    var phi = bm.GA > 0 && isFinite(bm.GA) ? 12 * bm.EI / (bm.GA * L * L) : 0;
+    var c = bm.c, s = bm.s, k = bm.EI / (L * L * L * (1 + phi)), r, q, m, a = (4 + phi) * L * L, b = (2 - phi) * L * L;
+    var kb = [[12, 6 * L, -12, 6 * L], [6 * L, a, -6 * L, b], [-12, -6 * L, 12, -6 * L], [6 * L, b, -6 * L, a]];
     var Kl = []; for (r = 0; r < 6; r++) Kl.push(new Float64Array(6));
     var bi = [0, 1, 3, 4];
     for (r = 0; r < 4; r++) for (q = 0; q < 4; q++) Kl[bi[r]][bi[q]] += k * kb[r][q];
@@ -76,14 +49,23 @@
     for (r = 0; r < 6; r++) { Kg.push(new Float64Array(6)); for (q = 0; q < 6; q++) { var v2 = 0; for (m = 0; m < 6; m++) v2 += T[m][r] * KlT[m][q]; Kg[r][q] = v2; } }
     var fl = [-L / 2, -L * L / 12, 0, -L / 2, L * L / 12, 0], fg = [];
     for (r = 0; r < 6; r++) { var f = 0; for (m = 0; m < 6; m++) f += T[m][r] * fl[m]; fg.push(f); }
-    return { L: L, Kl: Kl, T: T, Kg: Kg, fl: fl, fg: fg };
+    return { L: L, Kl: Kl, T: T, Kg: Kg, fl: fl, fg: fg, phi: phi };
   }
 
-  /** Solve one joint model. Returns { ok, reactions: {truss.id:support.id -> lb}, total, ... } plus what forces() and
-   * attribution need: the displacements U, load vector F, each node's dofs and solveF(F) for more load cases on the
-   * same (already factorised) structure. */
-  function solveModel(model, rigid) {
-    var beams = model.beams, links = model.links;
+  /** Joint model name: "hinged", "rigid" or "semi<alpha>". */
+  function jointsOf(name) {
+    if (name === true || name === "rigid") return { rigid: true, semi: 0 };
+    var m = /^semi(\d+(?:\.\d+)?)$/.exec(name || "");
+    return { rigid: false, semi: m ? parseFloat(m[1]) : typeof name === "number" ? name : 0 };
+  }
+
+  /** Solve one joint model ("hinged", "rigid", "semi<alpha>"; true/false = rigid/hinged). Returns { ok, reactions:
+   * {truss.id:support.id -> lb}, total, ... } plus what forces(), attribution and trim need: the displacements U, load
+   * vector F, each node's dofs, solveF(F) for more load cases on the same (already factorised) structure, and
+   * lift(id, ft) - the reactions when one hoist is raised by ft with no other load. A support with k (lb/ft) is a
+   * spring (a hoist and its chain stretch); without, it is rigid. */
+  function solveModel(model, joints) {
+    var beams = model.beams, links = model.links, jm = jointsOf(joints), rigid = jm.rigid;
     var parent = [];
     function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
     function union(a, b) { a = find(a); b = find(b); if (a !== b) parent[b] = a; }
@@ -109,6 +91,17 @@
         for (var r = 0; r < 6; r++) for (var q = 0; q < 6; q++) K[dd[r]][dd[q]] += el.Kg[r][q];
       }
     });
+    var diagEl = new Float64Array(n); for (i = 0; i < n; i++) diagEl[i] = K[i][i];   // the trusses alone (sizes eps below)
+    // semi-rigid corner blocks: a rotational spring about both plan axes between the two trusses' rotations
+    if (jm.semi > 0) links.forEach(function (lk) {
+      if (!lk.rigid) return;
+      var A = beams[lk.a], B = beams[lk.b], k = jm.semi * Math.min(A.EI / A.L, B.EI / B.L), da = dofs[lk.a][lk.na], db = dofs[lk.b][lk.nb];
+      [1, 2].forEach(function (j) { var p = da[j], q = db[j]; if (p === q) return; K[p][p] += k; K[q][q] += k; K[p][q] -= k; K[q][p] -= k; });
+    });
+    // spring hoists stay free; a rigid hoist at the same point makes the point fixed (its springs then carry nothing)
+    var fixed = {}, springs = [];
+    model.supports.forEach(function (sp) { if (!(sp.k > 0)) fixed[dofs[sp.b][sp.n][0]] = true; });
+    model.supports.forEach(function (sp) { var d = dofs[sp.b][sp.n][0]; if (sp.k > 0 && !fixed[d]) { K[d][d] += sp.k; springs.push({ sp: sp, d: d }); } });
     /** Load vector for everything (origin undefined) or only the loads that belong to one truss (attribution). */
     function loadVector(origin) {
       var F = new Float64Array(n);
@@ -135,12 +128,11 @@
       }
       return F;
     }
-    var fixed = {}; model.supports.forEach(function (sp) { fixed[dofs[sp.b][sp.n][0]] = true; });
     var free = []; for (i = 0; i < n; i++) if (!fixed[i]) free.push(i);
-    var m = free.length, A = [], maxd = 0;
-    for (i = 0; i < m; i++) { A.push(new Float64Array(m)); for (var j = 0; j < m; j++) A[i][j] = K[free[i]][free[j]]; if (A[i][i] > maxd) maxd = A[i][i]; }
+    var m = free.length, A = [], maxd = 0, maxEl = 0;
+    for (i = 0; i < m; i++) { A.push(new Float64Array(m)); for (var j = 0; j < m; j++) A[i][j] = K[free[i]][free[j]]; if (A[i][i] > maxd) maxd = A[i][i]; if (diagEl[free[i]] > maxEl) maxEl = diagEl[free[i]]; }
     var rotDof = {}; dofs.forEach(function (bn) { bn.forEach(function (x) { rotDof[x[1]] = rotDof[x[2]] = true; }); });
-    var eps = maxd * 1e-9;
+    var eps = maxEl * 1e-12;                                               // 1.4.0: was 1e-9, which held a soft truss (pipe) slightly
     for (i = 0; i < m; i++) if (rotDof[free[i]]) A[i][i] += eps;      // removes torsion rigid-body modes in the hinged model
     // LU factorisation with partial pivoting (in place; multipliers below the diagonal), kept for more load cases
     var perm = []; for (i = 0; i < m; i++) perm.push(i);
@@ -155,18 +147,30 @@
       }
     }
     var byDof = {};
-    model.supports.forEach(function (sp) { var d = dofs[sp.b][sp.n][0]; (byDof[d] = byDof[d] || []).push(sp); });
-    function solveF(F) {
-      var y = new Float64Array(m), ii, jj;
+    model.supports.forEach(function (sp) { var d = dofs[sp.b][sp.n][0]; if (fixed[d] && !(sp.k > 0)) (byDof[d] = byDof[d] || []).push(sp); });
+    /** set: optional imposed displacements (ft, up) - of fixed dofs ({dof: ft}) and of spring hoists' tops ({id: ft}). */
+    function solveF(F, set) {
+      var y = new Float64Array(m), ii, jj, fd = (set && set.dofs) || {}, sd = (set && set.springs) || {};
       for (ii = 0; ii < m; ii++) { var s = F[free[perm[ii]]], Ai = A[ii]; for (jj = 0; jj < ii; jj++) s -= Ai[jj] * y[jj]; y[ii] = s; }
       for (ii = m - 1; ii >= 0; ii--) { var s2 = y[ii], Ai2 = A[ii]; for (jj = ii + 1; jj < m; jj++) s2 -= Ai2[jj] * y[jj]; y[ii] = s2 / Ai2[ii]; }
       var U = new Float64Array(n); free.forEach(function (gi, k) { U[gi] = y[k]; });
+      Object.keys(fd).forEach(function (d) { U[+d] = fd[d]; });
       var reactions = {}, total = 0;
       Object.keys(byDof).forEach(function (d) {
         d = +d; var rowK = K[d], r = 0; for (var q = 0; q < n; q++) r += rowK[q] * U[q]; r -= F[d];
         total += r; byDof[d].forEach(function (sp) { reactions[sp.id] = r / byDof[d].length; });
       });
+      springs.forEach(function (x) { var r = x.sp.k * ((sd[x.sp.id] || 0) - U[x.d]); reactions[x.sp.id] = r; total += r; });
+      model.supports.forEach(function (sp) { if (reactions[sp.id] === undefined) reactions[sp.id] = 0; });
       return { U: U, u: y, reactions: reactions, total: total };
+    }
+    /** Reactions when hoist `id` alone is raised by `ft` (a trim error), everything else as solved. */
+    function lift(id, ft) {
+      var sp = model.supports.filter(function (x) { return x.id === id; })[0]; if (!sp) return null;
+      var d = dofs[sp.b][sp.n][0], F = new Float64Array(n), set = { dofs: {}, springs: {} };
+      if (fixed[d]) { free.forEach(function (q) { F[q] = -K[q][d] * ft; }); set.dofs[d] = ft; }
+      else { F[d] = sp.k * ft; set.springs[id] = ft; }
+      return solveF(F, set);
     }
     var F = loadVector(), sol = solveF(F);
     // The eps above only exists to pin down twist that nothing loads. If it ends up carrying real moment, a truss is
@@ -175,7 +179,7 @@
     var leak = 0, leakDof = -1;
     for (i = 0; i < m; i++) if (rotDof[free[i]] && Math.abs(eps * sol.u[i]) > leak) { leak = Math.abs(eps * sol.u[i]); leakDof = free[i]; }
     if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof, dofs: dofs };
-    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, loadVector: loadVector, udlVector: udlVector, solveF: solveF };
+    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
   }
 
   var JUMP_TOL = 1e-5;   // of the truss's largest moment: smaller steps are the solver's tiny twist stiffness, not a joint
@@ -258,7 +262,7 @@
       var res = results.trusses[t.id]; if (!res) return;
       var a = (t.angle || 0) * Math.PI / 180, entry = res.dbTruss, st = estimateStiffness(entry, t);
       var ws = t.weightless ? 0 : (entry.weight_per_ft_lb || 0);
-      var bm = { t: t, c: Math.cos(a), s: Math.sin(a), L: t.length, EI: st.EI, GJ: st.GJ, w: ws + (Number(t.wallWeight) || 0) / (t.length || 1), wSelf: ws, pts: { 0: {}, [t.length]: {} } };
+      var bm = { t: t, c: Math.cos(a), s: Math.sin(a), L: t.length, EI: st.EI, GA: st.GA, GJ: st.GJ, section: st, w:ws + (Number(t.wallWeight) || 0) / (t.length || 1), wSelf: ws, pts: { 0: {}, [t.length]: {} } };
       index[t.id] = beams.length; beams.push(bm);
     });
     function pt(bm, d) {
@@ -337,8 +341,15 @@
       var ia = A.nodes.findIndex(function (n) { return Math.abs(n.d - p.na) < 1e-6; }), ib = B.nodes.findIndex(function (n) { return Math.abs(n.d - p.nb) < 1e-6; });
       links.push({ a: index[p.a], na: ia, b: index[p.b], nb: ib, rigid: p.rigid, feeder: p.a, support: p.support });
     });
+    // hoist springs (lb/in -> lb/ft): the hoist's own stiffness, else the rig's; none = rigid
+    var kRig = Number(rig.settings && rig.settings.hoistStiffness) || 0;
     beams.forEach(function (bm, bi) {
-      bm.nodes.forEach(function (nd, ni) { (nd.hoist || []).forEach(function (id) { supports.push({ b: bi, n: ni, id: id }); }); });
+      bm.nodes.forEach(function (nd, ni) {
+        (nd.hoist || []).forEach(function (id) {
+          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = Number(s && s.stiffness) > 0 ? Number(s.stiffness) : kRig;
+          supports.push(k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id });
+        });
+      });
     });
     return { beams: beams, links: links, supports: supports };
   }
@@ -373,10 +384,10 @@
 
   /** Solve one joint model with tension-only hoists: a hoist that comes out pushing has a slack chain, so it is taken
    * out and the rig solved again, most negative first. Slack hoists report 0. */
-  function solveSlack(model, rigid) {
+  function solveSlack(model, joints) {
     var sup = model.supports.slice(), slack = [];
     for (;;) {
-      var r = solveModel({ beams: model.beams, links: model.links, supports: sup }, rigid);
+      var r = solveModel({ beams: model.beams, links: model.links, supports: sup }, joints);
       if (!r.ok) { r.slack = slack; r.names = ownersOf(model, r.dofs, r.dof); return r; }
       var worst = null, least = -SLACK_TOL;
       sup.forEach(function (sp) { var v = r.reactions[sp.id]; if (v < least) { least = v; worst = sp; } });
@@ -419,21 +430,33 @@
         " would swing freely, so it relies on the corner-block joints holding moment; the hinged columns show the rigid-joint result.";
       hinged = rigid;
     }
-    hinged.equilibriumError = hinged.total - out.load;
-    rigid.equilibriumError = rigid.total - out.load;
-    rigid.forces = forces(model, rigid);
-    hinged.forces = hinged === rigid ? rigid.forces : forces(model, hinged);
-    out.ok = true; out.hinged = hinged; out.rigid = rigid; out.model = model;
+    out.order = ["hinged"];
+    out.hinged = hinged; out.rigid = rigid;
+    // semi-rigid corner blocks between the two extremes (only where a corner block joins trusses)
+    if (hinged !== rigid && model.links.some(function (lk) { return lk.rigid; })) SWEEP.forEach(function (alpha) {
+      var key = "semi" + alpha, s = solveSlack(model, key);
+      if (s.ok) { out[key] = s; out.order.push(key); }
+    });
+    out.order.push("rigid");
+    out.order.forEach(function (m) {
+      var s = out[m];
+      if (s.forces) return;
+      s.equilibriumError = s.total - out.load;
+      s.forces = forces(model, s);
+    });
+    out.ok = true; out.model = model;
     return out;
   }
 
   /* ---- 1.3.0: the stiffness solve is the primary result ----
    * Hoist loads, bolted-connection forces and the span/cantilever table checks all come from the grillage, for both
-   * joint models side by side; each check is governed by the worse of the two. The load-path numbers are kept on
+   * joint models side by side (1.4.0: hinged, semi-rigid sweep, rigid); each check is governed by the worst. The load-path numbers are kept on
    * every result as .loadPath for reference, and are what the app falls back to (with a warning) when the stiffness
    * solve can't run. */
 
-  var MODELS = ["hinged", "rigid"], MODEL_LABEL = { hinged: "hinged joints", rigid: "rigid joints" };
+  var MODEL_LABEL = { hinged: "hinged joints", rigid: "rigid joints" };
+  SWEEP.forEach(function (a) { MODEL_LABEL["semi" + a] = "semi-rigid joints (" + a + " EI/L)"; });
+  function isSemi(m) { return /^semi/.test(m); }
 
   function supportOf(t, id) { return ((t && t.supports) || []).filter(function (s) { return s.id === id; })[0]; }
   function hoistEntry(db, id) { return (db.hoists || []).filter(function (h) { return h.id === id; })[0] || (db.hoists || [])[0] || null; }
@@ -483,36 +506,50 @@
     return { beam: beam, limits: limits, injected: injected };
   }
 
-  /** Which joint model's table checks are worse: higher status code, then higher utilisation. */
-  function worse(a, b) {
-    if (!a) return "rigid"; if (!b) return "hinged";
-    if (a.limits.worstCode !== b.limits.worstCode) return a.limits.worstCode > b.limits.worstCode ? "hinged" : "rigid";
-    return maxUtil(a.limits) > maxUtil(b.limits) ? "hinged" : "rigid";
+  /** Which joint model's table checks are worst: higher status code, then higher utilisation (ties: rigid, then the
+   * stiffer semi-rigid models, as before 1.4.0). */
+  function worst(by, order) {
+    var best = null;
+    order.slice().reverse().forEach(function (m) {
+      var a = by[m]; if (!a) return;
+      var b = best && by[best];
+      if (!b || a.limits.worstCode > b.limits.worstCode || (a.limits.worstCode === b.limits.worstCode && maxUtil(a.limits) > maxUtil(b.limits) + 1e-12)) best = m;
+    });
+    return best;
   }
 
+  var TRIM_FT = 1 / 48;          // a quarter inch
+  var TRIM_WARN = 0.1;           // of the hoist's capacity
+
   function applyPrimary(rig, results, db, out) {
-    var byId = {}, st = rig.settings || {}, W = results.warnings;
+    var byId = {}, st = rig.settings || {}, W = results.warnings, MODELS = out.order;
     rig.trusses.forEach(function (t) { byId[t.id] = t; });
     results.primary = "grillage";
+    results.models = MODELS.slice();
     // the load-path hoist and span warnings are replaced by the ones below
     for (var i = W.length - 1; i >= 0; i--) if (W[i].kind === "segment" || W[i].kind === "member" || W[i].kind === "hoist") W.splice(i, 1);
 
     Object.keys(results.trusses).forEach(function (id) {
       var t = byId[id], res = results.trusses[id];
       if (!t || t.isBlock) return;
-      var by = { hinged: checkWith(t, res, out.hinged, rig, byId, results, out.model), rigid: checkWith(t, res, out.rigid, rig, byId, results, out.model) };
-      if (!by.hinged && !by.rigid) return;
-      var m = worse(by.hinged, by.rigid);
+      var by = {}, any = false;
+      MODELS.forEach(function (mm) { by[mm] = checkWith(t, res, out[mm], rig, byId, results, out.model); if (by[mm]) any = true; });
+      if (!any) return;
+      var m = worst(by, MODELS);
       res.loadPath = { beam: res.beam, limits: res.limits, injected: res.injected };
       res.byModel = by; res.model = m;
       res.beam = by[m].beam; res.limits = by[m].limits; res.injected = by[m].injected;
-      res.memberForces = { hinged: out.hinged.forces.members[id], rigid: out.rigid.forces.members[id] };
+      res.memberForces = {};
+      MODELS.forEach(function (mm) { res.memberForces[mm] = out[mm].forces.members[id]; });
+      var bm = out.model.beams.filter(function (b) { return b.t.id === id; })[0];
+      if (bm) res.section = bm.section;
       // the reactions shown with this truss's diagram are from the same joint model as its checks
       res.supports.forEach(function (sr) {
         var key = id + ":" + sr.support.id;
         function val(sol) { return sr.support.kind === "hoist" ? sol.reactions[key] || 0 : sol.forces.connections[key] || 0; }
         sr.loadPathReaction = sr.reaction;
-        sr.byModel = { hinged: val(out.hinged), rigid: val(out.rigid) };
+        sr.byModel = {};
+        MODELS.forEach(function (mm) { sr.byModel[mm] = val(out[mm]); });
         sr.reaction = sr.byModel[m];
       });
       res.limits.segments.forEach(function (s) {
@@ -522,16 +559,21 @@
       if (mb && mb.code) W.push({ truss: id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) + " (" + MODEL_LABEL[m] + ")" });
     });
 
+    var names = {}, touchy = [];
+    results.hoists.forEach(function (h) { names[h.truss + ":" + h.support] = h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft"; });
     results.hoists.forEach(function (h) {
       var id = h.truss + ":" + h.support, s = supportOf(byId[h.truss], h.support);
-      if (!s || out.hinged.reactions[id] === undefined || out.rigid.reactions[id] === undefined) return;
+      if (!s || MODELS.some(function (mm) { return out[mm].reactions[id] === undefined; })) return;
       var entry = hoistEntry(db, s.hoistId), by = {};
       MODELS.forEach(function (mm) {
         by[mm] = TLA.limits.checkHoist(entry, s.chainLength, out[mm].reactions[id], s.hardwareWeight, s.dlf, st.defaultDlf);
         by[mm].model = mm;
         if (out[mm].slack.indexOf(id) >= 0) { by[mm].slack = true; by[mm].status = "Slack"; }
       });
-      var m = by.rigid.staticLoad >= by.hinged.staticLoad ? "rigid" : "hinged", gov = Object.assign({}, by[m]);
+      // governing: the largest static load (ties: rigid, then the stiffer semi-rigid models, as before 1.4.0)
+      var m = "rigid";
+      MODELS.slice().reverse().forEach(function (mm) { if (by[mm].staticLoad > by[m].staticLoad + 1e-9) m = mm; });
+      var gov = Object.assign({}, by[m]);
       if (results.unstable.indexOf(h.truss) >= 0) gov.status = "UNSTABLE";     // the load path says this truss tips
       var lp = { reaction: h.reaction, slack: h.slack, hoist: h.hoist };
       h.loadPath = lp; h.byModel = by; h.model = m;
@@ -539,26 +581,46 @@
       var res = results.trusses[h.truss], sr = res && res.supports.filter(function (x) { return x.support.id === h.support; })[0];
       if (sr) {
         sr.hoist = gov; sr.slack = h.slack;
-        if (!sr.byModel) { sr.loadPathReaction = lp.reaction; sr.byModel = { hinged: by.hinged.reaction, rigid: by.rigid.reaction }; sr.reaction = gov.reaction; }
+        if (!sr.byModel) { sr.loadPathReaction = lp.reaction; sr.byModel = {}; MODELS.forEach(function (mm) { sr.byModel[mm] = by[mm].reaction; }); sr.reaction = gov.reaction; }
       }
-      var lps = lp.hoist.staticLoad;
+      var lps = lp.hoist.staticLoad, semis = MODELS.filter(isSemi), slackIn = MODELS.filter(function (mm) { return by[mm].slack; });
       h.compat = gov.compat = {
         hinged: by.hinged.staticLoad, rigid: by.rigid.staticLoad, envelope: gov.staticLoad, loadPath: lps,
-        slackHinged: !!by.hinged.slack, slackRigid: !!by.rigid.slack,
+        semiMin: semis.length ? Math.min.apply(null, semis.map(function (mm) { return by[mm].staticLoad; })) : null,
+        semiMax: semis.length ? Math.max.apply(null, semis.map(function (mm) { return by[mm].staticLoad; })) : null,
+        slackHinged: !!by.hinged.slack, slackRigid: !!by.rigid.slack, slackIn: slackIn,
         higher: gov.staticLoad > lps + margin(lps), lower: gov.staticLoad < lps - margin(lps)
       };
-      var where = h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft";
-      if (h.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": SLACK - the load would push this hoist up (with hinged and with rigid joints), so its chain goes slack and it carries nothing (only the hoist and chain weight). The rest of the rig carries its share; the results shown are with this hoist taken out." });
-      else if (by.hinged.slack || by.rigid.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": goes SLACK with " + MODEL_LABEL[by.hinged.slack ? "hinged" : "rigid"] + " only; the " + MODEL_LABEL[m] + " result (" + Math.round(gov.staticLoad) + " lb) is used." });
+      // trim: this hoist a quarter inch high, in the joint model that governs it (linear, same slack hoists)
+      var sol = out[m];
+      if (!h.slack && sol.lift) {
+        var lr = sol.lift(id, TRIM_FT), other = null;
+        if (lr) {
+          Object.keys(lr.reactions).forEach(function (k) { if (k !== id && (!other || Math.abs(lr.reactions[k]) > Math.abs(other.lb))) other = { id: k, name: names[k] || k, lb: lr.reactions[k] }; });
+          h.trim = gov.trim = { self: lr.reactions[id], other: other, model: m };
+        }
+      }
+      var where = names[id];
+      if (h.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": SLACK - the load would push this hoist up (with every joint model), so its chain goes slack and it carries nothing (only the hoist and chain weight). The rest of the rig carries its share; the results shown are with this hoist taken out." });
+      else if (slackIn.length) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": goes SLACK with " + slackIn.map(function (mm) { return MODEL_LABEL[mm]; }).join(", ") + " only; the " + MODEL_LABEL[m] + " result (" + Math.round(gov.staticLoad) + " lb) is used." });
       if (!h.slack && gov.status !== "Good" && gov.status !== "UNSTABLE") W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": " + gov.status + " (" + Math.round(gov.staticLoad) + " lb static, " + MODEL_LABEL[m] + ")" });
       else if (!h.slack && gov.dynamicOver) W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity (" + MODEL_LABEL[m] + ")" });
       if (h.compat.higher) W.push({ truss: h.truss, kind: "hoist", level: "info", message: where + ": " + Math.round(gov.staticLoad) + " lb from the stiffness solve, well above the load-path method's " + Math.round(lps) + " lb - the truss it is bolted to sags and sheds load onto this hoist." });
+      if (h.trim && gov.capacity > 0 && gov.capacity < 999999 && Math.abs(h.trim.self) > TRIM_WARN * gov.capacity) touchy.push({ h: h, share: Math.abs(h.trim.self) / gov.capacity });
     });
+    // one warning for every trim-sensitive hoist, led by the worst
+    if (touchy.length) {
+      touchy.sort(function (a, b) { return b.share - a.share; });
+      var w0 = touchy[0].h, t0 = w0.trim;
+      W.push({ truss: w0.truss, kind: "hoist", level: "trim", message: (touchy.length === 1 ? "1 hoist is" : touchy.length + " hoists are") + " trim-sensitive (a 1/4\" level error changes the load by more than " + Math.round(TRIM_WARN * 100) + "% of the hoist's capacity - short, stiff spans). Worst: " + names[w0.truss + ":" + w0.support] + " - running it 1/4\" high adds about " + Math.round(t0.self) + " lb (" + Math.round(touchy[0].share * 100) + "% of its capacity)" + (t0.other ? " and changes " + t0.other.name + " by " + Math.round(t0.other.lb) + " lb" : "") +
+        (touchy.length > 1 ? ". Also: " + touchy.slice(1).map(function (x) { return names[x.h.truss + ":" + x.h.support]; }).join(", ") : "") + ". Level the hoists carefully; the Trim column has each hoist's figure." });
+    }
 
     var tot = results.totals;
     tot.loadPath = { staticLoad: tot.staticLoad, dynamicLoad: tot.dynamicLoad, hoistReaction: tot.hoistReaction };
     tot.staticLoad = tot.dynamicLoad = tot.hoistChain = tot.hoistReaction = 0;
-    tot.byModel = { hinged: 0, rigid: 0 };
+    tot.byModel = {};
+    MODELS.forEach(function (mm) { tot.byModel[mm] = 0; });
     results.hoists.forEach(function (h) {
       tot.staticLoad += h.hoist.staticLoad; tot.dynamicLoad += h.hoist.dynamicLoad; tot.hoistChain += h.hoist.hoistChain; tot.hoistReaction += h.reaction;
       MODELS.forEach(function (mm) { tot.byModel[mm] += h.byModel ? h.byModel[mm].staticLoad : h.hoist.staticLoad; });
@@ -573,7 +635,7 @@
       ": hoist loads and truss checks are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid." });
   }
 
-  /** Solve hinged and rigid models, then make them the primary result (see applyPrimary). */
+  /** Solve every joint model, then make them the primary result (see applyPrimary). */
   function annotate(rig, results, db, opts) {
     opts = opts || {}; db = db || TLA.data || {};
     var sig = signature(rig, results), out;
@@ -586,11 +648,11 @@
     // self-checks: the solve balances, carries the same total weight as the load-path solve, and the connection
     // forces account for every node
     var tol = 0.5 + 1e-6 * out.load, applied = results.totals && results.totals.applied;
-    if (Math.abs(out.hinged.equilibriumError) > tol || Math.abs(out.rigid.equilibriumError) > tol)
-      results.warnings.push({ level: "internal", message: "Stiffness check does not balance (" + Math.round(out.hinged.equilibriumError) + " lb) - please report this rig." });
+    var bad = out.order.filter(function (mm) { return Math.abs(out[mm].equilibriumError) > tol; })[0];
+    if (bad) results.warnings.push({ level: "internal", message: "Stiffness check does not balance (" + Math.round(out[bad].equilibriumError) + " lb, " + MODEL_LABEL[bad] + ") - please report this rig." });
     if (typeof applied === "number" && Math.abs(out.load - applied) > tol)
       results.warnings.push({ level: "internal", message: "Stiffness check carries " + Math.round(out.load) + " lb but the load-path solve carries " + Math.round(applied) + " lb - please report this rig." });
-    MODELS.forEach(function (mm) {
+    out.order.forEach(function (mm) {
       var f = out[mm].forces;
       if (f.loop) results.warnings.push({ level: "internal", message: "Stiffness check (" + MODEL_LABEL[mm] + "): bolted connections meet in a closed loop at one point, so their forces can't be split - please report this rig." });
       else if (f.residual > tol) results.warnings.push({ level: "internal", message: "Stiffness check (" + MODEL_LABEL[mm] + "): connection forces are " + Math.round(f.residual) + " lb out - please report this rig." });
@@ -622,5 +684,36 @@
     return { reaction: h.reaction, hoistChain: h.hoist.hoistChain, staticLoad: h.hoist.staticLoad, parts: cache[id], model: h.model };
   }
 
-  TLA.grillage = { annotate: annotate, build: build, solveModel: solveModel, forces: forces, attribution: attribution, estimateEI: estimateEI, estimateStiffness: estimateStiffness, connectorType: connectorType, MODEL_LABEL: MODEL_LABEL };
+  /** The stiffness model of a rig for an outside cross-check (tools/pynite_check.py builds it in PyNite, the engine
+   * behind CalcForge 3D): Euler-Bernoulli beams (PyNite has no shear deformation, so GA is left out here), hinged and
+   * rigid joints, hoist springs, with this tool's own reactions and member forces for the same model. Lengths ft,
+   * forces lb, EI/GJ lb-ft2, k lb/ft. */
+  function exportModel(rig, results, db) {
+    db = db || TLA.data || {};
+    if (results.unsolved && results.unsolved.length) return null;
+    var model = build(rig, results, db);
+    if (!model.supports.length || unheldGroups(model).length) return null;
+    model.beams.forEach(function (bm) { bm.GA = Infinity; bm.els = []; });
+    function r6(v) { return Math.round(v * 1e6) / 1e6; }
+    var ex = {
+      tool: "Truss Grid Analyzer", version: TLA.VERSION, units: { length: "ft", force: "lb", EI: "lb-ft2", GJ: "lb-ft2", k: "lb/ft" },
+      beams: model.beams.map(function (bm) {
+        return { id: bm.t.id, name: bm.t.name, x: Number(bm.t.x) || 0, y: Number(bm.t.y) || 0, angle: Number(bm.t.angle) || 0, L: bm.L, EI: bm.EI, GJ: bm.GJ, w: bm.w,
+          nodes: bm.nodes.map(function (nd) { return { d: r6(nd.d), P: nd.P || 0 }; }) };
+      }),
+      links: model.links.map(function (lk) { return { a: lk.a, na: lk.na, b: lk.b, nb: lk.nb, rigid: !!lk.rigid }; }),
+      supports: model.supports.map(function (sp) { return sp.k > 0 ? { b: sp.b, n: sp.n, id: sp.id, k: sp.k } : { b: sp.b, n: sp.n, id: sp.id }; }),
+      results: {}
+    };
+    ["hinged", "rigid"].forEach(function (m) {
+      var s = solveSlack(model, m);
+      if (!s.ok) { ex.results[m] = { ok: false }; return; }
+      var f = forces(model, s), members = {};
+      Object.keys(f.members).forEach(function (id) { var x = f.members[id]; members[id] = { maxMoment: x.maxMoment, maxSag: x.maxSag, maxHog: x.maxHog, maxShear: x.maxShear, maxTorque: x.maxTorque }; });
+      ex.results[m] = { ok: true, slack: s.slack, reactions: s.reactions, members: members };
+    });
+    return ex;
+  }
+
+  TLA.grillage = { annotate: annotate, build: build, solveModel: solveModel, solveSlack: solveSlack, forces: forces, attribution: attribution, exportModel: exportModel, estimateEI: estimateEI, estimateStiffness: estimateStiffness, MODEL_LABEL: MODEL_LABEL, SWEEP: SWEEP, TRIM_FT: TRIM_FT };
 })(typeof globalThis !== "undefined" ? globalThis : window);

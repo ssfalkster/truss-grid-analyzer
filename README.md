@@ -30,9 +30,14 @@ share them. Saved files record the app version that made them.
   closes onto the first. A truss bolted to a truss that is bolted back to it is flagged rather than solved.
 - **Load paths.** Each truss is solved as a continuous beam with cantilevers (Clapeyron's three-moment equation).
   Reactions at bolted connections are passed on to the truss they are bolted to, down to the hoists.
-- **Stiffness check.** The whole rig is also solved as a grillage, a direct-stiffness analysis of the beams
-  sharing deflection at the joints. Joints are modelled both hinged and rigid, and the worse result is shown
-  next to the load-path result. This catches cases where the load-path method under-estimates a hoist.
+- **Stiffness solve (primary result).** The whole rig is solved as a grillage, a direct-stiffness analysis of
+  the trusses as Timoshenko beams sharing deflection at the joints. Corner blocks are modelled hinged,
+  semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid, and every check uses the worst. Each truss's
+  bending, shear and torsion stiffness is estimated from its manufacturer's tables, or taken from real chord and
+  diagonal sizes where the truss data has them. The load-path result is kept for reference; the stiffness solve
+  catches cases where the load-path method under-estimates a hoist.
+- **Trim.** For each hoist, how much its load changes if it runs 1/4 in high or low, flagged past 10% of its
+  capacity. Hoists can be given a stiffness (lb/in) instead of being rigid.
 - **Limits.** Span and cantilever checks against the manufacturer's UDL and center point load tables, with the
   ANSI repetitive-use factor (0.85) unless the data already includes it. Maximum cantilever is a quarter of the
   maximum span.
@@ -51,15 +56,22 @@ share them. Saved files record the app version that made them.
 
 - Reactions reproduce the worked examples in *Rigging Math Made Simple* (Delbert L. Hall).
 - The beam solver is checked against an independent finite-element model of 400 random continuous beams.
-- For a whole grid, cross-check with an independent 3D frame analysis such as CalcForge's
-  *3D Structural Analysis*. Model hoists as pinned supports and leave the truss joints continuous.
+- The stiffness solve is checked against PyNite, the 3D frame engine behind CalcForge's *3D Structural
+  Analysis*: **Export stiffness model** (under the hoist table), then `python tools/pynite_check.py <file>`
+  (needs `pip install PyNiteFEA`). It rebuilds the same model in PyNite and compares hoist reactions and member
+  forces for hinged and rigid joints; the example rigs agree to 0.01 lb. PyNite has no shear deformation, so the
+  export is the Euler-Bernoulli version of the model. Timoshenko shear, trim and hoist springs are tested
+  against closed-form beam results.
 
 ## Limitations
 
-- Hoists are treated as rigid supports at exactly the same height. Trim differences and chain stretch are not
-  modelled.
-- Truss bending and torsional stiffness in the stiffness check are estimated from each truss's published size and
-  connector type. Scale a truss's estimate with its **Stiffness (x)** field if you have better data.
+- Hoists are rigid supports at one level unless a hoist stiffness is given; the trim column shows the effect of
+  a hoist 1/4 in out of level, one hoist at a time.
+- Truss stiffness is estimated from the load tables (see the About dialog), not measured. A truss named AxB is
+  taken as B deep. Scale a truss's estimate with its **Stiffness (x)** field, or add real chord and diagonal sizes
+  to its data, if you have better information.
+- Corner blocks are treated as points: their size (the offset between the trusses they join) is ignored, as in
+  a standard grillage.
 - The allowable moment and shear are estimated from the load tables, not published values. Where the
   manufacturer publishes them, compare against those.
 - Truss and hoist data come from the original workbook's tables. Always confirm against the manufacturer's
@@ -72,12 +84,12 @@ The app is plain HTML, CSS and JavaScript with no dependencies and no build step
 | Path | Contents |
 | --- | --- |
 | `index.html` | The app, loading the source files directly |
-| `src/engine/` | Calculations, with no DOM: `beam.js` (continuous beam), `rig.js` (load path), `grillage.js` (stiffness check), `limits.js` (table and hoist checks), `side.js` (circular truss and simple UDL calculators) |
+| `src/engine/` | Calculations, with no DOM: `beam.js` (continuous beam), `rig.js` (load path), `grillage.js` (stiffness solve), `section.js` (truss stiffness from the tables), `limits.js` (table and hoist checks), `side.js` (circular truss and simple UDL calculators) |
 | `src/ui/` | Interface: state and undo (`store.js`), plan and 3D views, panels, tools |
 | `src/version.js` | Version number and version history |
 | `data/` | Truss, hoist, fixture, corner block and stock-length data |
 | `tests/` | Engine and store tests |
-| `tools/` | `build.py` (single-file build), `serve.py` (dev server), `corner_blocks.py` (corner block data) |
+| `tools/` | `build.py` (single-file build), `serve.py` (dev server), `corner_blocks.py` (corner block data), `pynite_check.py` (cross-check the stiffness solve in PyNite) |
 
 - Run from source: `python tools/serve.py`, then open http://localhost:8765 (caching is off).
 - Run the tests: open http://localhost:8765/tests/run.html.
