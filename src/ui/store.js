@@ -14,7 +14,7 @@
     rig: null,
     results: null,
     sel: { truss: null, support: null },
-    ui: { colorMode: "layer", showLoads: true, showLabels: true, view: { scale: 8, ox: 60, oy: 60 }, tab: "plan" },
+    ui: { colorMode: "util", showLoads: true, showLabels: true, view: { scale: 8, ox: 60, oy: 60 }, tab: "plan" },
     userDb: { trusses: [], hoists: [], fixtures: [], corners: [] }
   });
 
@@ -790,7 +790,7 @@
         else if (S.boltDirection(X.id)) seen[k] = X.name;
       });
     })();
-    try { TLA.grillage.annotate(S.rig, S.results, db()); } catch (e) { S.results.compat = { ok: false, note: "Stiffness check failed: " + e.message }; }
+    try { TLA.grillage.annotate(S.rig, S.results, db()); } catch (e) { S.results.compat = { ok: false, note: "Whole-rig analysis failed: " + e.message }; }
     return S.results;
   };
 
@@ -841,7 +841,7 @@
     if (saved && saved.rig && saved.rig.trusses) {
       S.rig = saved.rig;
       if (saved.userDb) S.userDb = saved.userDb;
-      if (saved.ui) { S.ui.colorMode = saved.ui.colorMode || "layer"; if (saved.ui.view) S.ui.view = saved.ui.view; if (saved.ui.customPieces) S.ui.customPieces = saved.ui.customPieces; }
+      if (saved.ui) { S.ui.colorMode = saved.ui.colorMode || "util"; if (saved.ui.view) S.ui.view = saved.ui.view; if (saved.ui.customPieces) S.ui.customPieces = saved.ui.customPieces; }
       lastSnap = null; S.commit({ noUndo: true });
     } else {
       S.rig = emptyRig();

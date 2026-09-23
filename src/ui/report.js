@@ -54,7 +54,7 @@
   }
   function td(text, cls) { return h("td", { "class": cls || "", text: text == null ? "" : String(text) }); }
   function tdr(text, cls) { return td(text, "r " + (cls || "")); }
-  function statusCell(st, bad) { return h("td", { "class": "st " + (bad ? "fail" : st === "Good" || st === "Pass" ? "ok" : "warn"), text: st }); }
+  function statusCell(st, bad) { return h("td", { "class": "st " + (bad ? "fail" : st === "Good" || st === "Pass" ? "ok" : "warn"), text: TLA.panels.statusText(st) }); }
   function sec(root, num, title) {
     var s = h("section", { "class": "rsec" }, h("h2", null, h("span", { "class": "n", text: num }), " " + title));
     root.appendChild(s); return s;
@@ -136,13 +136,13 @@
       if (mb && isFinite(mb.utilization) && (!maxT || mb.utilization > maxT.u)) maxT = { u: mb.utilization, t: t, what: mb.momentUtil >= mb.shearUtil ? "bending moment" : "shear" };
     });
     s1.appendChild(table("kv", null, [
-      h("tr", null, td("Method (primary result)"), td(grill ? "Stiffness (grillage) solve of the whole rig; every check uses the worst of the joint models " + MODELS.map(modelName).join(", ") : "Load-path method (stiffness solve not available" + (r.compat && r.compat.note ? ": " + U.text(r.compat.note) : "") + ")")),
+      h("tr", null, td("Method (primary result)"), td(grill ? "Whole-rig analysis; every check uses the worst of the joint models " + MODELS.map(modelName).join(", ") : "Load-path method (whole-rig analysis not available" + (r.compat && r.compat.note ? ": " + U.text(r.compat.note) : "") + ")")),
       h("tr", null, td("Trusses / corner blocks / hoists"), td(lines.length + " / " + blocks.length + " / " + tot.count)),
       h("tr", null, td("Total weight carried by the rig"), td(W(tot.applied, 1) + " (loads, truss and block self weight, UDL, hardware at bolted connections)")),
       h("tr", null, td("Total high hook load, static"), td(W(tot.staticLoad, 1) + " (incl. hoists, chain and hoist hardware" + (Number(st.addPercent) > 0 ? ", + " + st.addPercent + "%" : "") + ")")),
       h("tr", null, td("Total high hook load, dynamic"), td(W(tot.dynamicLoad, 1))),
-      h("tr", null, td("Highest hoist utilization"), td(maxH ? pct(maxH.u) + " - " + hid[maxH.x.truss + ":" + maxH.x.support] + " on " + maxH.x.trussName : "-")),
-      h("tr", null, td("Highest truss utilization"), td(maxT ? pct(maxT.u) + " - " + maxT.t.name + ", " + maxT.what : "-")),
+      h("tr", null, td("Highest hoist workload"), td(maxH ? pct(maxH.u) + " - " + hid[maxH.x.truss + ":" + maxH.x.support] + " on " + maxH.x.trussName : "-")),
+      h("tr", null, td("Highest truss workload"), td(maxT ? pct(maxT.u) + " - " + maxT.t.name + ", " + maxT.what : "-")),
       h("tr", null, td("Warnings"), td(warns.length ? warns.length + " (section 9)" : "none") )
     ]));
 
@@ -150,9 +150,9 @@
     var s2 = sec(sheet, next(), "Basis of calculation");
     s2.appendChild(h("ul", { "class": "basis" },
       h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight and any UDL spread over the whole length. Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
-      grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a stiffness (grillage) solve of the whole rig: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
+      grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a whole-rig analysis: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
       h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is " + (grill ? "shown for reference." : "the result used here.") }),
-      h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is UNSTABLE." }),
+      h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var fx = [
       ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
@@ -204,7 +204,7 @@
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"), tdr(x.trim ? "±" + Wn(Math.abs(x.trim.self), 0) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
-      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["% cap", "r"], ["Level sens. 1/4\"", "r"], "Status"], rowsB,
+      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], ["Level sens. 1/4\"", "r"], "Status"], rowsB,
         h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""), td(""))));
       s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware. Level sensitivity: the change in the hoist's load if it runs 1/4\" (6 mm) high or low, in its governing joint model (a hoist is flagged when this passes 10% of its capacity).", "cap"));
     }
@@ -213,7 +213,7 @@
     var s5 = sec(sheet, next(), "Equilibrium (self-checks)");
     var eqRows = [h("tr", null, td("Weight carried (load-path solve)"), tdr(W(tot.applied, 1)), td(""))];
     if (grill && r.compat && r.compat.ok) {
-      eqRows.push(h("tr", null, td("Weight in the stiffness model"), tdr(W(r.compat.load, 1)), td(Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "agrees" : "DIFFERS", Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
+      eqRows.push(h("tr", null, td("Weight in the whole-rig model"), tdr(W(r.compat.load, 1)), td(Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "agrees" : "DIFFERS", Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       MODELS.forEach(function (m) {
         var sumR = r.hoists.reduce(function (a, x) { return a + (x.byModel && x.byModel[m] ? x.byModel[m].reaction : 0); }, 0), err = r.compat[m] ? r.compat[m].equilibriumError : NaN;
         eqRows.push(h("tr", null, td("Sum of hoist reactions, " + modelName(m)), tdr(W(sumR, 1)), td("out of balance by " + W(err, 3), Math.abs(err) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
@@ -268,7 +268,7 @@
       h("li", { text: "Table checks: read each manufacturer's table at the row given, apply k, and redo the arithmetic written under each check (F1-F3)." }),
       h("li", { text: "Balance: in every truss the listed loads add up to its listed reactions; the reactions of all hoists add up to the weight carried (section 5)." }),
       h("li", { text: "Two-support trusses: their reactions follow from statics alone (moments about one support, shown under the truss)." }),
-      grill ? h("li", { text: "Grids and continuous trusses: rebuild the rig in a 3D frame program (e.g. CalcForge 3D Structural Analysis / PyNite): a node at every hoist, joint and load, hoists pinned, truss-to-truss joints continuous (rigid) or released (hinged), the EI and GJ listed for each truss, loads as listed. Its reactions should match the Rigid and Hinged columns (it leaves out shear deformation, so short, stiff spans may differ a little). The app's 'Export stiffness model' writes the same model for tools/pynite_check.py." }) : null,
+      grill ? h("li", { text: "Grids and continuous trusses: rebuild the rig in a 3D frame program (e.g. CalcForge 3D Structural Analysis / PyNite): a node at every hoist, joint and load, hoists pinned, truss-to-truss joints continuous (rigid) or released (hinged), the EI and GJ listed for each truss, loads as listed. Its reactions should match the Rigid and Hinged columns (it leaves out shear deformation, so short, stiff spans may differ a little). The app's 'Export whole-rig model' writes the same model for tools/pynite_check.py." }) : null,
       h("li", { text: "Hoists: redo section 4b (F4, F5) with the hoist's rated capacity, weight, chain weight and speed from its data sheet." })));
 
     /* ---- 9. warnings ---- */
@@ -312,7 +312,7 @@
       ["Repetitive-use factor k", fmt(k, 3) + " (" + derateWhy(e, k) + ")"]
     ];
     if (res.model) data.push(["Checked with", modelName(res.model) + " - the joint model that loads this truss hardest"]);
-    if (sec2) data.push(["Stiffness (stiffness solve)", "EI " + U.v("ei", sec2.EI * 144).toExponential(3) + " " + U.unit("ei") + ", GA " + U.v("w", sec2.GA).toExponential(3) + " " + U.unit("w") + ", GJ " + U.v("ei", sec2.GJ * 144).toExponential(3) + " " + U.unit("ei") +
+    if (sec2) data.push(["Stiffness (whole-rig analysis)", "EI " + U.v("ei", sec2.EI * 144).toExponential(3) + " " + U.unit("ei") + ", GA " + U.v("w", sec2.GA).toExponential(3) + " " + U.unit("w") + ", GJ " + U.v("ei", sec2.GJ * 144).toExponential(3) + " " + U.unit("ei") +
       " (" + (sec2.source === "tables" ? "estimated from the tables" : sec2.source === "section" ? "from section data" : sec2.source) + (sec2.scale !== 1 ? ", x" + sec2.scale : "") + ")"]);
     box.appendChild(table("kv small", null, data.map(function (d) { return h("tr", null, td(d[0]), td(d[1])); })));
 
@@ -339,7 +339,7 @@
       var s = sr.support, isH = s.kind === "hoist", key = t.id + ":" + s.id, other = S.truss(s.onTruss);
       var lp = sr.loadPathReaction != null ? sr.loadPathReaction : sr.reaction;
       sumGov += sr.reaction; sumLP += lp;
-      var cells = [td(isH ? hid[key] || "hoist" : "bolt", "b"), tdr(Ln(s.distance, 3)), td(isH ? "hoist" + (sr.slack ? " (SLACK)" : "") : (s.mount === "above" ? "on top of " : s.mount === "below" ? "clamped below " : "bolted to ") + (other ? other.name : "?")), tdr(Wn(lp), "mut")];
+      var cells = [td(isH ? hid[key] || "hoist" : "bolt", "b"), tdr(Ln(s.distance, 3)), td(isH ? "hoist" + (sr.slack ? " (slack)" : "") : (s.mount === "above" ? "on top of " : s.mount === "below" ? "clamped below " : "bolted to ") + (other ? other.name : "?")), tdr(Wn(lp), "mut")];
       MODELS.forEach(function (m) { var v = sr.byModel && sr.byModel[m]; sumBy[m] += v || 0; cells.push(tdr(v != null ? Wn(v) : "-", res.model === m ? "b" : "")); });
       rrows.push(h("tr", null, cells));
     });
@@ -358,10 +358,10 @@
       var mW = beam.w * beam.length * (beam.length / 2 - a), rB = (mP + mW) / sp, rA = beam.totalLoad - rB;
       box.appendChild(work("Statics (two supports at " + Ln(a, 3) + " and " + Ln(b, 3) + " " + U.unit("len") + "): moments about the first, R2 = [sum P x (x - " + Ln(a, 3) + ") + w L (L/2 - " + Ln(a, 3) + ")] / " + Ln(sp, 3) +
         " = [" + U.n("mom", mP, 1) + " + " + U.n("mom", mW, 1) + "] / " + Ln(sp, 3) + " = " + W(rB, 1) + ";  R1 = " + W(beam.totalLoad, 1) + " - " + W(rB, 1) + " = " + W(rA, 1) + "." +
-        (grill && Math.abs(res.supports.reduce(function (acc, sr) { return acc + (Math.abs(sr.support.distance - b) < 1e-6 ? sr.reaction : 0); }, 0) - rB) > 0.5 ? " The stiffness solve's reactions above differ from statics because " + (res.model === "hinged" ? "the bolted trusses' forces differ between joint models" : "the joints pass moment into this truss") + "." : "")));
+        (grill && Math.abs(res.supports.reduce(function (acc, sr) { return acc + (Math.abs(sr.support.distance - b) < 1e-6 ? sr.reaction : 0); }, 0) - rB) > 0.5 ? " The reactions above (whole-rig analysis) differ from statics because " + (res.model === "hinged" ? "the bolted trusses' forces differ between joint models" : "the joints pass moment into this truss") + "." : "")));
     } else if (pos.length > 2) {
       box.appendChild(work("Continuous beam over " + pos.length + " supports: support moments by the three-moment equation with the loads above (hogging +, " + U.unit("mom") + "): " +
-        beam.moments.map(function (m, i) { return "M" + (i + 1) + " = " + U.n("mom", m, 1); }).join(", ") + ". These treat the supports as unyielding; the reactions above are from the " + (res.model ? "stiffness solve" : "same beam") + "."));
+        beam.moments.map(function (m, i) { return "M" + (i + 1) + " = " + U.n("mom", m, 1); }).join(", ") + ". These treat the supports as unyielding; the reactions above are from the " + (res.model ? "whole-rig analysis" : "same beam") + "."));
     }
 
     // diagrams
@@ -395,7 +395,7 @@
     });
     box.appendChild(para("Span and cantilever checks (F1, F2)", "sub"));
     if (crows.length) {
-      box.appendChild(table("small", ["Segment", ["L (" + U.unit("len") + ")", "r"], ["Max L", "r"], ["Capacity (" + U.unit("w") + ")", "r"], ["Load (" + U.unit("w") + ")", "r"], ["Util.", "r"], "Status"], crows));
+      box.appendChild(table("small", ["Segment", ["L (" + U.unit("len") + ")", "r"], ["Max L", "r"], ["Capacity (" + U.unit("w") + ")", "r"], ["Load (" + U.unit("w") + ")", "r"], ["Workload", "r"], "Status"], crows));
       works.forEach(function (w) { box.appendChild(w); });
     } else box.appendChild(para("No spans or cantilevers to check.", "mut"));
 
@@ -406,7 +406,7 @@
       box.appendChild(para("Moment and shear check (F3)" + (d !== mb.diagram ? " - truss self weight left out, as in the tables" : ""), "sub"));
       function rowOf(q, div) { return q ? kindName(q.kind) + " " + Wn(q.load, 0) + " at the " + q.row + " " + q.unit + " row x " + Ln(q.length, 3) + " / " + div : "none"; }
       var mSide = d.maxSag >= d.maxHog ? "sagging at " + Lf(d.atSag, 2) : "hogging at " + Lf(d.atHog, 2);
-      box.appendChild(table("small", ["", ["Largest", "r"], "Where", ["Allowed", "r"], ["Util.", "r"], "Status"], [
+      box.appendChild(table("small", ["", ["Largest", "r"], "Where", ["Allowed", "r"], ["Workload", "r"], "Status"], [
         h("tr", null, td("Bending moment"), tdr(Mf(mb.moment)), td(mSide), tdr(Mf(mb.momentAllowed)), tdr(pct(mb.momentUtil)), statusCell(mb.momentOver ? "Over" : "Good", mb.momentOver)),
         h("tr", null, td("Shear"), tdr(W(mb.shear, 1)), td("at " + Lf(d.atShear, 2)), tdr(W(mb.shearAllowed, 1)), tdr(pct(mb.shearUtil)), statusCell(mb.shearOver ? "Over" : "Good", mb.shearOver))
       ]));
