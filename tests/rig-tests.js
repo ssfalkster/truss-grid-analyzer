@@ -314,13 +314,21 @@
   /* 1.10.0: manufacturer data for Christie Lites, JTE and Tyler Truss (Christie/, JTE/, Tyler/ PDFs), product-line keys */
   function mfg(m, d) { var e = TLA.data.trusses.filter(function (x) { return x.manufacturer === m && x.description === d; })[0]; if (!e) throw new Error("missing " + m + " " + d); return e; }
   add("manufacturer data (1.10.0): Christie, JTE and Tyler tables read as printed; a span between rows uses the next longer row", function () {
-    eq(TLA.data.trusses.filter(function (x) { return x.source === "MFG" && /^(Christie|JTE|Tyler Truss)$/.test(x.manufacturer); }).length, 51, "new MFG entries");
+    eq(TLA.data.trusses.filter(function (x) { return x.source === "MFG" && /^(Christie|JTE|Tyler Truss)$/.test(x.manufacturer); }).length, 53, "MFG entries (51 from 1.10.0 incl. 2 hidden aliases, B and F replaced in place)");
     var a = mfg("Christie", 'A Type 12"x12" Bolted'), wb = TLA.data.trusses.filter(function (x) { return x.id === 106; })[0];
     eq(JSON.stringify(a.udl_lb), JSON.stringify(wb.udl_lb), "Christie's own A Type table is the workbook's"); eq(JSON.stringify(a.cpl_lb), JSON.stringify(wb.cpl_lb), "A Type CPL");
-    var b = mfg("Christie", 'B Type 16"x16" Spigoted');
+    var b = mfg("Christie", '16"x16" B Type Spigoted');
+    eq(b.id, 107, "Christie's B Type data replaces the workbook row, same id"); eq(b.source, "MFG", "B Type source"); eq(/replaced/.test(b.note), true, "B Type note");
     eq(b.repetitive_use, true, "B Type table already includes 0.85"); near(TLA.limits.tableAt(b, "cpl", 20), 1880, 0, "20 ft uses the 24 ft row"); near(TLA.limits.tableAt(b, "udl", 48), 1536, 0, "48 ft");
     near(TLA.limits.tableAt(b, "cpl", 49), 0, 0, "past the table");
-    var f = mfg("Christie", "F Type Track");
+    var f = mfg("Christie", "Track Style PRT F Type");
+    eq(f.id, 111, "F Track keeps its id"); near(f.weight_per_ft_lb, 16.6, 0.01, "Christie's F Track weight");
+    [[230, 107], [234, 111]].forEach(function (p) {                       // 1.10.0's own B / F rows: hidden aliases, ids kept for saved rigs
+      var al = TLA.data.trusses.filter(function (x) { return x.id === p[0]; })[0], to = TLA.data.trusses.filter(function (x) { return x.id === p[1]; })[0];
+      eq(al.hidden === true && al.superseded_by === p[1], true, p[0] + " is a hidden alias of " + p[1]);
+      eq(JSON.stringify(al.udl_lb) + JSON.stringify(al.cpl_lb) + al.repetitive_use + al.weight_per_ft_lb, JSON.stringify(to.udl_lb) + JSON.stringify(to.cpl_lb) + to.repetitive_use + to.weight_per_ft_lb, p[0] + " has the same data as " + p[1]);
+    });
+    eq(TLA.data.trusses.filter(function (x) { return x.family_key === "christie-b" && !x.hidden; }).length, 1, "one B Type row in the pickers");
     near(TLA.limits.tableAt(f, "cpl", 7), 3119, 0, "7 ft on the 7'-10\" row"); near(TLA.limits.tableAt(f, "cpl", 8), 1477, 0, "8 ft on the 15'-8\" row");
     var g = mfg("JTE", "General Purpose 12x12");
     eq(g.repetitive_use, false, "JTE tables are not reduced for repetitive use"); near(TLA.limits.tableAt(g, "cpl", 10), 4497, 0, "GP 12x12 10 ft"); near(TLA.limits.tableAt(g, "udl", 31), 855, 0, "31 ft uses 40 ft");

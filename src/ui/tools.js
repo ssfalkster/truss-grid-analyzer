@@ -12,7 +12,7 @@
     db.forEach(function (x) { if (mfrs.indexOf(x.manufacturer) < 0) mfrs.push(x.manufacturer); });
     return h("div", { "class": "formrow" },
       P.field("Manufacturer", P.select(mfrs.map(function (m) { return { value: m, label: m }; }), cur.manufacturer, function (v) { set(P.modelsOf(db, v)[0].id); render(); })),
-      P.field("Model", P.select(P.modelsOf(db, cur.manufacturer).map(function (x) { return { value: x.id, label: P.trussLabel(x) }; }), cur.id, function (v) { set(parseInt(v, 10)); render(); })));
+      P.field("Model", P.select(P.modelsOf(db, cur.manufacturer, cur.id).map(function (x) { return { value: x.id, label: P.trussLabel(x) }; }), cur.id, function (v) { set(parseInt(v, 10)); render(); })));
   }
 
   var current = null, holder = null;
