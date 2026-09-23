@@ -165,8 +165,8 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
 .sheet .tblock { margin: 8px 0 12px; } .sheet .tstat { float: right; font-size: 8.5pt; } .sheet .tstat.ok { color: var(--ok); } .sheet .tstat.fail { color: var(--fail); }
 .sheet .rfig { border: 1px solid #ccc; margin: 4px 0; padding: 2px; } .sheet .rfig svg { display: block; width: 100%; height: auto; } .sheet .rfig .elev { max-width: 125mm; margin: 0 auto; overflow: visible; }
 .sheet .rfig.plan svg { max-height: 150mm; }
-.sheet .signs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; } .sheet .signbox { border: 1.5px solid #111; padding: 6px 8px; display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: end; }
-.sheet .signbox .sl { color: #555; } .sheet .signbox .sv { min-height: 1.5em; font-weight: 600; } .sheet .signbox .sv.blank { border-bottom: 1px solid #888; min-width: 0; display: block; }
+.sheet .signs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; } .sheet .signname { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: end; }
+.sheet .signname .sl { color: #555; } .sheet .signname .sv { min-height: 1.5em; font-weight: 600; } .sheet .signname .sv.blank { border-bottom: 1px solid #888; min-width: 0; display: block; }
 .sheet .disc { font-size: 7.5pt; color: #444; margin-top: 6px; }
 @media print {
   body.report-open { display: block; height: auto; background: #fff; }
@@ -338,8 +338,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.15.0";
+  TLA.VERSION = "1.15.1";
   TLA.CHANGES = [
+    ["1.15.1", "2026-09-23", "G.E. Simmons Falk", "Calculation sheet: the boxed sign-off blocks (with Signature and Date lines) are gone; the end of the sheet just leaves a space for the Prepared by and Checked by names (filled in from the sheet's fields when given). No result changes."],
     ["1.15.0", "2026-09-23", "G.E. Simmons Falk", "Wording and display, no result changes. The grillage / stiffness solve is now called the whole-rig analysis (Export whole-rig model); the load-path method stays as the reference. Load against capacity is workload everywhere (was utilization / % cap), and the plan key reads Low / High (80%+) / Overloaded. Statuses read the same for trusses and hoists: OK, Overloaded, Too long, Slack, Unstable (was Good, OVERLOADED, TOO LONG!, FAILURE, SLACK, UNSTABLE; FAILURE = too long and overloaded) - the pass/fail rules are unchanged. Load-path layer numbers are gone from the tables, truss chips and plan tooltip: each truss now shows what it hangs from (the trusses and corner blocks it is bolted to, and its hoists). The plan is coloured by workload by default; the old layer colouring is kept as Hang order. Fix: typed lengths written with words (12 ft, 6 in, 12 ft 6 in) were rejected - they are read now."],
     ["1.14.1", "2026-09-23", "G.E. Simmons Falk", "Wording only, no result changes: one name per thing, lined up with the terms Vectorworks Braceworks and Production Assist use. Hoist everywhere (no more \"motor\"). The hoist loads are now the low hook load (R, what the truss hangs on the hook) and the high hook load (low hook + Add % + hoist, chain and hardware weight, what the structure above carries), static and dynamic, in the hoist table, CSV export, selected-hoist panel and calculation sheet. The Trim column is now Level sensitivity (the change in a hoist's load if it runs 1/4 in high or low), since trim means a height. Wall / wall weight is now UDL (formula symbol w_udl). Truss \"own weight\" is self weight."],
     ["1.14.0", "2026-09-23", "G.E. Simmons Falk", "Calculation sheet: a new Calc sheet button opens a printable record of the rig's calculations so they can be verified and checked independently - a title block (project, venue, prepared / checked by, date, software version and an input fingerprint that changes with any input), a summary, the basis of calculation with every formula used, a plan drawn to scale with the hoists numbered H1, H2..., each hoist's reaction from every joint model and its static and dynamic load worked out part by part, the equilibrium self-checks, and for every truss its data, the loads it carries (including those from bolted trusses), its reactions and balance, statics for a truss on two supports, the diagrams, each span and cantilever check with the table row read and the arithmetic written out, and the moment and shear check with the table rows the allowables come from. Also the bolted connection forces, the corner blocks, how to check the rig independently, all warnings, and signature boxes. Print it or save it as PDF. It only shows what the app already calculates: no result changes."],
@@ -5121,13 +5122,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (warns.length) s9.appendChild(h("ol", { "class": "warns" }, warns.map(function (w) { return h("li", { text: U.text(w.message) }); })));
     if (notes.length) { s9.appendChild(para("Notes:", "cap")); s9.appendChild(h("ul", { "class": "warns notes" }, notes.map(function (w) { return h("li", { text: U.text(w.message) }); }))); }
 
-    /* ---- sign-off ---- */
+    /* ---- names (no signature blocks) ---- */
     sheet.appendChild(h("section", { "class": "rsec sign" },
       h("div", { "class": "signs" },
         ["Prepared by", "Checked by"].map(function (who, i) {
           var key = i ? "checkedBy" : "preparedBy";
-          return h("div", { "class": "signbox" }, h("div", { "class": "sl", text: who }), h("div", { "class": "sv" + (rep[key] ? "" : " blank"), "data-field": key, text: rep[key] || "" }),
-            h("div", { "class": "sl", text: "Signature" }), h("div", { "class": "sv blank" }), h("div", { "class": "sl", text: "Date" }), h("div", { "class": "sv blank" }));
+          return h("div", { "class": "signname" }, h("span", { "class": "sl", text: who }), h("span", { "class": "sv" + (rep[key] ? "" : " blank"), "data-field": key, text: rep[key] || "" }));
         })),
       h("p", { "class": "disc", text: "This sheet shows how the loads and checks were calculated so they can be verified. It is not a substitute for the judgement of a qualified person: the user is responsible for verifying the results, the rig as built, the hardware ratings and the rigging points before using them to make rigging decisions. Capacities are only as good as the truss and hoist data entered, and allowable moment and shear are estimates from the manufacturer's tables." }),
       h("p", { "class": "disc", text: "Truss Grid Analyzer v" + TLA.VERSION + " - a rebuild of Truss Load Analyzer - EOT, created by Delbert L. Hall and Jon Sogoian. Free software; see the About dialog for the version history and license." })));

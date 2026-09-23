@@ -158,8 +158,8 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
 .sheet .tblock { margin: 8px 0 12px; } .sheet .tstat { float: right; font-size: 8.5pt; } .sheet .tstat.ok { color: var(--ok); } .sheet .tstat.fail { color: var(--fail); }
 .sheet .rfig { border: 1px solid #ccc; margin: 4px 0; padding: 2px; } .sheet .rfig svg { display: block; width: 100%; height: auto; } .sheet .rfig .elev { max-width: 125mm; margin: 0 auto; overflow: visible; }
 .sheet .rfig.plan svg { max-height: 150mm; }
-.sheet .signs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; } .sheet .signbox { border: 1.5px solid #111; padding: 6px 8px; display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: end; }
-.sheet .signbox .sl { color: #555; } .sheet .signbox .sv { min-height: 1.5em; font-weight: 600; } .sheet .signbox .sv.blank { border-bottom: 1px solid #888; min-width: 0; display: block; }
+.sheet .signs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; } .sheet .signname { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: end; }
+.sheet .signname .sl { color: #555; } .sheet .signname .sv { min-height: 1.5em; font-weight: 600; } .sheet .signname .sv.blank { border-bottom: 1px solid #888; min-width: 0; display: block; }
 .sheet .disc { font-size: 7.5pt; color: #444; margin-top: 6px; }
 @media print {
   body.report-open { display: block; height: auto; background: #fff; }
