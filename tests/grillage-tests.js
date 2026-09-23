@@ -123,6 +123,21 @@
     eq(S.results.compat.ok, false, "not solved"); eq(S.results.compat.unstable, true, "flagged");
   });
 
+  add("unstable check: a very short element on a soft pipe does not make the pipe look like a mechanism (1.5.0)", function () {
+    // 7 ft 1.5" pipe on two hoists, 500 lb at mid-span, Euler-Bernoulli (as exported to PyNite). A 0.002 ft stub at one
+    // end is ~1e14 stiff; the twist stiffness used to be 1e-12 x that everywhere, held up the pipe and failed the leak check.
+    function pipe(stub) {
+      var nodes = [{ d: 0 }, { d: 3.5, P: 500 }].concat(stub ? [{ d: 6.998 }] : []).concat([{ d: 7 }]);
+      return { beams: [{ t: { id: "p", name: "Pipe" }, c: 1, s: 0, L: 7, EI: 6.24e4, GA: Infinity, GJ: 4.82e4, w: 2.72, nodes: nodes }], links: [],
+        supports: [{ b: 0, n: 0, id: "p:a" }, { b: 0, n: nodes.length - 1, id: "p:b" }] };
+    }
+    ["hinged", "rigid"].forEach(function (m) {
+      var a = TLA.grillage.solveModel(pipe(true), m), b = TLA.grillage.solveModel(pipe(false), m);
+      eq(a.ok, true, m + " with the stub solves"); eq(b.ok, true, m + " without");
+      near(a.reactions["p:a"], 250 + 2.72 * 3.5, 1e-4, m + " reaction"); near(a.reactions["p:b"], b.reactions["p:b"], 1e-4, m + " stub changes nothing (to round-off: 1e14 costs digits)");
+    });
+  });
+
   add("slack hoists: the load breakdown of a hoist still adds up to its reaction", function () {
     oneTruss(20, [0, 10, 20], [[5, 1000]]);
     var t = S.rig.trusses[0], h = hoistOf("T", 10), a = TLA.rig.attribution(S.rig, S.db(), t.id, h.support);

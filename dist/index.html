@@ -278,8 +278,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.4.0";
+  TLA.VERSION = "1.5.0";
   TLA.CHANGES = [
+    ["1.5.0", "2026-09-23", "G.E. Simmons Falk", "Stiffness solve: the tiny twist stiffness that keeps a truss from spinning about its own axis (which nothing loads) is now sized for each joint from that truss's own stiffness, instead of from the stiffest point anywhere in the rig, and the solver's singularity test is likewise relative to each joint. A very short element (a 0.002 ft stub, without shear deformation as in the PyNite export) could make it stiff enough to hold up a soft pipe, and the rig was then wrongly reported UNSTABLE. Hoist loads move by less than 0.00001 lb on the test rigs; a rig can now pass that was falsely flagged."],
     ["1.4.0", "2026-09-22", "G.E. Simmons Falk", "Stiffness solve: truss stiffness, shear, trim, hoist springs and semi-rigid corner blocks. Each truss's bending stiffness is now estimated from its manufacturer's tables (the largest table moment carried by its chords; it grows with about depth squared, not depth cubed as before), with shear and torsion stiffness from an estimated diagonal lattice, and real chord/diagonal sizes in the truss data can replace the estimate. Trusses are Timoshenko beams (shear deformation: large on short spans). Corner blocks are also solved as semi-rigid rotational springs (1, 4 and 16 x EI/L) between hinged and rigid, and every check uses the worst. New: the load change on each hoist when it runs 1/4\" high (trim), with a warning past 10% of its capacity; an optional hoist stiffness (lb/in); an export of the stiffness model and tools/pynite_check.py, which rebuilds it in PyNite (the engine behind CalcForge 3D) and compares - it agrees to 0.01 lb on the test rigs. Changes hoist loads and member forces wherever trusses share load (grids, and single trusses on three or more hoists)."],
     ["1.3.0", "2026-09-22", "G.E. Simmons Falk", "The stiffness (grillage) solve of the whole rig is now the primary result instead of a check: hoist loads, the forces in bolted connections, the loads every span and cantilever check sees, and the bending moment and shear the 1.2.0 moment/shear check uses (including moment carried through rigid corner blocks) all come from it. Hinged and rigid joints are shown side by side and every check uses the worse of the two; the load-path numbers of the original workbook are kept as a reference column. Changes results on grids where a carrying truss sags (single trusses on hoists are unchanged). Also: torque along every truss from the stiffness solve, a hoist's load breakdown from the same solve, a self-check that the connection forces balance, and a clear fallback to the load-path method when the stiffness solve can't run."],
     ["1.2.0", "2026-09-22", "G.E. Simmons Falk", "Shear and bending-moment diagrams for every truss, and a moment/shear check against an allowable moment and shear estimated from the manufacturer's tables. It catches what the span-by-span table check can't: bending over the supports of a continuous truss, and heavy loads right next to a support. Can flag trusses the table check passed. The 'count truss weight' option now also applies to this check."],
@@ -1234,16 +1235,21 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       return F;
     }
     var free = []; for (i = 0; i < n; i++) if (!fixed[i]) free.push(i);
-    var m = free.length, A = [], maxd = 0, maxEl = 0;
-    for (i = 0; i < m; i++) { A.push(new Float64Array(m)); for (var j = 0; j < m; j++) A[i][j] = K[free[i]][free[j]]; if (A[i][i] > maxd) maxd = A[i][i]; if (diagEl[free[i]] > maxEl) maxEl = diagEl[free[i]]; }
+    var m = free.length, A = [], diag = new Float64Array(m), maxEl = 0;
+    for (i = 0; i < m; i++) { A.push(new Float64Array(m)); for (var j = 0; j < m; j++) A[i][j] = K[free[i]][free[j]]; if (diagEl[free[i]] > maxEl) maxEl = diagEl[free[i]]; }
     var rotDof = {}; dofs.forEach(function (bn) { bn.forEach(function (x) { rotDof[x[1]] = rotDof[x[2]] = true; }); });
-    var eps = maxEl * 1e-12;                                               // 1.4.0: was 1e-9, which held a soft truss (pipe) slightly
-    for (i = 0; i < m; i++) if (rotDof[free[i]]) A[i][i] += eps;      // removes torsion rigid-body modes in the hinged model
-    // LU factorisation with partial pivoting (in place; multipliers below the diagonal), kept for more load cases
+    // A tiny twist stiffness removes torsion rigid-body modes in the hinged model. 1.5.0: sized per dof (1e-12 x that
+    // dof's own truss stiffness), not 1e-12 x the stiffest dof in the rig - a 0.002 ft stub element (~1e14 without
+    // shear deformation) made it strong enough to hold up a soft pipe, and the leak check then called the pipe UNSTABLE.
+    var eps = new Float64Array(m);
+    for (i = 0; i < m; i++) if (rotDof[free[i]]) { eps[i] = 1e-12 * (diagEl[free[i]] > 0 ? diagEl[free[i]] : maxEl); A[i][i] += eps[i]; }
+    for (i = 0; i < m; i++) diag[i] = Math.abs(A[i][i]);
+    // LU factorisation with partial pivoting (in place; multipliers below the diagonal), kept for more load cases.
+    // 1.5.0: a pivot is "zero" relative to its own column's stiffness, not the stiffest dof in the rig.
     var perm = []; for (i = 0; i < m; i++) perm.push(i);
     for (var cidx = 0; cidx < m; cidx++) {
       var p = cidx; for (var r2 = cidx + 1; r2 < m; r2++) if (Math.abs(A[r2][cidx]) > Math.abs(A[p][cidx])) p = r2;
-      if (Math.abs(A[p][cidx]) < 1e-14 * (maxd || 1)) return { ok: false, dof: free[cidx], dofs: dofs };
+      if (!(Math.abs(A[p][cidx]) >= 1e-14 * (diag[cidx] || maxEl || 1))) return { ok: false, dof: free[cidx], dofs: dofs };
       var tmp = A[cidx]; A[cidx] = A[p]; A[p] = tmp; var tp = perm[cidx]; perm[cidx] = perm[p]; perm[p] = tp;
       var piv = A[cidx];
       for (r2 = cidx + 1; r2 < m; r2++) {
@@ -1282,7 +1288,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     // free to rotate (tip) - a mechanism, not a structure.
     var fsum = 0; for (i = 0; i < n; i++) fsum += Math.abs(F[i]);
     var leak = 0, leakDof = -1;
-    for (i = 0; i < m; i++) if (rotDof[free[i]] && Math.abs(eps * sol.u[i]) > leak) { leak = Math.abs(eps * sol.u[i]); leakDof = free[i]; }
+    for (i = 0; i < m; i++) if (eps[i] && Math.abs(eps[i] * sol.u[i]) > leak) { leak = Math.abs(eps[i] * sol.u[i]); leakDof = free[i]; }
     if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof, dofs: dofs };
     return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
   }
