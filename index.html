@@ -1,71 +1,115 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Truss Grid Analyzer</title>
+<script>try { var th = localStorage.getItem("tla-theme"); if (th === "light" || (th === "system" && matchMedia("(prefers-color-scheme: light)").matches)) document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* storage unavailable: dark */ }</script>
 <link rel="stylesheet" href="src/ui/styles.css">
 </head>
 <body>
-<header class="top">
-  <div class="brand"><b>Truss Grid Analyzer</b><small id="appver"></small><span id="rigname"></span></div>
-  <div class="tools">
-    <button id="b-new" title="Start an empty rig">New</button>
-    <button id="b-sample" title="Load the illustrative example box">Example</button>
-    <button id="b-open">Open</button>
-    <button id="b-save">Save</button>
-    <input type="file" id="f-open" accept=".json,application/json" hidden>
-    <span class="sep"></span>
-    <button id="b-undo" title="Ctrl+Z">Undo</button>
-    <button id="b-redo" title="Ctrl+Y">Redo</button>
-    <span class="sep"></span>
-    <button id="b-add" class="primary">+ Truss</button>
-    <button id="b-fit">Fit</button>
-    <label class="tool-sel">Color <select id="s-color">
-      <option value="util">Workload</option>
-      <option value="hoist">Hoist workload</option>
-      <option value="status">Pass / fail</option>
-      <option value="layer">Hang order</option>
-    </select></label>
-    <label class="tool-sel" title="Show and type everything in feet and pounds, or metres and kilograms. Only the display changes - the rig and every result stay the same.">Units <select id="s-units"><option value="imperial">ft / lb</option><option value="metric">m / kg</option></select></label>
-    <label class="tool-check"><input type="checkbox" id="c-loads" checked> Loads</label>
-    <label class="tool-check"><input type="checkbox" id="c-labels" checked> Labels</label>
-    <span class="sep"></span>
-    <button id="b-csv">Copy hoist table</button>
-    <button id="b-img" title="Save the current view as a PNG image">Save image</button>
-    <button id="b-report" class="primary" title="A printable sheet with every input, formula, table lookup and check, so the calculation can be verified independently">Calc sheet</button>
-    <button id="b-print" title="Print the screen as it is">Print</button>
-    <button id="b-docs">About</button>
+<header class="appbar">
+  <div class="logo"><b>Truss Grid Analyzer</b><small id="appver"></small></div>
+  <div class="menu">
+    <button class="ghost" data-pop="m-file">File ▾</button>
+    <div class="pop" id="m-file" hidden>
+      <button id="b-new">New rig</button>
+      <button id="b-open">Open… <small>.rig.json</small></button>
+      <button id="b-save">Save <small>.rig.json</small></button>
+      <hr>
+      <button id="b-sample">Load example box</button>
+      <hr>
+      <div class="hd lbl-sm">Theme</div>
+      <button data-theme-set="dark">Dark</button>
+      <button data-theme-set="light">Light</button>
+      <button data-theme-set="system">Follow system</button>
+      <hr>
+      <button id="b-docs">About, method &amp; version history</button>
+    </div>
   </div>
+  <input type="file" id="f-open" accept=".json,application/json" hidden>
+  <button id="rigname" title="Rig name - click to rename"></button>
+  <span class="vr"></span>
+  <button id="b-undo" class="ghost icon" title="Undo (Ctrl+Z)">↶</button>
+  <button id="b-redo" class="ghost icon" title="Redo (Ctrl+Y)">↷</button>
+  <span class="vr"></span>
+  <div class="segc" id="views"><button data-view="plan" class="on">Plan</button><button data-view="iso">3D</button></div>
+  <div class="menu">
+    <button class="ghost" data-pop="m-calc" id="b-calc">Calculators ▾</button>
+    <div class="pop" id="m-calc" hidden>
+      <div class="hd lbl-sm">Standalone tools</div>
+      <button data-tab="circular">Circular truss</button>
+      <button data-tab="udl">Simple UDL</button>
+      <button data-tab="fixtures">Fixture weights</button>
+      <hr>
+      <button data-tab="databases">Databases <small>trusses, blocks, hoists</small></button>
+    </div>
+  </div>
+  <span class="grow"></span>
+  <button class="verdict" id="verdict" title="Rig status - click for the results and warnings"></button>
+  <span class="vr"></span>
+  <button id="b-settings" title="Rig-wide settings: dynamic factor, Add %, hoist stiffness, repetitive-use, units">⚙ Rig settings</button>
+  <div class="menu">
+    <button data-pop="m-export">Export ▾</button>
+    <div class="pop right" id="m-export" hidden>
+      <button id="b-csv">Copy hoist table <small>for Excel</small></button>
+      <button id="b-img">Save view as PNG</button>
+      <button id="b-model" title="Save this rig's whole-rig model (JSON) to cross-check it in PyNite: python tools/pynite_check.py file">Export whole-rig model</button>
+      <hr>
+      <button id="b-print">Print screen</button>
+    </div>
+  </div>
+  <button id="b-report" class="primary" title="A printable sheet with every input, formula, table lookup and check, so the calculation can be verified independently">Calc sheet</button>
 </header>
-<nav class="tabs" id="tabs">
-  <button data-tab="plan" class="on">Plan view</button>
-  <button data-tab="iso">3D view</button>
-  <button data-tab="circular">Circular truss</button>
-  <button data-tab="udl">Simple UDL</button>
-  <button data-tab="fixtures">Fixture weights</button>
-  <button data-tab="databases">Databases</button>
-</nav>
 <main id="main">
   <section class="stage">
+    <div id="strip" hidden></div>
+    <div class="ctool">
+      <div class="stages" id="stages">
+        <button data-step="1"><i>1</i>Structure <small data-n="1"></small></button>
+        <button data-step="2"><i>2</i>Loads <small data-n="2"></small></button>
+        <button data-step="3"><i>3</i>Hoists <small data-n="3"></small></button>
+        <button data-step="4"><i>4</i>Results <small data-n="4"></small></button>
+      </div>
+      <button id="b-add" class="primary">+ Truss</button>
+      <span class="grow"></span>
+      <div class="box">
+        <div class="segc" id="s-color" title="What the truss colours show">
+          <button data-color="util">Workload</button><button data-color="hot" title="Shade each truss along its length by local workload, to find where it is loaded most">Hot spots</button><button data-color="hoist">Hoists</button><button data-color="status">Pass/fail</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="c-loads" checked> Loads</label>
+        <label class="chk"><input type="checkbox" id="c-labels" checked> Labels</label>
+      </div>
+    </div>
+    <div class="modebar" id="modebar" hidden></div>
     <div id="plan"></div>
     <div id="iso" hidden></div>
     <div class="viewctl" id="isoctl" hidden>3D view <label>Rotate <input type="range" id="r-yaw" min="-180" max="180" value="35"></label> <label>Tilt <input type="range" id="r-pitch" min="5" max="85" value="32"></label> <span>drag = orbit, shift+drag = pan</span></div>
     <div id="legend" class="legend"></div>
-    <div class="hint">Drag trusses to move (ends snap; hold Alt to disable). Wheel = zoom, drag background = pan. Click a hoist to trace its load path, drag it along its truss to move it (1" / 2 cm steps); Delete removes the selected hoist (or the selected truss).</div>
+    <div class="zoomctl">
+      <button class="icon" id="b-zin" title="Zoom in">+</button>
+      <button class="icon" id="b-zout" title="Zoom out">−</button>
+      <button class="icon" id="b-fit" title="Fit the rig in view (F)">⤢</button>
+    </div>
+    <div class="hint" id="hint">Click to select · drag a truss to move (ends snap, Alt = no snap) · drag a hoist along its truss · R = rotate · Del = delete · wheel = zoom</div>
   </section>
   <aside id="inspector"></aside>
-  <section id="summary"></section>
+  <section id="dock">
+    <div class="dhead" id="dhead"></div>
+    <div id="summary"></div>
+  </section>
 </main>
 <section id="page" hidden></section>
 <section id="report" hidden></section>
 <dialog id="docs"></dialog>
+<section id="setpage" hidden></section>
 <script src="src/version.js"></script>
 <script src="data/trusses.js"></script>
 <script src="data/hoists.js"></script>
 <script src="data/fixtures.js"></script>
 <script src="data/corners.js"></script>
 <script src="data/pieces.js"></script>
+<script src="data/deflection.js"></script>
 <script src="src/engine/beam.js"></script>
 <script src="src/engine/limits.js"></script>
 <script src="src/engine/section.js"></script>
@@ -77,6 +121,7 @@
 <script src="src/ui/units.js"></script>
 <script src="src/ui/plan.js"></script>
 <script src="src/ui/panels.js"></script>
+<script src="src/ui/grids.js"></script>
 <script src="src/ui/iso.js"></script>
 <script src="src/ui/tools.js"></script>
 <script src="src/ui/report.js"></script>

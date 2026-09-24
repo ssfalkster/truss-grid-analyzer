@@ -16,10 +16,14 @@ Jon Sogoian.
 
 1. Download `dist/index.html`. It is the whole app in one file.
 2. Open it in any modern browser. It works from your disk, with no internet connection.
-3. Choose **Example** to load a sample box, or **New** to start empty, then **+ Truss** to add trusses.
+3. Choose **File > Load example box** to see a sample box, or **File > New rig** to start empty.
+4. Work through the four steps above the plan - **1 Structure** (trusses, corner blocks, bolting), **2 Loads**,
+   **3 Hoists**, **4 Results** - in any order. Each step has a spreadsheet-style grid under the plan (Tab, Enter,
+   Ctrl+D to fill down, Ctrl+V to paste from Excel); click anything on the plan to edit it in the side panel.
 
-Your work is kept in the browser automatically. Use **Save** and **Open** to keep rigs as `.rig.json` files and
-share them. Saved files record the app version that made them.
+Your work is kept in the browser automatically. Use **File > Save** and **File > Open** to keep rigs as
+`.rig.json` files and share them. Saved files record the app version that made them. Rig-wide settings (dynamic
+factor, Add %, units...) are under **Rig settings**.
 
 ## What it does
 
@@ -49,7 +53,7 @@ share them. Saved files record the app version that made them.
   slack and the rig is solved without it; a truss left with nothing to stop it tipping is flagged unstable.
 - **Loads.** Point loads from a fixture library, clamps, wall/UDL weight, loads mirrored about the
   centerline, and measurements from the start, centerline or end of a truss, in feet and inches.
-- **Views.** Plan and 3D views, color by load-path layer, utilization, hoist load or pass/fail, and a
+- **Views.** Plan and 3D views, color by workload, hot spots (where each truss works hardest), hoist workload or pass/fail, and a
   breakdown of where each hoist's load comes from.
 
 ## How it's checked
@@ -57,7 +61,7 @@ share them. Saved files record the app version that made them.
 - Reactions reproduce the worked examples in *Rigging Math Made Simple* (Delbert L. Hall).
 - The beam solver is checked against an independent finite-element model of 400 random continuous beams.
 - The stiffness solve is checked against PyNite, the 3D frame engine behind CalcForge's *3D Structural
-  Analysis*: **Export stiffness model** (under the hoist table), then `python tools/pynite_check.py <file>`
+  Analysis*: **Export > Export whole-rig model**, then `python tools/pynite_check.py <file>`
   (needs `pip install PyNiteFEA`). It rebuilds the same model in PyNite and compares hoist reactions and member
   forces for hinged and rigid joints; the example rigs agree to 0.01 lb. PyNite has no shear deformation, so the
   export is the Euler-Bernoulli version of the model. Timoshenko shear, trim and hoist springs are tested

@@ -13,7 +13,7 @@
   var S = (TLA.store = {
     rig: null,
     results: null,
-    sel: { truss: null, support: null },
+    sel: { truss: null, support: null, load: null },
     ui: { colorMode: "util", showLoads: true, showLabels: true, view: { scale: 8, ox: 60, oy: 60 }, tab: "plan" },
     userDb: { trusses: [], hoists: [], fixtures: [], corners: [] }
   });
@@ -809,6 +809,12 @@
   };
   S.emit = function () { S.solve(); listeners.forEach(function (f) { f(); }); };
   S.on = function (f) { listeners.push(f); };
+  /** Change the selection and redraw, without solving again (the rig did not change). 1.18.0: a load can be selected. */
+  S.select = function (o) {
+    o = o || {};
+    S.sel = { truss: o.truss || null, support: o.support || null, load: o.load || null };
+    listeners.forEach(function (f) { f(); });
+  };
 
   S.undo = function () {
     if (!undoStack.length) return;
@@ -835,13 +841,26 @@
 
   S.newRig = function () { S.setRig(emptyRig()); };
 
+  /** Move the whole rig so the middle of its footprint is at plan 0,0 (1.18.0). Free trusses move; bolted trusses and
+   * corner blocks follow them, so the rig keeps its shape. One Undo step. Returns the shift [dx, dy] in ft. */
+  S.centerRig = function () {
+    var G = TLA.rig.geometry, minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+    S.rig.trusses.forEach(function (t) { [0, t.length].forEach(function (d) { var p = G.endPoint(t, d); minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x); miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y); }); });
+    if (!isFinite(minx)) return null;
+    var dx = round(-(minx + maxx) / 2), dy = round(-(miny + maxy) / 2);
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) return [0, 0];
+    S.rig.trusses.forEach(function (t) { if (t.isBlock || t.anchor) return; t.x = round((Number(t.x) || 0) + dx); t.y = round((Number(t.y) || 0) + dy); });
+    S.commit();
+    return [dx, dy];
+  };
+
   S.init = function () {
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { saved = null; }
     if (saved && saved.rig && saved.rig.trusses) {
       S.rig = saved.rig;
       if (saved.userDb) S.userDb = saved.userDb;
-      if (saved.ui) { S.ui.colorMode = saved.ui.colorMode || "util"; if (saved.ui.view) S.ui.view = saved.ui.view; if (saved.ui.customPieces) S.ui.customPieces = saved.ui.customPieces; }
+      if (saved.ui) { S.ui.colorMode = saved.ui.colorMode && saved.ui.colorMode !== "layer" ? saved.ui.colorMode : "util"; /* 1.18.0: no hang-order colouring */ if (saved.ui.view) S.ui.view = saved.ui.view; if (saved.ui.customPieces) S.ui.customPieces = saved.ui.customPieces; }
       lastSnap = null; S.commit({ noUndo: true });
     } else {
       S.rig = emptyRig();
