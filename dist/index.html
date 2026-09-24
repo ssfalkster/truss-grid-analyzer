@@ -598,8 +598,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.22.0";
+  TLA.VERSION = "1.23.0";
   TLA.CHANGES = [
+    ["1.23.0", "2026-09-24", "G.E. Simmons Falk", "Hoists can be mirrored and copied like loads: Mirror (one hoist) and Mirror all add a hoist at the mirrored spot about the truss centerline; Copy to truss copies one or all hoists to another truss, keeping each one's distance from the centre (clamped to the ends). Unlike a mirrored load, each copy is a real hoist with its own name, result and load-cell reading; it keeps the model, chain or rope, dynamic factor, hardware, level offset and Hangs from. No copy is placed where a hoist already is. Calculated results are unchanged for existing rigs."],
     ["1.22.0", "2026-09-24", "G.E. Simmons Falk", "New features from comparing the app with Vectorworks Braceworks and Production Assist. Rigs that use none of them give exactly the same results as 1.21.0 (checked on the example box and four venue rigs). Hoists hung below a truss: a hoist's Hangs from can be another truss instead of the structure. Its chain joins the two trusses in the whole-rig analysis, so the upper truss (the carrier) sags with the load and the truss below shares load with its other hoists; the chain can only pull. The carrier carries the hung hoist's high hook load, and it - with everything bolted to it - is also checked with the hung hoist's high hook dynamic load; so are the hoists holding the carrier up, unless Rig settings turn that off. Rig totals count only hoists to the structure. Dead hangs: a support can be wire rope with no hoist. Pick the rope (7x19 galvanized aircraft cable or 6x19 IWRC, typical catalogue breaking strengths) and its length; WLL = breaking strength / design factor (Rig settings: 7, 8 or 10:1, default 10:1), capped by a typed assembly WLL; static (dynamic factor 1.0 unless typed); its weight is the rope and hardware; rigid, or a rope spring EA/L when the rig's hoists are springs. DH1, DH2... on the calc sheet. Hoist levels: a hoist can have a designed Level offset (inches, + higher) - a raked or trimmed truss - which the whole-rig analysis solves as that point moved; and an out-of-level tolerance in Rig settings (e.g. 1/4\") adds to every hoist's check the worst it could see if each hoist were that far off on its own, with a warning when the low side could go slack. Allowances: a cable weight per length (Rig settings, or per truss) added to each truss's UDL, and load factors by category (lighting, audio, video, scenic, rigging hardware, other; library fixtures are lighting). Check rig: on every change, a list of input mistakes - a load with no weight, two hoists at one point, a bolted assembly with fewer than 3 hoists or all in a line, bolted ends that don't meet, trusses that cross with no joint, a hoist with no model - in the rig panel and the warnings; the truss panel's Connected button dims everything not joined to it. Measured vs calculated: a load cell reading per hoist (hoist grid or panel), compared with the high hook static or low hook load (Rig settings) and totalled per assembly, flagged past 5%; readings never change a result. Deflection view: a Deflection colour mode colours each truss by its sag against its limit and draws its deflected shape, exaggerated, beside it on the plan and above it in 3D. Also: the calc sheet explains each of these; a hoist's load breakdown now lists Add %, hardware and the level allowance so it adds up; the whole-rig model export lists hung hoists (tools/pynite_check.py does not model them yet)."],
     ["1.21.0", "2026-09-24", "G.E. Simmons Falk", "Load-path method taken out of the display; hoist loads and every check are unchanged (they already came from the whole-rig analysis). Gone: the Load path column in the hoist grid (Compare analysis methods now shows the three joint models only), the Results hoist table, the hoist CSV and the calc sheet (hoist loads, bolted connections, truss reactions, the equilibrium row and the basis note), the load-path figure in a hoist's panel, and the warning that a hoist is well above the load-path result. The load-path method is still used, with its warning, when the whole-rig analysis can't run (a very large rig). Level sensitivity is no longer a column in the hoist grid, the Results hoist table, the hoist CSV or the calc sheet: it stays in each hoist's panel, and the level-sensitivity warning stays (in the app and the calc sheet)."],
     ["1.20.0", "2026-09-24", "G.E. Simmons Falk", "Truss checks now count the truss's own weight by default (the Rig settings switch is on unless a rig turns it off; saved rigs that turned it off keep it off). Cantilever check: the self weight is added to the cantilever's load, as the original workbook does. Moment and shear check: the moments and shears include the self weight, and so do the allowables estimated from the tables - each table row also demonstrates its own truss weight, w L^2/8 and w L/2 (Hall, Stress Table Creator 2): allowable moment = k x min(max CPL L/4 + w L^2/8, max UDL L/8 + w L^2/8), shear = k x max(CPL/2 + w L/2, UDL/2 + w L/2). With the switch off the check is net against net, as before. Results change: cantilever, moment and shear workloads go up a little (e.g. a 32 ft box side's cantilever 27% -> 33%); hoist loads do not change. The help and calc sheet no longer say the tables already subtract the truss weight; formula F3 shows the self-weight terms."],
@@ -3529,6 +3530,48 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (list.length) S.commit();
     return { copied: list.length, clamped: clamped };
   };
+  /* Hoists (1.23.0): mirror and copy make real hoists (loads keep a linked twin instead) - each hoist has its own
+     name, result, level offset and load-cell reading. A copy keeps the model, chain/rope, DLF, hardware, dead-hang
+     fields, level offset and "Hangs from"; it drops the name and the reading. No copy lands on an existing hoist. */
+  var HOIST_TOL = 0.01;   // ft: closer than this counts as the same spot
+  function hoistAt(t, d) { return t.supports.some(function (s) { return s.kind === "hoist" && Math.abs(s.distance - d) < HOIST_TOL; }); }
+  function hoistCopy(s, t, d) {
+    var c = JSON.parse(JSON.stringify(s));
+    c.id = id("s"); c.name = ""; delete c.measured;
+    if (c.hangFrom === t.id) delete c.hangFrom;
+    c.distance = round(d);
+    if (c.from === "end" || c.from === "center") S.measureFrom(c, c.from, t.length); else delete c.pos;
+    return c;
+  }
+  /** Add the mirror of hoists (ids, or all when empty) about their truss's centerline. Returns { added, skipped }
+      (skipped = on the centerline, or a hoist is already at the mirrored spot). */
+  S.mirrorHoists = function (tid, ids) {
+    var t = S.truss(tid); if (!t) return null;
+    var list = t.supports.filter(function (s) { return s.kind === "hoist" && (!ids || !ids.length || ids.indexOf(s.id) >= 0); }), added = [];
+    list.forEach(function (s) {
+      var d = t.length - s.distance;
+      if (Math.abs(d - s.distance) < HOIST_TOL || hoistAt(t, d)) return;
+      var c = hoistCopy(s, t, d); t.supports.push(c); added.push(c);
+    });
+    if (added.length) S.commit();
+    return { added: added, skipped: list.length - added.length };
+  };
+  /** Copy hoists (ids, or all when empty) to another truss, keeping each one's distance from the CENTRE (as copyLoads).
+      Returns { copied, clamped, skipped } (skipped = the other truss already has a hoist there). */
+  S.copyHoists = function (srcId, ids, dstId) {
+    var A = S.truss(srcId), B = S.truss(dstId);
+    if (!A || !B || A === B) return null;
+    var list = A.supports.filter(function (s) { return s.kind === "hoist" && (!ids || !ids.length || ids.indexOf(s.id) >= 0); }), copied = 0, clamped = 0, skipped = 0;
+    list.forEach(function (s) {
+      var off = (Number(s.distance) || 0) - A.length / 2, half = B.length / 2, cl = false;
+      if (Math.abs(off) > half) { off = off < 0 ? -half : half; cl = true; }
+      if (hoistAt(B, half + off)) { skipped++; return; }
+      var c = hoistCopy(s, B, half + off); c.from = "center"; c.pos = round(off);
+      B.supports.push(c); copied++; if (cl) clamped++;
+    });
+    if (copied) S.commit();
+    return { copied: copied, clamped: clamped, skipped: skipped };
+  };
   /** Add a hoist at the middle of a truss (edit its position afterwards). */
   S.addHoist = function (tid) {
     var t = S.truss(tid); if (!t) return null;
@@ -5217,6 +5260,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       ht.appendChild(hb); c.appendChild(ht);
     }
     c.appendChild(h("div", { "class": "row-btns" }, h("button", { text: "+ Hoist", onclick: function () { var sp = S.addHoist(t.id); if (sp) sel({ truss: t.id, support: sp.id }); } }),
+      nH ? h("button", { "class": "lnk", text: "Mirror all", title: "Add a hoist at the mirrored spot of every hoist on this truss (about its centerline), with the same model, chain, hardware and level offset", onclick: function () { mirrorHoistsUi(t); } }) : null,
+      nH ? h("button", { "class": "lnk", text: "Copy to truss…", title: "Copy every hoist on this truss to another truss, keeping each one's distance from the centre", onclick: function () { copyHoistsPrompt(t); } }) : null,
       h("button", { "class": "lnk", text: "Edit all hoists in the grid", onclick: function () { if (TLA.app) TLA.app.setStep(3); } })));
     if (nB) { c.appendChild(h("h4", { text: "Bolted connections" })); supportsTable(c, t, res, db, "truss"); }
 
@@ -5273,6 +5318,29 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var r = S.copyLoads(t.id, [], dst.id);
     if (r && r.clamped) alert(r.clamped + " load(s) were past the end of " + dst.name + " and were placed at its end.");
   }
+  /** Mirror hoists (ids, or all) about the centerline (1.23.0); says what was left out. Returns the new hoists. */
+  function mirrorHoistsUi(t, ids) {
+    var r = S.mirrorHoists(t.id, ids);
+    if (!r) return [];
+    if (!r.added.length) alert(ids && ids.length === 1 ? "Nothing added: this hoist is on the centerline or already has a hoist at its mirrored spot." : "Nothing added: every hoist is on the centerline or already has a hoist at its mirrored spot.");
+    else if (r.skipped) alert("Added " + r.added.length + " mirrored hoist(s). " + r.skipped + " left out: on the centerline or a hoist is already at the mirrored spot.");
+    return r.added;
+  }
+  /** Copy hoists (ids, or all) to another truss (1.23.0), keeping each one's distance from the centre. */
+  function copyHoistsPrompt(t, ids) {
+    var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
+    if (!others.length) { alert("There is no other truss to copy to."); return; }
+    var n = ids && ids.length ? ids.length : t.supports.filter(function (s) { return s.kind === "hoist"; }).length;
+    var name = prompt("Copy " + (n === 1 && ids && ids.length ? "this hoist" : "all " + n + " hoists") + " from " + t.name + " to which truss? (keeps each hoist's distance from the centre, its model, chain, hardware and level offset)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    if (!name) return;
+    var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
+    if (!dst) { alert("No truss called \"" + name + "\"."); return; }
+    var r = S.copyHoists(t.id, ids || [], dst.id), msg = [];
+    if (!r) return;
+    if (r.clamped) msg.push(r.clamped + " hoist(s) were past the end of " + dst.name + " and were placed at its end.");
+    if (r.skipped) msg.push(r.skipped + " hoist(s) left out: " + dst.name + " already has a hoist there.");
+    if (msg.length) alert((r.copied ? "Copied " + r.copied + " hoist(s) to " + dst.name + ". " : "Nothing copied. ") + msg.join(" "));
+  }
 
   function hoistInspector(root, t, s, res, db) {
     var x = hoistRes(s.id), hd = s.dead ? null : hoistDb(s.hoistId), hoists = t.supports.filter(function (q) { return q.kind === "hoist"; }), k = hoists.indexOf(s), noun = s.dead ? "Dead hang" : "Hoist";
@@ -5284,6 +5352,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       [h("button", { "class": "icon", text: "‹", title: "Previous hoist on this truss", disabled: k <= 0, onclick: function () { sel({ truss: t.id, support: hoists[k - 1].id }); } }),
        h("button", { "class": "icon", text: "›", title: "Next hoist on this truss", disabled: k >= hoists.length - 1, onclick: function () { sel({ truss: t.id, support: hoists[k + 1].id }); } }),
        h("span", { "class": "grow" }),
+       h("button", { "class": "ghost", text: "Mirror", title: "Add the same " + noun.toLowerCase() + " at " + posLabel({ distance: t.length - s.distance, from: s.from }, t) + " (mirrored about the centerline)", onclick: function () { var a = mirrorHoistsUi(t, [s.id]); if (a.length) sel({ truss: t.id, support: a[0].id }); } }),
+       h("button", { "class": "ghost", text: "Copy to…", title: "Copy this " + noun.toLowerCase() + " to another truss, keeping its distance from the centre", onclick: function () { copyHoistsPrompt(t, [s.id]); } }),
        h("button", { "class": "ghost danger", text: "Delete hoist", onclick: function () { S.removeSupport(t.id, s.id); } })]));
     var c = group(root, "hres", "Result", true, x && x.hoist.capacity < 999999 ? fmt(x.hoist.staticLoad / x.hoist.capacity * 100, 0) + "% workload" : "");
     if (x) {
@@ -5742,7 +5812,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     elevation: elevation, forceDiagrams: forceDiagrams,
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
-    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
+    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, mirrorHoistsUi: mirrorHoistsUi, copyHoistsPrompt: copyHoistsPrompt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
     hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, supportName: supportName, setDead: setDead, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
@@ -6039,11 +6109,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     S.rig.trusses.forEach(function (t) {
       var hs = t.supports.filter(function (s) { return s.kind === "hoist"; });
       if (t.isBlock && !hs.length) return;
-      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: hs.length + " hoist" + (hs.length === 1 ? "" : "s") + " · " + U.f("len", t.length, 2) });
+      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: hs.length + " hoist" + (hs.length === 1 ? "" : "s") + " · " + U.f("len", t.length, 2),
+        acts: hs.length ? [["Mirror all", function () { P.mirrorHoistsUi(t); }], ["Copy to truss…", function () { P.copyHoistsPrompt(t); }]] : [] });
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
       rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
+    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
@@ -7475,6 +7546,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Corner blocks</b>: trusses are bolted together at corner blocks, which are special short trusses with their own weight. The block type comes from the Christie Lites and James Thomas Engineering catalogues (weights as published on their product pages; blocks that use end/face plates add weight per truss bolted on, and bolt-on blocks default to the middle published bolt count). The truss it is bolted through carries the block, and every truss bolted to it passes its end reaction into the block. Faces used are counted (a truss ending at the block uses 1, one running through it uses 2) and compared with the block's ways. Where a maker publishes no weight, enter your own on the block. Truss lengths are measured center to center of the blocks in the plan.</li>",
     "<li>Truss self weight is spread uniformly over the whole length, including cantilevers. Hoist and chain weight are added after the analysis.</li>",
     "<li>Mirror loads: a load can be mirrored about the truss centerline; the twin follows edits to the original.</li>",
+    "<li><b>Mirror and copy hoists (since 1.23.0)</b>: <i>Mirror</i> (hoist panel) and <i>Mirror all</i> (truss panel, Hoists grid) add a hoist at the mirrored spot about the centerline; <i>Copy to truss</i> copies hoists to another truss at the same distance from its centre. Each copy is its own hoist (edit it separately) with the same model, chain or rope, dynamic factor, hardware, level offset and Hangs from - but no name or load-cell reading. No copy is placed where a hoist already is.</li>",
     "<li><b>Deflection (since 1.18.0)</b>: each truss's deflected shape comes from the whole-rig analysis (exact for the beam model between its nodes: bending plus shear, with the stiffness estimated from the tables, so it is an estimate). Each span's sag is measured from the straight line between its two supports - so a carrier truss sagging under a bolted truss, or a hoist stretching, is not counted against the span - and compared with the maker's published limit (Tomcat L/100, the JTE sheets that state L/160) or, where the maker publishes none, the rig default in Rig settings (L/160). Past a maker's limit the truss is Overloaded (the maker's allowable loads are set by that limit); past the rig default it is a warning. Cantilever tips are shown, not checked (the makers' limits are for simple spans).</li>",
     "<li><b>Deflection view (since 1.22.0)</b>: the <i>Deflection</i> colour mode colours each truss by its worst span's sag against its limit, and draws its deflected shape from the whole-rig analysis, exaggerated with one scale for the whole rig - beside the truss on the plan (a sag is drawn to its right-hand side) and above it in 3D. Hover a shape on the plan for its largest sag. It also shows a truss that sags with its carrier or a springy hoist, and a part that is not connected.</li>" +
     "<li><b>Hot spots (since 1.18.0)</b>: a colour mode that shades each truss along its length by its local workload - the worst of its span or cantilever table check and the bending moment and shear against their allowables at each point - to show where a truss is loaded most. The Checks section of a truss shows the same strip with the peak, the support reactions and the deflected shape.</li>",

@@ -744,6 +744,8 @@
       ht.appendChild(hb); c.appendChild(ht);
     }
     c.appendChild(h("div", { "class": "row-btns" }, h("button", { text: "+ Hoist", onclick: function () { var sp = S.addHoist(t.id); if (sp) sel({ truss: t.id, support: sp.id }); } }),
+      nH ? h("button", { "class": "lnk", text: "Mirror all", title: "Add a hoist at the mirrored spot of every hoist on this truss (about its centerline), with the same model, chain, hardware and level offset", onclick: function () { mirrorHoistsUi(t); } }) : null,
+      nH ? h("button", { "class": "lnk", text: "Copy to truss…", title: "Copy every hoist on this truss to another truss, keeping each one's distance from the centre", onclick: function () { copyHoistsPrompt(t); } }) : null,
       h("button", { "class": "lnk", text: "Edit all hoists in the grid", onclick: function () { if (TLA.app) TLA.app.setStep(3); } })));
     if (nB) { c.appendChild(h("h4", { text: "Bolted connections" })); supportsTable(c, t, res, db, "truss"); }
 
@@ -800,6 +802,29 @@
     var r = S.copyLoads(t.id, [], dst.id);
     if (r && r.clamped) alert(r.clamped + " load(s) were past the end of " + dst.name + " and were placed at its end.");
   }
+  /** Mirror hoists (ids, or all) about the centerline (1.23.0); says what was left out. Returns the new hoists. */
+  function mirrorHoistsUi(t, ids) {
+    var r = S.mirrorHoists(t.id, ids);
+    if (!r) return [];
+    if (!r.added.length) alert(ids && ids.length === 1 ? "Nothing added: this hoist is on the centerline or already has a hoist at its mirrored spot." : "Nothing added: every hoist is on the centerline or already has a hoist at its mirrored spot.");
+    else if (r.skipped) alert("Added " + r.added.length + " mirrored hoist(s). " + r.skipped + " left out: on the centerline or a hoist is already at the mirrored spot.");
+    return r.added;
+  }
+  /** Copy hoists (ids, or all) to another truss (1.23.0), keeping each one's distance from the centre. */
+  function copyHoistsPrompt(t, ids) {
+    var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
+    if (!others.length) { alert("There is no other truss to copy to."); return; }
+    var n = ids && ids.length ? ids.length : t.supports.filter(function (s) { return s.kind === "hoist"; }).length;
+    var name = prompt("Copy " + (n === 1 && ids && ids.length ? "this hoist" : "all " + n + " hoists") + " from " + t.name + " to which truss? (keeps each hoist's distance from the centre, its model, chain, hardware and level offset)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    if (!name) return;
+    var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
+    if (!dst) { alert("No truss called \"" + name + "\"."); return; }
+    var r = S.copyHoists(t.id, ids || [], dst.id), msg = [];
+    if (!r) return;
+    if (r.clamped) msg.push(r.clamped + " hoist(s) were past the end of " + dst.name + " and were placed at its end.");
+    if (r.skipped) msg.push(r.skipped + " hoist(s) left out: " + dst.name + " already has a hoist there.");
+    if (msg.length) alert((r.copied ? "Copied " + r.copied + " hoist(s) to " + dst.name + ". " : "Nothing copied. ") + msg.join(" "));
+  }
 
   function hoistInspector(root, t, s, res, db) {
     var x = hoistRes(s.id), hd = s.dead ? null : hoistDb(s.hoistId), hoists = t.supports.filter(function (q) { return q.kind === "hoist"; }), k = hoists.indexOf(s), noun = s.dead ? "Dead hang" : "Hoist";
@@ -811,6 +836,8 @@
       [h("button", { "class": "icon", text: "‹", title: "Previous hoist on this truss", disabled: k <= 0, onclick: function () { sel({ truss: t.id, support: hoists[k - 1].id }); } }),
        h("button", { "class": "icon", text: "›", title: "Next hoist on this truss", disabled: k >= hoists.length - 1, onclick: function () { sel({ truss: t.id, support: hoists[k + 1].id }); } }),
        h("span", { "class": "grow" }),
+       h("button", { "class": "ghost", text: "Mirror", title: "Add the same " + noun.toLowerCase() + " at " + posLabel({ distance: t.length - s.distance, from: s.from }, t) + " (mirrored about the centerline)", onclick: function () { var a = mirrorHoistsUi(t, [s.id]); if (a.length) sel({ truss: t.id, support: a[0].id }); } }),
+       h("button", { "class": "ghost", text: "Copy to…", title: "Copy this " + noun.toLowerCase() + " to another truss, keeping its distance from the centre", onclick: function () { copyHoistsPrompt(t, [s.id]); } }),
        h("button", { "class": "ghost danger", text: "Delete hoist", onclick: function () { S.removeSupport(t.id, s.id); } })]));
     var c = group(root, "hres", "Result", true, x && x.hoist.capacity < 999999 ? fmt(x.hoist.staticLoad / x.hoist.capacity * 100, 0) + "% workload" : "");
     if (x) {
@@ -1269,7 +1296,7 @@
     elevation: elevation, forceDiagrams: forceDiagrams,
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
-    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
+    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, mirrorHoistsUi: mirrorHoistsUi, copyHoistsPrompt: copyHoistsPrompt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
     hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, supportName: supportName, setDead: setDead, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
