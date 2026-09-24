@@ -592,8 +592,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.19.0";
+  TLA.VERSION = "1.20.0";
   TLA.CHANGES = [
+    ["1.20.0", "2026-09-24", "G.E. Simmons Falk", "Truss checks now count the truss's own weight by default (the Rig settings switch is on unless a rig turns it off; saved rigs that turned it off keep it off). Cantilever check: the self weight is added to the cantilever's load, as the original workbook does. Moment and shear check: the moments and shears include the self weight, and so do the allowables estimated from the tables - each table row also demonstrates its own truss weight, w L^2/8 and w L/2 (Hall, Stress Table Creator 2): allowable moment = k x min(max CPL L/4 + w L^2/8, max UDL L/8 + w L^2/8), shear = k x max(CPL/2 + w L/2, UDL/2 + w L/2). With the switch off the check is net against net, as before. Results change: cantilever, moment and shear workloads go up a little (e.g. a 32 ft box side's cantilever 27% -> 33%); hoist loads do not change. The help and calc sheet no longer say the tables already subtract the truss weight; formula F3 shows the self-weight terms."],
     ["1.19.0", "2026-09-24", "G.E. Simmons Falk", "Interface redesign, plus new deflection results (see the end); hoist loads and the table, moment and shear checks are unchanged. Work in four steps shown above the plan - 1 Structure, 2 Loads, 3 Hoists, 4 Results - and jump between them at any time. Each step has a spreadsheet-style grid under the plan: every truss (type, pieces, position, UDL), every load grouped by truss, and every hoist with its results updating as you type. Tab / Enter / arrows move, typing edits, Ctrl+D fills down, Ctrl+V pastes rows from Excel, Delete removes a row; each edit is one Undo step. Loads: the item cell searches the fixture library (fixtures already on the rig first) and fills in the weight and clamp; type a weight (45 lb) for a custom load; one row per load position (weight + clamp = total); Mirror shows where the mirrored load lands and Mirror all works per truss; while you type, the plan shrinks to a strip of the truss being edited. The side panel now shows whatever you click: the rig (with an outline of every truss, corner block, hoist and load), a truss (sections in working order: truss, corner blocks, placement, loads, hoists, checks, advanced), a hoist (its result and where the load comes from, model, chain, dynamic factor, position), a corner block (a diagram of its faces and what is bolted to each) or a load. Bolt to... then click a corner block on the plan (or click a free face of a block, then the truss). Quick add a load: MAC Aura @ 4, 120 lb @ -6. The plan marks the origin with hard X 0 and Y 0 lines. The Hang order colouring is gone (the load-path order is still used inside the load-path method). Settings that apply to the whole rig (dynamic factor, Add %, hoist stiffness, repetitive-use, self weight, units, length format, calc sheet paper) moved to one Rig settings panel; units are set only there. Menus: File (new, open, save, example, theme, about), Calculators (circular truss, simple UDL, fixture weights, databases), Export (hoist table, PNG, whole-rig model, print). Dark theme by default, light or follow-system under File. Number keys 1-4 switch step, F fits the plan. New results (nothing existing changes): the deflected shape of every truss from the whole-rig analysis, each span's sag against the maker's published limit (Tomcat L/100; JTE L/160 where the sheet states it) or the rig default L/160 (Rig settings): past a maker's limit the truss is Overloaded (their allowable loads are set by it), past the rig default it is a warning; a Hot spots colour mode that shades each truss along its length by local workload; and in a truss's Checks a local-workload strip with the peak, a reaction diagram and a deflection diagram. Rig settings is now a full page. Hot spots: each span's table check follows the shape of its bending moment, so the colour peaks under the loads that work the truss hardest, with a glow at the peak of any truss at 80% or more. Hoists on the plan are drawn as a ring with cross-hairs in their own colour (white in the dark theme, dark in the light one; amber when high, red when overloaded), labelled with the high hook static load and, in italics under it, the high hook dynamic load. A hoist's panel shows its low hook, high hook static and high hook dynamic loads at the top, with the level sensitivity on its own line. A new truss starts with no hoists (hoists are placed in step 3). Where the app quotes a maker (a truss's source, its deflection limit, the list of makers' limits in Rig settings) it links to the maker's own data sheet, opened in a new tab. Rig settings has a Center on 0,0 button that moves the whole rig so the middle of its footprint is at the origin (bolted parts follow; results unchanged). Theme (dark, light, follow the computer) is also in Rig settings."],
     ["1.17.1", "2026-09-24", "G.E. Simmons Falk", "Tests only, no result changes: the Rigging Math Made Simple 3D grid example is now also checked against Production Assist 1.13.10's calculation of the same grid (Derek Epstein). Given Production Assist's own inputs (its 12x12 section, rigid joints, the hoists' wire-rope springs), the whole-rig analysis gives the same hoist loads to within 0.5 lb, and section properties computed from 2 x 0.125 in chords match Production Assist's 12x12 section."],
     ["1.17.0", "2026-09-24", "G.E. Simmons Falk", "Calculation sheet: every check is now written out the way you would check it by hand - formula, then the numbers put into it, then the result - with real fractions and subscripts: the span and cantilever checks (length, UDL share f, capacity C = CPL x k x f, load against C with its workload) and the moment and shear check (allowed moment and shear from the tables, then the largest moment and shear against them), plus the formula list F1-F5 in section 2. Which table rows were read is noted under each check. The hoist load table (4b) and the other wide tables now fit the page. New Calc sheet paper option in the rig setup: Letter (8.5 x 11 in) or A4 (210 x 297 mm), whichever units you use (Letter for imperial and A4 for metric until you pick); the sheet is laid out and printed on that size. No result changes."],
@@ -926,10 +927,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   /**
    * truss: DB entry {max_span_ft, udl_lb[], cpl_lb[], repetitive_use}
    * beam: result of TLA.beam.solve; wallWeight: lb spread over the full length.
-   * opts.derate: override the repetitive-use factor. opts.cantileverSelfWeight: also count the truss's own weight
-   * against the cantilever limit. Rigging Math Made Simple (Lesson 21) says manufacturers' tables already subtract the
-   * truss weight, so by default only the loads (and any UDL) are compared; the original workbook also
-   * counted self weight (stricter).
+   * opts.derate: override the repetitive-use factor. opts.cantileverSelfWeight: also count the truss's self weight
+   * against the cantilever limit (as the original workbook does) and in the moment/shear check. The app turns it on
+   * unless the rig's settings turn it off (countSelfWeight, 1.18.0); left out here, only the loads (and any UDL) count.
    */
   function checkTruss(truss, beam, wallWeight, opts) {
     opts = opts || {};
@@ -986,30 +986,34 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * Moment: the largest demonstrated moment from each table, and the smaller of the two (a point load also bends the
    * chords locally, so the point-load table can be the lower one). Shear: the largest shear any entry demonstrates -
    * a lower bound on the real capacity, so it can only err on the safe side. Estimates - not published values.
+   * wSelf (lb/ft, optional; 1.18.0): the tables are loads on top of the truss's self weight, so each entry also
+   * demonstrates the self weight's moment and shear (Hall, Stress Table Creator): M = P L / 4 + w L^2 / 8 or
+   * W L / 8 + w L^2 / 8, V = P / 2 + w L / 2 or W / 2 + w L / 2. Use it when the checked forces include self weight.
    */
-  function memberCapacity(truss) {
-    var metric = truss.units === "metric" && truss.udl_kg, step = metric ? 1 / FT_M : 1, f = metric ? KG_LB : 1;
+  function memberCapacity(truss, wSelf) {
+    var metric = truss.units === "metric" && truss.udl_kg, step = metric ? 1 / FT_M : 1, f = metric ? KG_LB : 1, w = Number(wSelf) > 0 ? Number(wSelf) : 0;
     var P = (metric ? truss.cpl_kg : truss.cpl_lb) || [], U = (metric ? truss.udl_kg : truss.udl_lb) || [];
     var mc = 0, mu = 0, v = 0, n = Math.min(metric ? Number(truss.max_span_m) || U.length : Number(truss.max_span_ft) || 100, 100);
     // the table row each figure comes from (row = span in the table's own unit), for the calculation sheet
     var at = { point: null, uniform: null, shear: null };
     function row(i, L, load, kind) { return { row: i + 1, unit: metric ? "m" : "ft", length: L, load: load, kind: kind }; }
     for (var i = 0; i < n; i++) {
-      var L = (i + 1) * step, p = (Number(P[i]) || 0) * f, u = (Number(U[i]) || 0) * f;
-      if (p * L / 4 > mc) { mc = p * L / 4; at.point = row(i, L, p, "cpl"); }
-      if (u * L / 8 > mu) { mu = u * L / 8; at.uniform = row(i, L, u, "udl"); }
-      if (p / 2 > v) { v = p / 2; at.shear = row(i, L, p, "cpl"); }
-      if (u / 2 > v) { v = u / 2; at.shear = row(i, L, u, "udl"); }
+      var L = (i + 1) * step, p = (Number(P[i]) || 0) * f, u = (Number(U[i]) || 0) * f, ms = w * L * L / 8, vs = w * L / 2;
+      if (p > 0 && p * L / 4 + ms > mc) { mc = p * L / 4 + ms; at.point = row(i, L, p, "cpl"); }
+      if (u > 0 && u * L / 8 + ms > mu) { mu = u * L / 8 + ms; at.uniform = row(i, L, u, "udl"); }
+      if (p > 0 && p / 2 + vs > v) { v = p / 2 + vs; at.shear = row(i, L, p, "cpl"); }
+      if (u > 0 && u / 2 + vs > v) { v = u / 2 + vs; at.shear = row(i, L, u, "udl"); }
     }
     var m = mc && mu ? Math.min(mc, mu) : mc || mu;
-    return { moment: m, shear: v, momentFromPoint: mc, momentFromUniform: mu, at: at };
+    return { moment: m, shear: v, momentFromPoint: mc, momentFromUniform: mu, at: at, wSelf: w };
   }
 
-  /** Bending moment and shear along the truss (continuous-beam statics) against the table-derived capacity. Like the
-   * table checks, the truss's own weight is left out (the tables already allow for it) unless opts.cantileverSelfWeight.
+  /** Bending moment and shear along the truss (continuous-beam statics) against the table-derived capacity. With
+   * opts.cantileverSelfWeight (the app's default since 1.18.0) the forces include the truss's self weight and so does
+   * the capacity (memberCapacity with wSelf); without, both leave it out.
    * opts.memberDiagrams { full, net } supplies the diagrams instead (from the stiffness solve, 1.3.0). */
   function checkMember(truss, beam, k, opts) {
-    var cap = memberCapacity(truss), given = opts.memberDiagrams, full = given ? given.full : TLA.beam.diagram(beam), net = given ? given.net : full;
+    var cap = memberCapacity(truss, opts.cantileverSelfWeight ? beam.wSelf : 0), given = opts.memberDiagrams, full = given ? given.full : TLA.beam.diagram(beam), net = given ? given.net : full;
     if (!given && !opts.cantileverSelfWeight && beam.wSelf > 0 && beam.positions.length) {
       var nb = TLA.beam.solve({
         length: beam.length, supports: beam.positions, trussWeightPerFt: 0, wallWeight: beam.wDist * beam.length,
@@ -1075,7 +1079,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var d = settings && Number(settings.deflectionLimit) > 0 ? Number(settings.deflectionLimit) : DEFL_DEFAULT;
     return { ratio: d, source: "default", note: "no limit published by the maker - rig default L/" + d };
   }
-  TLA.limits = { checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
+  /** Rig setting: count the truss's self weight in the cantilever and moment/shear checks - on unless turned off
+   * (1.18.0; saved rigs keep an explicit choice). */
+  function countSelfWeight(settings) { return !settings || settings.cantileverSelfWeight !== false; }
+
+  TLA.limits = { countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -1386,7 +1394,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           "only one support point is left, so the truss would tip. Add a hoist or bolted support, or move the load." });
       }
       var limits = t.isBlock ? { derate: 1, maxSpan: 0, maxCantilever: 0, segments: [], worstCode: 0, ok: true }
-        : TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof settings.derate === "number" ? settings.derate : undefined, cantileverSelfWeight: settings.cantileverSelfWeight === true });
+        : TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof settings.derate === "number" ? settings.derate : undefined, cantileverSelfWeight: TLA.limits.countSelfWeight(settings) });
 
       var own = (t.loads || []).reduce(function (a, l) { return a + (Number(l.weight) || 0) * (l.mirror && Math.abs(l.distance - beam.length / 2) > 1e-7 ? 2 : 1); }, 0);
       applied += own + beam.wSelf * beam.length + (Number(t.wallWeight) || 0);
@@ -2272,16 +2280,16 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var truss = res.dbTruss, st = rig.settings || {};
     var beam = TLA.beam.solve({ length: t.length, supports: sups.map(function (s) { return s.distance; }), loads: loads, trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless });
     beam.active = sups;
-    // moment/shear check on the whole-rig analysis's own diagrams, net of the truss's own weight as the tables are
+    // moment/shear check on the whole-rig analysis's own diagrams; net of self weight when the rig leaves it out
     var full = sol.forces.members[t.id], net = full, bi = -1;
     model.beams.forEach(function (bm, i) { if (bm.t.id === t.id) bi = i; });
-    if (full && bi >= 0 && st.cantileverSelfWeight !== true && model.beams[bi].wSelf > 0) {
+    if (full && bi >= 0 && !TLA.limits.countSelfWeight(st) && model.beams[bi].wSelf > 0) {
       var bmT = model.beams[bi], F = sol.F.slice(), Fs = sol.udlVector(bi, bmT.wSelf);
       for (var q = 0; q < F.length; q++) F[q] -= Fs[q];
       var r = sol.solveF(F);                            // same structure, same slack hoists
       net = forces(model, { U: r.U, reactions: r.reactions, dofs: sol.dofs, supports: sol.supports }, function (b) { return b === bmT ? b.w - b.wSelf : b.w; }).members[t.id];
     }
-    var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: st.cantileverSelfWeight === true, memberDiagrams: full ? { full: full, net: net } : null });
+    var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: TLA.limits.countSelfWeight(st), memberDiagrams: full ? { full: full, net: net } : null });
     return { beam: beam, limits: limits, injected: injected };
   }
 
@@ -4184,7 +4192,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     plot(4, "Shear", sh, d.maxShear, mb.shearAllowed, mb.shearOver, "w");
     plot(4 + band + gap, "Moment", mo, d.maxMoment, mb.momentAllowed, mb.momentOver, "mom");
     add("text", { x: W / 2, y: H - 3, "text-anchor": "middle", "class": "et small" },
-      "Sagging moment up. Allowable estimated from the manufacturer's tables" + (d === mb.diagram ? "." : "; truss self weight left out, as in the tables."));
+      "Sagging moment up. Allowable estimated from the manufacturer's tables" + (d === mb.diagram ? (mb.capacity && mb.capacity.wSelf > 0 ? "; self weight included in the moments and added back into the allowable." : ".") : "; truss self weight left out (turned off for this rig)."));
     return svg;
   }
 
@@ -4916,7 +4924,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     c = group(root, "rset", "Rig settings", true, "");
     var st = S.rig.settings || {};
     c.appendChild(h("div", { "class": "sub", text: "Default dynamic factor " + (typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25) + " (hoists with a speed use speed / 60 + 1) · Add " + (Number(st.addPercent) || 0) + "% · hoist stiffness " + (Number(st.hoistStiffness) > 0 ? U.f("stiff", st.hoistStiffness, 0) : "rigid") +
-      " · repetitive-use " + (typeof st.derate === "number" ? st.derate : "per truss data") + " · self weight " + (st.cantileverSelfWeight ? "counted" : "not counted") + " against limits · " + (U.metric() ? "metric" : "imperial") }));
+      " · repetitive-use " + (typeof st.derate === "number" ? st.derate : "per truss data") + " · self weight " + (TLA.limits.countSelfWeight(st) ? "counted" : "not counted") + " in cantilever and moment/shear checks · " + (U.metric() ? "metric" : "imperial") }));
     c.appendChild(h("button", { "class": "lnk", text: "Edit rig settings", onclick: function () { if (TLA.app) TLA.app.openSettings(); } }));
   }
 
@@ -5031,8 +5039,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     body.appendChild(card("Truss checks", "The span, cantilever, moment and shear checks against the manufacturers' tables.", [
       row("Repetitive-use factor", select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); }),
         "ANSI repetitive-use rule: table capacities are multiplied by 0.85 unless the data already includes it."),
-      row("Truss self weight", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), h("span", { text: "Count it against cantilever and moment/shear limits (stricter than the textbook)" })),
-        "Per Rigging Math Made Simple, manufacturers' tables already subtract the truss weight. Tick to also count it (as the original Excel did).")]));
+      row("Truss self weight", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: TLA.limits.countSelfWeight(st), onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), h("span", { text: "Count truss self weight in cantilever and moment/shear checks (on by default)" })),
+        "On: the truss's self weight is added to the load on each cantilever (as the original Excel does), and the moment/shear check compares moments and shears that include self weight against table capacities with the self weight added back (CPL x L / 4 + w x L^2 / 8, CPL / 2 + w x L / 2). Off: self weight is left out of both.")]));
     var byRatio = {};
     S.db().trusses.forEach(function (x) { var l = TLA.limits.deflectionLimit(x, st); if (l.source === "maker") (byRatio[l.ratio] = byRatio[l.ratio] || []).push(x); });
     var makers = h("div", { "class": "setlinks" }, Object.keys(byRatio).map(function (k) {
@@ -6362,27 +6370,29 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is " + (grill ? "shown for reference." : "the result used here.") }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
+    var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
     var fx = [
       ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
-      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (st.cantileverSelfWeight === true ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
-      ["F3", "Moment / shear", "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). Estimates from the tables, not published values. Diagrams " + (st.cantileverSelfWeight === true ? "include" : "leave out") + " the truss's self weight" + (st.cantileverSelfWeight === true ? "." : ", as the tables do.")],
+      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
+      ["F3", "Moment / shear", (sw ? "M_allow = k x min( max over the table of (CPL x L / 4 + w_self x L^2 / 8) , max of (UDL x L / 8 + w_self x L^2 / 8) ),  V_allow = k x max over the table of (CPL / 2 + w_self x L / 2, UDL / 2 + w_self x L / 2). The tables are loads on top of the truss's self weight, so its moment and shear are added back; the diagrams include the self weight."
+        : "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). The diagrams leave out the truss's self weight.") + " Estimates from the tables, not published values."],
       ["F4", "High hook static", "High hook = low hook R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if high hook <= rated capacity."],
       ["F5", "High hook dynamic", "Dynamic = high hook x DLF,  DLF = hoist speed (fpm) / 60 + 1 unless typed on the hoist; " + fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3) + " if the speed is unknown. Flagged if dynamic > capacity."],
       ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."]
     ];
     // the same formulas typeset (1.17.0); the sentence under each keeps the conditions and notes
-    var sw = st.cantileverSelfWeight === true, ap = Number(st.addPercent) > 0;
     var fxMath = {
       F1: [ml(null, [[mv("C"), " = CPL", X, mv("k"), X, mv("f")]]), ml(null, [[mv("f"), " = ", fr(["UDL", X, mv("k"), MINUS, mv("w", "udl"), X, mv("L")], ["UDL", X, mv("k")])]]), h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("ΣP"), LE, mv("C"), "  and  ", mv("L"), LE, mv("L", "max")))],
       F2: [ml(null, [[mv("C"), " = CPL(4", mv("L", "c"), ")", X, mv("k")]]), h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("ΣP"), " + ", mv("w", "udl"), X, mv("L", "c"), sw ? [" + ", mv("w", "self"), X, mv("L", "c")] : null, LE, mv("C"), "  and  ", mv("L", "c"), LE, fr(mv("L", "max"), "4")))],
-      F3: [ml(null, [[mv("M", "allow"), " = ", mv("k"), X, "min( max ", fr(["CPL", X, mv("L")], "4"), ", max ", fr(["UDL", X, mv("L")], "8"), " )"]]), ml(null, [[mv("V", "allow"), " = ", mv("k"), X, "max( ", fr("CPL", "2"), ", ", fr("UDL", "2"), " )"]])],
+      F3: [ml(null, [[mv("M", "allow"), " = ", mv("k"), X, "min( max ", fr(["CPL", X, mv("L")], "4"), sw ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, ", max ", fr(["UDL", X, mv("L")], "8"), sw ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, " )"]]),
+        ml(null, [[mv("V", "allow"), " = ", mv("k"), X, "max( ", fr("CPL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, ", ", fr("UDL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, " )"]])],
       F4: [ml(null, [["High hook = ", mv("R"), ap ? [X, "(1 + " + st.addPercent + "/100)"] : null, " + ", mv("W", "hoist"), " + ", mv("w", "chain"), X, mv("L", "chain"), " + ", mv("W", "hardware")]])],
       F5: [ml(null, [["Dynamic = High hook", X, "DLF"]]), ml(null, [["DLF = ", fr(mv("v"), "60"), " + 1"]])],
       F6: []
     };
     s2.appendChild(table("fx", ["", "Check", "Formula"], fx.map(function (f) { return h("tr", null, td(f[0], "mono b"), td(f[1]), h("td", null, fxMath[f[0]] && fxMath[f[0]].length ? h("div", { "class": "fxm" }, fxMath[f[0]]) : null, h("div", { "class": fxMath[f[0]] && fxMath[f[0]].length ? "fxn" : "", text: f[2] }))); })));
     s2.appendChild(table("kv small", null, [
-      h("tr", null, td("Truss self weight in cantilever / moment-shear checks"), td(st.cantileverSelfWeight === true ? "counted (stricter than the textbook)" : "not counted (manufacturers' tables already allow for it)")),
+      h("tr", null, td("Truss self weight in cantilever / moment-shear checks"), td(sw ? "counted (default): added to cantilever loads; in the moment/shear forces and, added back, in their capacities" : "not counted (turned off for this rig)")),
       h("tr", null, td("Repetitive-use factor"), td(typeof st.derate === "number" ? String(st.derate) + " (whole rig)" : "per truss data")),
       h("tr", null, td("Default dynamic factor"), td(fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3))),
       h("tr", null, td("Add % to hoist loads"), td(Number(st.addPercent) > 0 ? st.addPercent + "%" : "none")),
@@ -6608,7 +6618,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         lines.push(ml("Capacity", [[mv("C"), " = CPL", X, mv("k"), X, mv("f")], Wn(cp.value, 0) + X + kk + X + fmt(s.udlMax > 0 ? s.freeFraction : 0, 4), W(s.capacity, 1)]));
         lines.push(mcmp("Load", [mv("ΣP"), " = " + loadSum], W(s.load, 1), [mv("C"), " = " + W(s.capacity, 1)], !s.loadFail, pct(s.utilization) + " workload"));
       } else {
-        var cc = lookup(e, "cpl", s.length * 4), selfPart = st.cantileverSelfWeight === true ? beam.wSelf * s.length : 0, sumP = s.load - beam.wDist * s.length - selfPart;
+        var cc = lookup(e, "cpl", s.length * 4), selfPart = TLA.limits.countSelfWeight(st) ? beam.wSelf * s.length : 0, sumP = s.load - beam.wDist * s.length - selfPart;
         rows = "Table row read: a cantilever is checked as a span of 4 x its length, 4 x " + Lf(s.length, 3) + " = " + Lf(s.length * 4, 3) + " - CPL at the " + rowText(cc) + " = " + W(cc.value, 0) + ".";
         lines.push(mcmp("Length", mv("L", "c"), Lf(s.length, 3), [fr(mv("L", "max"), "4"), " = " + Lf(s.maxLength, 2)], !s.lengthFail));
         lines.push(ml("Capacity", [[mv("C"), " = CPL(4", mv("L", "c"), ")", X, mv("k")], Wn(cc.value, 0) + X + kk, W(s.capacity, 1)]));
@@ -6632,7 +6642,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var mb = lim.member;
     if (mb) {
       var c = mb.capacity, at = c.at || {}, d = mb.checked;
-      box.appendChild(para("Moment and shear check (F3)" + (d !== mb.diagram ? " - truss self weight left out, as in the tables" : ""), "sub"));
+      box.appendChild(para("Moment and shear check (F3)" + (d !== mb.diagram ? " - truss self weight left out (turned off for this rig)" : c.wSelf > 0 ? " - truss self weight included, and added back into the allowables" : ""), "sub"));
       function rowOf(q, div) { return q ? kindName(q.kind) + " " + Wn(q.load, 0) + " at the " + q.row + " " + q.unit + " row x " + Ln(q.length, 3) + " / " + div : "none"; }
       var mSide = d.maxSag >= d.maxHog ? "sagging at " + Lf(d.atSag, 2) : "hogging at " + Lf(d.atHog, 2);
       box.appendChild(table("small", ["", ["Largest", "r"], "Where", ["Allowed", "r"], ["Workload", "r"], "Status"], [
@@ -6640,13 +6650,15 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         h("tr", null, td("Shear"), tdr(W(mb.shear, 1)), td("at " + Lf(d.atShear, 2)), tdr(W(mb.shearAllowed, 1)), tdr(pct(mb.shearUtil)), statusCell(mb.shearOver ? "Over" : "Good", mb.shearOver))
       ]));
       var kk3 = fmt(k, 3);
-      function qterm(q, div) { return q ? fr(Wn(q.load, 0) + X + Ln(q.length, 3), String(div)) : "-"; }
+      // with self weight (1.18.0): each table entry also carries w_self x L^2 / 8 (moment) and w_self x L / 2 (shear)
+      var ws = c.wSelf > 0 ? c.wSelf : 0;
+      function qterm(q, div) { return q ? [fr(Wn(q.load, 0) + X + Ln(q.length, 3), String(div)), ws ? [" + ", fr(U.n("wpl", ws, 2) + X + Ln(q.length, 3) + "²", "8")] : null] : "-"; }
       var mLines = [
-        ml("Allowed moment", [[mv("M", "allow"), " = ", mv("k"), X, "min(", fr(["CPL", X, mv("L")], "4"), ", ", fr(["UDL", X, mv("L")], "8"), ")"],
+        ml("Allowed moment", [[mv("M", "allow"), " = ", mv("k"), X, "min(", fr(["CPL", X, mv("L")], "4"), ws ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, ", ", fr(["UDL", X, mv("L")], "8"), ws ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, ")"],
           [kk3 + X + "min(", qterm(at.point, 4), ", ", qterm(at.uniform, 8), ")"], [kk3 + X + Mf(c.moment)], Mf(mb.momentAllowed)]),
         mcmp("Moment", [mv("M", "max"), " (" + mSide + ")"], Mf(mb.moment), [mv("M", "allow"), " = " + Mf(mb.momentAllowed)], !mb.momentOver, pct(mb.momentUtil) + " workload"),
-        ml("Allowed shear", [[mv("V", "allow"), " = ", mv("k"), X, fr(at.shear ? kindName(at.shear.kind) : "P", "2")],
-          at.shear ? [kk3 + X, fr(Wn(at.shear.load, 0), "2")] : [W(c.shear, 1)], W(mb.shearAllowed, 1)]),
+        ml("Allowed shear", [[mv("V", "allow"), " = ", mv("k"), X, fr(at.shear ? kindName(at.shear.kind) : "P", "2"), ws ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null],
+          at.shear ? [kk3 + X + (ws ? "(" : ""), fr(Wn(at.shear.load, 0), "2"), ws ? [" + ", fr(U.n("wpl", ws, 2) + X + Ln(at.shear.length, 3), "2"), ")"] : null] : [W(c.shear, 1)], W(mb.shearAllowed, 1)]),
         mcmp("Shear", [mv("V", "max"), " (at " + Lf(d.atShear, 2) + ")"], W(mb.shear, 1), [mv("V", "allow"), " = " + W(mb.shearAllowed, 1)], !mb.shearOver, pct(mb.shearUtil) + " workload")
       ];
       box.appendChild(calcs(null, mLines, "Rows used: moment from " + rowOf(at.point, 4) + " and " + rowOf(at.uniform, 8) + "; shear from " + (at.shear ? kindName(at.shear.kind) + " " + Wn(at.shear.load, 0) + " at the " + at.shear.row + " " + at.shear.unit + " row" : "-") + ". Allowables are estimates from the tables, not published values."));
@@ -6787,12 +6799,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Corner-block rules</b>: where the maker publishes rules for its corner blocks (so far Christie Lites A Type), the app flags a box truss whose 90-degree corner blocks are not each supported by a hoist, and an unsupported block joining 4 or more sections (the maker allows only part of the truss capacity there). These are warnings only - the results are not changed.</li>",
     "<li><b>Bolted parts</b>: bolted truss and corner blocks only fit within one manufacturer's truss family - JTE 12x12 does not bolt to Christie A Type, even at the same size. The app warns (and draws the bolt red) when bolted parts don't match, including a generic or universal truss bolted to branded parts; generic, universal and custom parts it can't check get a note. A truss stacked on top or clamped below can be any family. It never stops you building the rig.</li>",
     "<li>Span and cantilever limits use the manufacturer tables, rounding the span up to the next foot. Maximum cantilever is one quarter of the maximum span. Point-load capacity of a span is the tabulated center point load, reduced by the share of the UDL capacity already used by any UDL.</li>",
-    "<li><b>Checked against Rigging Math Made Simple</b> (Delbert L. Hall): reactions are the statics equations from the book (load x distance to the opposite leg / span, cantilever loads subtract on the far leg, truss weight added as a load at the center of the span and of each cantilever); a span is not overloaded if the point loads on it do not exceed the table CPL for that span, reduced by the share of the UDL capacity already used by any UDL; a cantilever must be no longer than a quarter of the maximum span and carry no more than the CPL for a span four times the cantilever length. Manufacturers' tables already subtract the truss weight, so the truss's self weight is not counted against those limits unless you tick the stricter option in Rig settings.</li>",
+    "<li><b>Checked against Rigging Math Made Simple</b> (Delbert L. Hall): reactions are the statics equations from the book (load x distance to the opposite leg / span, cantilever loads subtract on the far leg, truss weight added as a load at the center of the span and of each cantilever); a span is not overloaded if the point loads on it do not exceed the table CPL for that span, reduced by the share of the UDL capacity already used by any UDL; a cantilever must be no longer than a quarter of the maximum span and carry no more than the CPL for a span four times the cantilever length. By default the truss's self weight is added to the load on each cantilever, as the original workbook does (an option in Rig settings turns it off).</li>",
     "<li><b>Whole-rig analysis (primary, since 1.3.0)</b>: the load-path method treats every truss that carries another as an unyielding support. That is exact when the carrying truss is held up at each connection, but if a truss with its own hoist is bolted to a carrier that has no hoist near the connection, the carrier sags and the bolted truss sheds load to its own hoist, which the load-path method under-estimates (in a test rig by more than 2 times). So the app runs a whole-rig analysis (a finite element analysis, FEA, of the grid - engineers call this a grillage): a matrix (direct-stiffness) analysis of the box as beams meeting at the corner blocks, the standard technique for a bolted grid such as a bridge deck. Hoist loads, the forces in the bolted connections, the loads each span and cantilever check sees, and the bending moment and shear used by the moment and shear check (below) all come from this solve - with rigid joints that includes moment passed through the corner blocks. Since no manufacturer publishes a stiffness for the corner-block hardware itself, the joints are modelled several ways and shown side by side - hinged (the bolt carries vertical force only), semi-rigid (since 1.4.0: the block as a rotational spring of 1, 4 and 16 x EI/L of the lighter truss it joins, the range between nominally pinned and rigid, because a hoist's share can peak in between) and rigid (bending and torsion also pass through the block, the textbook grillage assumption, and the one an independent 3D frame analysis of a similar grid also implies). Every check uses the worst of them: a hoist's total static, dynamic load and status use the largest load, and each truss is checked with the joint model that loads it hardest (named on the truss).</li>",
     "<li><b>Truss stiffness (since 1.4.0)</b>: a lattice truss is not a solid beam. It bends through its chords (so its bending stiffness EI grows with about the square of its depth), shears through its diagonals (on short spans that is a large part of its deflection, so each truss is a Timoshenko beam with a shear stiffness GA), and twists through the diagonals of all its faces working as a closed tube (GJ). Chord and diagonal sizes are not in the tables, so they are <b>estimated from the tables</b>: the largest moment the tables demonstrate is carried by the chords at one effective chord stress (calibrated so a 20.5 in box comes out at the stiffness of 2 x 0.125 in chords, which also matches the maker's published deflection in Rigging Math Made Simple), the diagonals are taken as 0.3 x the chord area at 45 degrees. Real chord and diagonal sizes in the truss data (a <i>section</i> entry: chord and diagonal OD and wall, panel length) replace the estimate. The stiffness used is shown on each truss; scale it with its Stiffness (x) field. Depth: a truss named AxB is taken as A wide and B deep, as the views draw it.</li>",
     "<li><b>Hoists and level sensitivity (since 1.4.0)</b>: hoists are rigid supports at one level unless you give a hoist stiffness (lb per inch of stretch, for the hoist and its chain) in Rig settings. The Level sensitivity column shows how much a hoist's load changes if it runs 1/4 in high (or low) - on short, stiff spans that can be hundreds of pounds, so a hoist whose level sensitivity passes 10% of its capacity is flagged: level the hoists carefully, or check with a hoist stiffness.</li>",
     "<li><b>Cross-check</b>: <i>Export whole-rig model</i> (Export menu) saves the rig's whole-rig model with this app's results; <code>python tools/pynite_check.py file</code> rebuilds it in PyNite, the 3D frame engine behind CalcForge, and compares hoist reactions and member forces (without shear deformation, which PyNite doesn't model). If the whole-rig analysis can't run (a load-path loop, or a very large rig) the app says so and falls back to the load-path method.</li>",
-    "<li><b>Moment and shear check</b>: the span and cantilever checks compare each span on its own with the tables. A continuous truss also bends over its supports (hogging) from loads in the next span, and a heavy load right beside a support puts most of its weight into shear. So the bending moment and shear are also worked out all along the truss (shown under its diagram) and compared with an allowable moment and shear <b>estimated from the manufacturer's tables</b>: every table entry is a load the maker says the truss carries, so it demonstrates a moment (point load x span / 4, or uniform load x span / 8) and a shear (half the load). The allowable moment is the largest the tables demonstrate - the smaller of the point-load and uniform-load figures - and the allowable shear the largest shear any entry demonstrates (a safe-side estimate), both with the repetitive-use factor. These are estimates, not published values; use the maker's published moment and shear where you have them. Truss self weight is left out, as in the tables, unless you tick the stricter option in Rig settings.</li>",
+    "<li><b>Moment and shear check</b>: the span and cantilever checks compare each span on its own with the tables. A continuous truss also bends over its supports (hogging) from loads in the next span, and a heavy load right beside a support puts most of its weight into shear. So the bending moment and shear are also worked out all along the truss (shown under its diagram) and compared with an allowable moment and shear <b>estimated from the manufacturer's tables</b>: every table entry is a load the maker says the truss carries, so it demonstrates a moment (point load x span / 4, or uniform load x span / 8) and a shear (half the load). The allowable moment is the largest the tables demonstrate - the smaller of the point-load and uniform-load figures - and the allowable shear the largest shear any entry demonstrates (a safe-side estimate), both with the repetitive-use factor. The tables are loads on top of the truss's own weight, so by default (as Delbert Hall's Stress Table Creator does) each entry's moment and shear also include the self weight (+ w x span^2 / 8 and + w x span / 2), and the moments and shears checked include it too; the option in Rig settings leaves self weight out of both. These are estimates, not published values; use the maker's published moment and shear where you have them.</li>",
     "<li><b>Slack hoists</b>: a chain can only pull. If the loads would push a hoist up (a negative reaction - typically a hoist next to a heavily loaded span or cantilever), its chain goes slack: the hoist is shown as <b>Slack</b>, carries only its own weight, and the truss is solved again without it, so the other hoists and the span checks see the real, longer spans. If that leaves a truss with a single support point, it would tip: it is flagged <b>UNSTABLE</b> and its numbers must not be used.</li>",
     "<li><b>Units</b>: the Units setting in Rig settings shows and takes everything in feet and pounds or in metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm). Only the display changes: the rig is stored and solved the same way, so every result and every truss or hoist choice stays exactly as it was. Trusses whose manufacturer data is metric are checked against their own metric table in either mode.</li>",
     "<li>Loads are based on ANSI repetitive-use rules: capacities are multiplied by 0.85 unless the truss data is marked as already including the repetitive-use factor (the generic <i>Universal</i> trusses from EOT 2.4 use 0.75).</li>",

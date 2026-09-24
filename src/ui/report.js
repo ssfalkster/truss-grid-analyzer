@@ -172,27 +172,29 @@
       h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is " + (grill ? "shown for reference." : "the result used here.") }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
+    var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
     var fx = [
       ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
-      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (st.cantileverSelfWeight === true ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
-      ["F3", "Moment / shear", "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). Estimates from the tables, not published values. Diagrams " + (st.cantileverSelfWeight === true ? "include" : "leave out") + " the truss's self weight" + (st.cantileverSelfWeight === true ? "." : ", as the tables do.")],
+      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
+      ["F3", "Moment / shear", (sw ? "M_allow = k x min( max over the table of (CPL x L / 4 + w_self x L^2 / 8) , max of (UDL x L / 8 + w_self x L^2 / 8) ),  V_allow = k x max over the table of (CPL / 2 + w_self x L / 2, UDL / 2 + w_self x L / 2). The tables are loads on top of the truss's self weight, so its moment and shear are added back; the diagrams include the self weight."
+        : "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). The diagrams leave out the truss's self weight.") + " Estimates from the tables, not published values."],
       ["F4", "High hook static", "High hook = low hook R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if high hook <= rated capacity."],
       ["F5", "High hook dynamic", "Dynamic = high hook x DLF,  DLF = hoist speed (fpm) / 60 + 1 unless typed on the hoist; " + fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3) + " if the speed is unknown. Flagged if dynamic > capacity."],
       ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."]
     ];
     // the same formulas typeset (1.17.0); the sentence under each keeps the conditions and notes
-    var sw = st.cantileverSelfWeight === true, ap = Number(st.addPercent) > 0;
     var fxMath = {
       F1: [ml(null, [[mv("C"), " = CPL", X, mv("k"), X, mv("f")]]), ml(null, [[mv("f"), " = ", fr(["UDL", X, mv("k"), MINUS, mv("w", "udl"), X, mv("L")], ["UDL", X, mv("k")])]]), h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("ΣP"), LE, mv("C"), "  and  ", mv("L"), LE, mv("L", "max")))],
       F2: [ml(null, [[mv("C"), " = CPL(4", mv("L", "c"), ")", X, mv("k")]]), h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("ΣP"), " + ", mv("w", "udl"), X, mv("L", "c"), sw ? [" + ", mv("w", "self"), X, mv("L", "c")] : null, LE, mv("C"), "  and  ", mv("L", "c"), LE, fr(mv("L", "max"), "4")))],
-      F3: [ml(null, [[mv("M", "allow"), " = ", mv("k"), X, "min( max ", fr(["CPL", X, mv("L")], "4"), ", max ", fr(["UDL", X, mv("L")], "8"), " )"]]), ml(null, [[mv("V", "allow"), " = ", mv("k"), X, "max( ", fr("CPL", "2"), ", ", fr("UDL", "2"), " )"]])],
+      F3: [ml(null, [[mv("M", "allow"), " = ", mv("k"), X, "min( max ", fr(["CPL", X, mv("L")], "4"), sw ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, ", max ", fr(["UDL", X, mv("L")], "8"), sw ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, " )"]]),
+        ml(null, [[mv("V", "allow"), " = ", mv("k"), X, "max( ", fr("CPL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, ", ", fr("UDL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, " )"]])],
       F4: [ml(null, [["High hook = ", mv("R"), ap ? [X, "(1 + " + st.addPercent + "/100)"] : null, " + ", mv("W", "hoist"), " + ", mv("w", "chain"), X, mv("L", "chain"), " + ", mv("W", "hardware")]])],
       F5: [ml(null, [["Dynamic = High hook", X, "DLF"]]), ml(null, [["DLF = ", fr(mv("v"), "60"), " + 1"]])],
       F6: []
     };
     s2.appendChild(table("fx", ["", "Check", "Formula"], fx.map(function (f) { return h("tr", null, td(f[0], "mono b"), td(f[1]), h("td", null, fxMath[f[0]] && fxMath[f[0]].length ? h("div", { "class": "fxm" }, fxMath[f[0]]) : null, h("div", { "class": fxMath[f[0]] && fxMath[f[0]].length ? "fxn" : "", text: f[2] }))); })));
     s2.appendChild(table("kv small", null, [
-      h("tr", null, td("Truss self weight in cantilever / moment-shear checks"), td(st.cantileverSelfWeight === true ? "counted (stricter than the textbook)" : "not counted (manufacturers' tables already allow for it)")),
+      h("tr", null, td("Truss self weight in cantilever / moment-shear checks"), td(sw ? "counted (default): added to cantilever loads; in the moment/shear forces and, added back, in their capacities" : "not counted (turned off for this rig)")),
       h("tr", null, td("Repetitive-use factor"), td(typeof st.derate === "number" ? String(st.derate) + " (whole rig)" : "per truss data")),
       h("tr", null, td("Default dynamic factor"), td(fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3))),
       h("tr", null, td("Add % to hoist loads"), td(Number(st.addPercent) > 0 ? st.addPercent + "%" : "none")),
@@ -418,7 +420,7 @@
         lines.push(ml("Capacity", [[mv("C"), " = CPL", X, mv("k"), X, mv("f")], Wn(cp.value, 0) + X + kk + X + fmt(s.udlMax > 0 ? s.freeFraction : 0, 4), W(s.capacity, 1)]));
         lines.push(mcmp("Load", [mv("ΣP"), " = " + loadSum], W(s.load, 1), [mv("C"), " = " + W(s.capacity, 1)], !s.loadFail, pct(s.utilization) + " workload"));
       } else {
-        var cc = lookup(e, "cpl", s.length * 4), selfPart = st.cantileverSelfWeight === true ? beam.wSelf * s.length : 0, sumP = s.load - beam.wDist * s.length - selfPart;
+        var cc = lookup(e, "cpl", s.length * 4), selfPart = TLA.limits.countSelfWeight(st) ? beam.wSelf * s.length : 0, sumP = s.load - beam.wDist * s.length - selfPart;
         rows = "Table row read: a cantilever is checked as a span of 4 x its length, 4 x " + Lf(s.length, 3) + " = " + Lf(s.length * 4, 3) + " - CPL at the " + rowText(cc) + " = " + W(cc.value, 0) + ".";
         lines.push(mcmp("Length", mv("L", "c"), Lf(s.length, 3), [fr(mv("L", "max"), "4"), " = " + Lf(s.maxLength, 2)], !s.lengthFail));
         lines.push(ml("Capacity", [[mv("C"), " = CPL(4", mv("L", "c"), ")", X, mv("k")], Wn(cc.value, 0) + X + kk, W(s.capacity, 1)]));
@@ -442,7 +444,7 @@
     var mb = lim.member;
     if (mb) {
       var c = mb.capacity, at = c.at || {}, d = mb.checked;
-      box.appendChild(para("Moment and shear check (F3)" + (d !== mb.diagram ? " - truss self weight left out, as in the tables" : ""), "sub"));
+      box.appendChild(para("Moment and shear check (F3)" + (d !== mb.diagram ? " - truss self weight left out (turned off for this rig)" : c.wSelf > 0 ? " - truss self weight included, and added back into the allowables" : ""), "sub"));
       function rowOf(q, div) { return q ? kindName(q.kind) + " " + Wn(q.load, 0) + " at the " + q.row + " " + q.unit + " row x " + Ln(q.length, 3) + " / " + div : "none"; }
       var mSide = d.maxSag >= d.maxHog ? "sagging at " + Lf(d.atSag, 2) : "hogging at " + Lf(d.atHog, 2);
       box.appendChild(table("small", ["", ["Largest", "r"], "Where", ["Allowed", "r"], ["Workload", "r"], "Status"], [
@@ -450,13 +452,15 @@
         h("tr", null, td("Shear"), tdr(W(mb.shear, 1)), td("at " + Lf(d.atShear, 2)), tdr(W(mb.shearAllowed, 1)), tdr(pct(mb.shearUtil)), statusCell(mb.shearOver ? "Over" : "Good", mb.shearOver))
       ]));
       var kk3 = fmt(k, 3);
-      function qterm(q, div) { return q ? fr(Wn(q.load, 0) + X + Ln(q.length, 3), String(div)) : "-"; }
+      // with self weight (1.18.0): each table entry also carries w_self x L^2 / 8 (moment) and w_self x L / 2 (shear)
+      var ws = c.wSelf > 0 ? c.wSelf : 0;
+      function qterm(q, div) { return q ? [fr(Wn(q.load, 0) + X + Ln(q.length, 3), String(div)), ws ? [" + ", fr(U.n("wpl", ws, 2) + X + Ln(q.length, 3) + "²", "8")] : null] : "-"; }
       var mLines = [
-        ml("Allowed moment", [[mv("M", "allow"), " = ", mv("k"), X, "min(", fr(["CPL", X, mv("L")], "4"), ", ", fr(["UDL", X, mv("L")], "8"), ")"],
+        ml("Allowed moment", [[mv("M", "allow"), " = ", mv("k"), X, "min(", fr(["CPL", X, mv("L")], "4"), ws ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, ", ", fr(["UDL", X, mv("L")], "8"), ws ? [" + ", fr([mv("w", "self"), X, mv("L"), "²"], "8")] : null, ")"],
           [kk3 + X + "min(", qterm(at.point, 4), ", ", qterm(at.uniform, 8), ")"], [kk3 + X + Mf(c.moment)], Mf(mb.momentAllowed)]),
         mcmp("Moment", [mv("M", "max"), " (" + mSide + ")"], Mf(mb.moment), [mv("M", "allow"), " = " + Mf(mb.momentAllowed)], !mb.momentOver, pct(mb.momentUtil) + " workload"),
-        ml("Allowed shear", [[mv("V", "allow"), " = ", mv("k"), X, fr(at.shear ? kindName(at.shear.kind) : "P", "2")],
-          at.shear ? [kk3 + X, fr(Wn(at.shear.load, 0), "2")] : [W(c.shear, 1)], W(mb.shearAllowed, 1)]),
+        ml("Allowed shear", [[mv("V", "allow"), " = ", mv("k"), X, fr(at.shear ? kindName(at.shear.kind) : "P", "2"), ws ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null],
+          at.shear ? [kk3 + X + (ws ? "(" : ""), fr(Wn(at.shear.load, 0), "2"), ws ? [" + ", fr(U.n("wpl", ws, 2) + X + Ln(at.shear.length, 3), "2"), ")"] : null] : [W(c.shear, 1)], W(mb.shearAllowed, 1)]),
         mcmp("Shear", [mv("V", "max"), " (at " + Lf(d.atShear, 2) + ")"], W(mb.shear, 1), [mv("V", "allow"), " = " + W(mb.shearAllowed, 1)], !mb.shearOver, pct(mb.shearUtil) + " workload")
       ];
       box.appendChild(calcs(null, mLines, "Rows used: moment from " + rowOf(at.point, 4) + " and " + rowOf(at.uniform, 8) + "; shear from " + (at.shear ? kindName(at.shear.kind) + " " + Wn(at.shear.load, 0) + " at the " + at.shear.row + " " + at.shear.unit + " row" : "-") + ". Allowables are estimates from the tables, not published values."));

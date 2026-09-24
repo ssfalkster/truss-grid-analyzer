@@ -62,9 +62,34 @@
     near(r.member.shear, 3610, 1e-6, "shear without self weight");
   });
 
-  add("moment/shear check: truss self weight is left out unless the stricter option is on", function () {
-    var t = truss("JTE", "12x12 Plated"), b = TLA.beam.solve({ length: 20, supports: [0, 20], loads: [], trussWeightPerFt: t.weight_per_ft_lb });
-    near(TLA.limits.checkTruss(t, b, 0, {}).member.moment, 0, 1e-9, "default: nothing but self weight -> 0");
-    near(TLA.limits.checkTruss(t, b, 0, { cantileverSelfWeight: true }).member.moment, t.weight_per_ft_lb * 400 / 8, 1e-9, "stricter: wL^2/8");
+  add("moment/shear check: truss self weight counted in the forces and added back into the allowables (option), else left out of both", function () {
+    var t = truss("JTE", "12x12 Plated"), w = t.weight_per_ft_lb, b = TLA.beam.solve({ length: 20, supports: [0, 20], loads: [], trussWeightPerFt: w });
+    var off = TLA.limits.checkTruss(t, b, 0, {}).member, on = TLA.limits.checkTruss(t, b, 0, { cantileverSelfWeight: true }).member;
+    near(off.moment, 0, 1e-9, "left out: nothing but self weight -> 0");
+    near(off.capacity.moment, TLA.limits.memberCapacity(t).moment, 1e-9, "left out: the tables' own moment");
+    near(on.moment, w * 400 / 8, 1e-9, "counted: wL^2/8");
+    near(on.capacity.moment, TLA.limits.memberCapacity(t, w).moment, 1e-9, "counted: capacity with self weight added back");
+    eq(on.capacity.moment > off.capacity.moment && on.capacity.shear > off.capacity.shear, true, "added back: larger allowables");
+    // a weightless truss carries no self weight, so nothing is added back
+    var bw = TLA.beam.solve({ length: 20, supports: [0, 20], loads: [], trussWeightPerFt: w, weightless: true });
+    near(TLA.limits.checkTruss(t, bw, 0, { cantileverSelfWeight: true }).member.capacity.moment, off.capacity.moment, 1e-9, "weightless");
+  });
+
+  add("capacity with self weight = Hall's Stress Table Creator 2 (Tomcat 20.5 x 20.5 medium duty spigoted, 11.5 lb/ft)", function () {
+    // RMMS12 downloads, StressTableCreator2.xlsx Sheet1: spans 10-50 ft, max total UDL and max CPL rows; Hall adds the
+    // self weight back: V = UDL / 2 + w L / 2, M = CPL x L / 4 + w L^2 / 8
+    var udl = [], cpl = [], rows = { 10: [9200, 9204], 20: [9000, 5797], 30: [7560, 3781], 40: [5480, 2748], 50: [3850, 2109] };
+    for (var i = 0; i < 50; i++) { udl.push((rows[i + 1] || [0])[0]); cpl.push((rows[i + 1] || [0, 0])[1]); }
+    var t = { max_span_ft: 50, udl_lb: udl, cpl_lb: cpl, repetitive_use: true }, c = TLA.limits.memberCapacity(t, 11.5);
+    near(c.momentFromPoint, 29956.25, 1e-9, "Hall's max moment (H14, the 50 ft CPL row)");
+    near(c.momentFromUniform, 5480 * 40 / 8 + 11.5 * 1600 / 8, 1e-9, "from the UDL rows: the 40 ft row");
+    near(c.moment, 29700, 1e-9, "the smaller of the two");
+    near(9200 / 2 + 11.5 * 5, 4657.5, 1e-9, "Hall's shear D13 (10 ft UDL row)");
+    near(c.shear, 9204 / 2 + 11.5 * 5, 1e-9, "ours also reads the CPL rows: 4659.5 at 10 ft");
+  });
+
+  add("self weight: counted unless the rig turns it off (1.18.0 default); saved choices kept", function () {
+    eq(TLA.limits.countSelfWeight(undefined), true, "no settings"); eq(TLA.limits.countSelfWeight({}), true, "not set");
+    eq(TLA.limits.countSelfWeight({ cantileverSelfWeight: true }), true, "on"); eq(TLA.limits.countSelfWeight({ cantileverSelfWeight: false }), false, "off");
   });
 })(typeof globalThis !== "undefined" ? globalThis : window);

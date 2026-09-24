@@ -206,7 +206,7 @@
     plot(4, "Shear", sh, d.maxShear, mb.shearAllowed, mb.shearOver, "w");
     plot(4 + band + gap, "Moment", mo, d.maxMoment, mb.momentAllowed, mb.momentOver, "mom");
     add("text", { x: W / 2, y: H - 3, "text-anchor": "middle", "class": "et small" },
-      "Sagging moment up. Allowable estimated from the manufacturer's tables" + (d === mb.diagram ? "." : "; truss self weight left out, as in the tables."));
+      "Sagging moment up. Allowable estimated from the manufacturer's tables" + (d === mb.diagram ? (mb.capacity && mb.capacity.wSelf > 0 ? "; self weight included in the moments and added back into the allowable." : ".") : "; truss self weight left out (turned off for this rig)."));
     return svg;
   }
 
@@ -938,7 +938,7 @@
     c = group(root, "rset", "Rig settings", true, "");
     var st = S.rig.settings || {};
     c.appendChild(h("div", { "class": "sub", text: "Default dynamic factor " + (typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25) + " (hoists with a speed use speed / 60 + 1) · Add " + (Number(st.addPercent) || 0) + "% · hoist stiffness " + (Number(st.hoistStiffness) > 0 ? U.f("stiff", st.hoistStiffness, 0) : "rigid") +
-      " · repetitive-use " + (typeof st.derate === "number" ? st.derate : "per truss data") + " · self weight " + (st.cantileverSelfWeight ? "counted" : "not counted") + " against limits · " + (U.metric() ? "metric" : "imperial") }));
+      " · repetitive-use " + (typeof st.derate === "number" ? st.derate : "per truss data") + " · self weight " + (TLA.limits.countSelfWeight(st) ? "counted" : "not counted") + " in cantilever and moment/shear checks · " + (U.metric() ? "metric" : "imperial") }));
     c.appendChild(h("button", { "class": "lnk", text: "Edit rig settings", onclick: function () { if (TLA.app) TLA.app.openSettings(); } }));
   }
 
@@ -1053,8 +1053,8 @@
     body.appendChild(card("Truss checks", "The span, cantilever, moment and shear checks against the manufacturers' tables.", [
       row("Repetitive-use factor", select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); }),
         "ANSI repetitive-use rule: table capacities are multiplied by 0.85 unless the data already includes it."),
-      row("Truss self weight", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), h("span", { text: "Count it against cantilever and moment/shear limits (stricter than the textbook)" })),
-        "Per Rigging Math Made Simple, manufacturers' tables already subtract the truss weight. Tick to also count it (as the original Excel did).")]));
+      row("Truss self weight", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: TLA.limits.countSelfWeight(st), onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), h("span", { text: "Count truss self weight in cantilever and moment/shear checks (on by default)" })),
+        "On: the truss's self weight is added to the load on each cantilever (as the original Excel does), and the moment/shear check compares moments and shears that include self weight against table capacities with the self weight added back (CPL x L / 4 + w x L^2 / 8, CPL / 2 + w x L / 2). Off: self weight is left out of both.")]));
     var byRatio = {};
     S.db().trusses.forEach(function (x) { var l = TLA.limits.deflectionLimit(x, st); if (l.source === "maker") (byRatio[l.ratio] = byRatio[l.ratio] || []).push(x); });
     var makers = h("div", { "class": "setlinks" }, Object.keys(byRatio).map(function (k) {
