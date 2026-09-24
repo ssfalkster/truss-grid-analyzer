@@ -54,7 +54,7 @@
     near(iw.compat.hinged - iw.hoist.hoistChain, 553.42, 0.02 * 553.42, "Inner W hinged, near PyNite's Euler-Bernoulli value");
     near(iw.compat.rigid - iw.hoist.hoistChain, 565.37, 0.02 * 565.37, "Inner W rigid");
     eq(iw.compat.higher, true, "flagged"); eq(ie.compat.higher, true, "flagged");
-    eq(S.results.warnings.some(function (w) { return /whole-rig analysis, well above the load-path/.test(w.message); }), true, "a warning is raised");
+    eq(S.results.warnings.some(function (w) { return /load-path/.test(w.message); }), false, "1.21.0: no warning comparing with the load path");
   });
 
   add("stiffness check: mixed truss types (box, triangle, spigoted, pipe) agree with PyNite", function () {

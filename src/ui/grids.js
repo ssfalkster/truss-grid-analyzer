@@ -235,8 +235,7 @@
       Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1))
     ];
     if (st.cmp) {
-      [["lp", "Load path*", function (x) { return U.n("w", (x.loadPath || x).hoist.staticLoad, 1); }],
-       ["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
+      [["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
        ["semi", "Semi-rigid*", function (x) { var c = x.compat; return c && c.semiMin != null ? (Math.abs(c.semiMax - c.semiMin) < 0.05 ? U.n("w", c.semiMax, 1) : U.n("w", c.semiMin, 1) + " - " + U.n("w", c.semiMax, 1)) : "-"; }],
        ["rig", "Rigid*", function (x) { var c = x.byModel && x.byModel.rigid; return c ? U.n("w", c.staticLoad, 1) : "-"; }]].forEach(function (m) {
         cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? m[2](x) : "-"; }, { r: true }), { key: m[0], label: m[1] }));
@@ -244,7 +243,6 @@
     }
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.staticLoad, 1) : "-"; }, { r: true, cls: "b" }), { key: "hhs", label: "High hook static (" + U.unit("w") + ")" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.dynamicLoad, 1) : "-"; }, { r: true }), { key: "hhd", label: "High hook dyn. (" + U.unit("w") + ")" }));
-    cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.trim ? "±" + U.n("w", Math.abs(x.trim.self), 0) : "-"; }, { r: true, clsOf: function (s) { var x = X(s); return x && x.trim && x.hoist.capacity < 999999 && Math.abs(x.trim.self) > 0.1 * x.hoist.capacity ? "hi" : ""; } }), { key: "lvl", label: "Level sens. 1/4\"" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.hoist.capacity < 999999 ? P.wlCell(x.hoist.staticLoad / x.hoist.capacity).outerHTML : "-"; }, { html: true }), { key: "wl", label: "Workload" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? P.badge(x.hoist.status).outerHTML : "-"; }, { html: true }), { key: "st", label: "Status" }));
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")";
@@ -256,7 +254,7 @@
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
       rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. " + (st.cmp ? "* Load path (reference) and the three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the load-path and joint-model columns.") };
+    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
