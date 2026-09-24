@@ -169,7 +169,7 @@
     s2.appendChild(h("ul", { "class": "basis" },
       h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight and any UDL spread over the whole length. Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
       grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a whole-rig analysis: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
-      h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is " + (grill ? "shown for reference." : "the result used here.") }),
+      grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
@@ -210,11 +210,11 @@
     var s4 = sec(sheet, next(), "Hoists");
     if (!r.hoists.length) s4.appendChild(para("No hoists.", "mut"));
     else {
-      s4.appendChild(para("4a. Low hook load R at each hoist (the reaction: what the rig hangs on the hook) from each method; the governing value (largest) is used below.", "cap"));
-      var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model", ["Load path, ref.", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
+      s4.appendChild(para("4a. Low hook load R at each hoist (the reaction: what the rig hangs on the hook) from each joint model; the governing value (largest) is used below.", "cap"));
+      var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model"].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
       s4.appendChild(table("small", headA.map(function (c) { return typeof c === "string" ? c : c; }), r.hoists.map(function (x) {
         var e0 = hoistEntry(supportOf(byId[x.truss], x.support) || {}) || {};
-        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw"), tdr(Wn((x.loadPath || x).reaction) + ((x.loadPath || x).slack ? " slack" : ""), "mut")];
+        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
         MODELS.forEach(function (m) { var c = x.byModel && x.byModel[m]; cells.push(tdr(c ? Wn(c.reaction) + (c.slack ? " slack" : "") : "-", x.model === m ? "b" : "")); });
         cells.push(tdr(Wn(x.reaction), "b"), td(x.model ? shortModel(x.model) : "load path", "nw"));
         return h("tr", null, cells);
@@ -231,17 +231,17 @@
           tdr(Wn(hx.reaction)), tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
           tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(s.chainLength || 0, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
           tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
-          tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"), tdr(x.trim ? "±" + Wn(Math.abs(x.trim.self), 0) : "-"),
+          tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
-      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], ["Level sens. 1/4\"", "r"], "Status"], rowsB,
-        h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware. Level sensitivity: the change in the hoist's load if it runs 1/4\" (6 mm) high or low, in its governing joint model (a hoist is flagged when this passes 10% of its capacity).", "cap"));
+      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"], rowsB,
+        h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware.", "cap"));
     }
 
     /* ---- 5. equilibrium ---- */
     var s5 = sec(sheet, next(), "Equilibrium (self-checks)");
-    var eqRows = [h("tr", null, td("Weight carried (load-path solve)"), tdr(W(tot.applied, 1)), td(""))];
+    var eqRows = [h("tr", null, td("Weight carried"), tdr(W(tot.applied, 1)), td(""))];
     if (grill && r.compat && r.compat.ok) {
       eqRows.push(h("tr", null, td("Weight in the whole-rig model"), tdr(W(r.compat.load, 1)), td(Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "agrees" : "DIFFERS", Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       MODELS.forEach(function (m) {
@@ -249,14 +249,14 @@
         eqRows.push(h("tr", null, td("Sum of hoist reactions, " + modelName(m)), tdr(W(sumR, 1)), td("out of balance by " + W(err, 3), Math.abs(err) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       });
     }
-    var lpSum = r.hoists.reduce(function (a, x) { return a + (x.loadPath || x).reaction; }, 0);
-    eqRows.push(h("tr", null, td("Sum of hoist reactions, load-path method"), tdr(W(lpSum, 1)), td("difference " + W(lpSum - tot.applied, 3), Math.abs(lpSum - tot.applied) <= 0.5 ? "ok" : "warn")));
+    var lpSum = r.hoists.reduce(function (a, x) { return a + x.reaction; }, 0);
+    if (!grill) eqRows.push(h("tr", null, td("Sum of hoist reactions, load-path method"), tdr(W(lpSum, 1)), td("difference " + W(lpSum - tot.applied, 3), Math.abs(lpSum - tot.applied) <= 0.5 ? "ok" : "warn")));
     s5.appendChild(table("kv wide", null, eqRows));
     s5.appendChild(para("Every model must carry the whole weight: the hoist reactions of each joint model add up to the weight carried. Each truss below also shows its own balance (loads = reactions).", "cap"));
 
     /* ---- 6. trusses ---- */
     var s6 = sec(sheet, next(), "Trusses");
-    s6.appendChild(para("Trusses in load-path order (a truss that is bolted to another comes before the truss that carries it). Positions from the start of the line.", "cap"));
+    s6.appendChild(para("Trusses in order: a truss that is bolted to another comes before the truss that carries it. Positions from the start of the line.", "cap"));
     lines.forEach(function (t, i) { s6.appendChild(trussBlock(t, "6." + (i + 1), hid, MODELS, grill)); });
 
     /* ---- 7. connections and blocks ---- */
@@ -270,7 +270,8 @@
         var u = byId[s.onTruss], sr = res && res.supports.filter(function (q) { return q.support.id === s.id; })[0];
         // a corner block: say where it sits on the line it is part of
         var host = u && u.isBlock ? byId[u.host || (u.attach && u.attach.b)] : null, hs = host && (u.supports || []).filter(function (q) { return q.kind === "truss" && q.onTruss === host.id; })[0];
-        var cells = [td(t.name), tdr(Ln(s.distance)), td(u ? u.name + (host ? " (on " + host.name + ")" : "") : "?"), tdr(Ln(hs ? hs.onDistance || 0 : s.onDistance || 0)), td(s.mount === "above" ? "sits on top" : s.mount === "below" ? "clamped below" : u && u.isBlock ? "bolted to block" : "bolted"), tdr(sr && sr.loadPathReaction != null ? Wn(sr.loadPathReaction) : sr ? Wn(sr.reaction) : "-", "mut")];
+        var cells = [td(t.name), tdr(Ln(s.distance)), td(u ? u.name + (host ? " (on " + host.name + ")" : "") : "?"), tdr(Ln(hs ? hs.onDistance || 0 : s.onDistance || 0)), td(s.mount === "above" ? "sits on top" : s.mount === "below" ? "clamped below" : u && u.isBlock ? "bolted to block" : "bolted")];
+        if (!grill) cells.push(tdr(sr ? Wn(sr.reaction) : "-"));
         MODELS.forEach(function (m) { cells.push(tdr(sr && sr.byModel && sr.byModel[m] != null ? Wn(sr.byModel[m]) : "-", res && res.model === m ? "b" : "")); });
         cells.push(tdr(s.hardwareWeight ? Wn(s.hardwareWeight) : "-"));
         conRows.push(h("tr", null, cells));
@@ -278,7 +279,7 @@
     });
     if (conRows.length) {
       s7.appendChild(para("Force passed from each truss to the part it is bolted to (" + U.unit("w") + ", downward on the carrier). Bold: the joint model that governs the bolted truss's checks.", "cap"));
-      s7.appendChild(table("small", ["Truss", ["At (" + U.unit("len") + ")", "r"], "Onto", ["At (" + U.unit("len") + ")", "r"], "How", ["Load path", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Hardware", "r"]]), conRows));
+      s7.appendChild(table("small", ["Truss", ["At (" + U.unit("len") + ")", "r"], "Onto", ["At (" + U.unit("len") + ")", "r"], "How"].concat(grill ? [] : [["Force", "r"]]).concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Hardware", "r"]]), conRows));
     } else s7.appendChild(para("No bolted connections.", "mut"));
     if (blocks.length) {
       s7.appendChild(para("Corner blocks (their weight is carried by the truss line they are part of).", "cap"));
@@ -362,20 +363,20 @@
       h("tr", null, td("Total"), td(""), tdr(Wn(beam.totalLoad), "b"), td("point loads " + W(pSum, 1) + " + uniform " + W(beam.w * beam.length, 1)), td(""))));
 
     // reactions
-    var rrows = [], sumGov = 0, sumLP = 0, sumBy = {};
+    var rrows = [], sumGov = 0, sumBy = {};
     MODELS.forEach(function (m) { sumBy[m] = 0; });
     res.supports.forEach(function (sr) {
       var s = sr.support, isH = s.kind === "hoist", key = t.id + ":" + s.id, other = S.truss(s.onTruss);
-      var lp = sr.loadPathReaction != null ? sr.loadPathReaction : sr.reaction;
-      sumGov += sr.reaction; sumLP += lp;
-      var cells = [td(isH ? hid[key] || "hoist" : "bolt", "b"), tdr(Ln(s.distance, 3)), td(isH ? "hoist" + (sr.slack ? " (slack)" : "") : (s.mount === "above" ? "on top of " : s.mount === "below" ? "clamped below " : "bolted to ") + (other ? other.name : "?")), tdr(Wn(lp), "mut")];
+      sumGov += sr.reaction;
+      var cells = [td(isH ? hid[key] || "hoist" : "bolt", "b"), tdr(Ln(s.distance, 3)), td(isH ? "hoist" + (sr.slack ? " (slack)" : "") : (s.mount === "above" ? "on top of " : s.mount === "below" ? "clamped below " : "bolted to ") + (other ? other.name : "?"))];
+      if (!MODELS.length) cells.push(tdr(Wn(sr.reaction)));
       MODELS.forEach(function (m) { var v = sr.byModel && sr.byModel[m]; sumBy[m] += v || 0; cells.push(tdr(v != null ? Wn(v) : "-", res.model === m ? "b" : "")); });
       rrows.push(h("tr", null, cells));
     });
-    var foot = [td("Sum"), td(""), td(""), tdr(Wn(sumLP), "mut")].concat(MODELS.map(function (m) { return tdr(Wn(sumBy[m]), res.model === m ? "b" : ""); }));
+    var foot = [td("Sum"), td(""), td("")].concat(MODELS.length ? [] : [tdr(Wn(sumGov))]).concat(MODELS.map(function (m) { return tdr(Wn(sumBy[m]), res.model === m ? "b" : ""); }));
     box.appendChild(para("Reactions (" + U.unit("w") + ", upward on this truss)", "sub"));
-    box.appendChild(para("Bold: the joint model it is checked with. The load-path column balances its own loads from the trusses bolted here, which differ from those listed.", "cap"));
-    box.appendChild(table("small", ["", ["At (" + U.unit("len") + ")", "r"], "Support", ["Load path", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })), rrows, h("tr", null, foot)));
+    if (MODELS.length) box.appendChild(para("Bold: the joint model it is checked with.", "cap"));
+    box.appendChild(table("small", ["", ["At (" + U.unit("len") + ")", "r"], "Support"].concat(MODELS.length ? [] : [["Reaction", "r"]]).concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })), rrows, h("tr", null, foot)));
     var diff = sumGov - beam.totalLoad;
     box.appendChild(work("Balance: loads " + W(beam.totalLoad, 1) + " - reactions " + W(sumGov, 1) + " = " + W(-diff, 3) + (Math.abs(diff) <= 0.5 + 1e-6 * Math.abs(beam.totalLoad) ? "  (balances)" : "  (DOES NOT BALANCE)")));
 

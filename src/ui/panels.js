@@ -812,7 +812,7 @@
           a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (self weight)" : "") }), h("td", { "class": "r", text: U.n("w", p.weight, 1) })); }),
           h("tr", null, h("td", { text: "Hoist + chain" }), h("td", { "class": "r", text: U.n("w", a.hoistChain, 1) })),
           h("tr", null, h("td", null, h("b", { text: "High hook load (static)" })), h("td", { "class": "r" }, h("b", { text: U.n("w", a.staticLoad, 1) }))))));
-        c.appendChild(h("div", { "class": "sub", text: a.model === "load-path" ? "Load-path method (whole-rig analysis not available)." : "Whole-rig analysis, " + TLA.grillage.MODEL_LABEL[a.model] + " (the joint model that loads this hoist most). Load path (reference): " + U.f("w", (x.loadPath || x).hoist.staticLoad, 1) + "." }));
+        c.appendChild(h("div", { "class": "sub", text: a.model === "load-path" ? "Load-path method (whole-rig analysis not available)." : "Whole-rig analysis, " + TLA.grillage.MODEL_LABEL[a.model] + " (the joint model that loads this hoist most)." }));
       }
     }
     c = group(root, "hoist", "Hoist", true, "");
@@ -977,13 +977,6 @@
     var txt = Math.abs(c.semiMax - c.semiMin) < 0.05 ? U.n("w", c.semiMax, 1) : U.n("w", c.semiMin, 1) + " - " + U.n("w", c.semiMax, 1), gov = /^semi/.test(x.model);
     return h("td", { "class": "r nowrap", title: "Corner blocks as rotational springs of 1, 4 and 16 x EI/L (between hinged and rigid)" + (gov ? " - " + TLA.grillage.MODEL_LABEL[x.model] + " governs" : "") }, gov ? h("b", { text: txt }) : txt);
   }
-  /** Load change on this hoist when it runs a quarter inch high. */
-  function trimCell(x) {
-    var t = x.trim;
-    if (!t) return h("td", { "class": "r mut", text: "-" });
-    var hot = x.hoist.capacity > 0 && x.hoist.capacity < 999999 && Math.abs(t.self) > 0.1 * x.hoist.capacity;
-    return h("td", { "class": "r" + (hot ? " hi" : ""), title: "Run this hoist 1/4\" (6 mm) high and it picks up this much (1/4\" low: the same, off)" + (t.other ? "; the hoist it affects most, " + t.other.name + ", changes by " + U.f("w", t.other.lb, 0) : "") + " (" + TLA.grillage.MODEL_LABEL[t.model] + ")", text: "±" + U.n("w", Math.abs(t.self), 0) });
-  }
 
   /* ---------- per-truss checks (1.13.0) ---------- */
   function pctCell(u, title) {
@@ -1115,7 +1108,7 @@
   function hoistTable(container) {
     var r = S.results;
     var tbl = h("table", { "class": "tbl hoists" });
-    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["At (" + L + ")", "r"], ["Hoist"], ["Chain (" + L + ")", "r"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["High hook static (" + W + ")", "r"], ["Level sens. 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["High hook dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["Workload", "r"], ["Status"]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
+    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["At (" + L + ")", "r"], ["Hoist"], ["Chain (" + L + ")", "r"], ["Hoist & Chain (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["High hook static (" + W + ")", "r"], ["Dyn. factor", "r"], ["High hook dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["Workload", "r"], ["Status"]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
     var tb = h("tbody");
     r.hoists.forEach(function (x) {
       var hs = S.truss(x.truss).supports.filter(function (s) { return s.id === x.support; })[0];
@@ -1125,10 +1118,8 @@
         h("td", { text: hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
         h("td", { "class": "r", text: hs ? U.n("len", hs.chainLength || 0, 1) : "-" }),
         h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: U.n("w", x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0), 1) }),
-        h("td", { "class": "r mut", title: "Load-path method (each carrying truss treated as unyielding) - for reference", text: U.n("w", (x.loadPath || x).hoist.staticLoad, 1) + ((x.loadPath || x).slack ? " slack" : "") }),
         modelCell(x, "hinged"), semiCell(x), modelCell(x, "rigid"),
-        h("td", { "class": "r" + (x.compat && x.compat.higher ? " hi" : ""), title: (x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" + (x.compat.higher ? " - well above the load-path method" : "") : "Load-path method (whole-rig analysis not available)") + (x.hoist.added ? "; includes " + U.f("w", x.hoist.added, 1) + " added (" + S.rig.settings.addPercent + "%)" : "") }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) })),
-        trimCell(x),
+        h("td", { "class": "r", title: (x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" : "Load-path method (whole-rig analysis not available)") + (x.hoist.added ? "; includes " + U.f("w", x.hoist.added, 1) + " added (" + S.rig.settings.addPercent + "%)" : "") }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) })),
         h("td", { "class": "r", text: fmt(x.hoist.dynamicFactor, 3) }),
         h("td", { "class": "r", text: U.n("w", x.hoist.dynamicLoad, 1) }),
         h("td", { "class": "r", text: x.hoist.capacity >= 999999 ? "none" : U.n("w", x.hoist.capacity, 0) }),
@@ -1142,7 +1133,7 @@
   function footnote(container) {
     var r = S.results;
     container.appendChild(h("p", { "class": "ghint" }, r.primary === "grillage"
-      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set. Level sensitivity: the change in a hoist's load if it runs 1/4\" (6 mm) high or low - large on short, stiff spans. The load-path column is the per-truss method of the original workbook, for reference only."
+      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set."
       : "* Whole-rig analysis not available" + (r.compat && r.compat.note ? " (" + U.text(r.compat.note) + ")" : "") + ": loads are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid."));
   }
   /** Step 4: summary figures, the first warning, then Trusses / Hoists / Warnings. */
@@ -1169,16 +1160,16 @@
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
     loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
-    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, trimCell: trimCell, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
+    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
-      var rows = [["Truss", "At " + L, "Low hook " + W, "Hoist & Chain " + W, "Added % " + W, "Load path high hook " + W + " (ref.)", "Hinged joints high hook " + W, "Semi-rigid min high hook " + W, "Semi-rigid max high hook " + W, "Rigid joints high hook " + W, "High hook static " + W, "Governing", "Level sensitivity per 1/4 in " + W, "Dynamic factor", "High hook dynamic " + W, "Capacity " + W, "Status"]];
+      var rows = [["Truss", "At " + L, "Low hook " + W, "Hoist & Chain " + W, "Added % " + W, "Hinged joints high hook " + W, "Semi-rigid min high hook " + W, "Semi-rigid max high hook " + W, "Rigid joints high hook " + W, "High hook static " + W, "Governing", "Dynamic factor", "High hook dynamic " + W, "Capacity " + W, "Status"]];
       function r1(v) { return Math.round(U.v("w", v) * 10) / 10; }
       S.results.hoists.forEach(function (x) {
         var c = x.compat || {}, semi = c.semiMin !== null && c.semiMin !== undefined;
-        rows.push([x.trussName, Math.round(U.v("len", x.distance) * 1000) / 1000, r1(x.hoist.reaction), r1(x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0)), r1(x.hoist.added || 0), r1((x.loadPath || x).hoist.staticLoad),
+        rows.push([x.trussName, Math.round(U.v("len", x.distance) * 1000) / 1000, r1(x.hoist.reaction), r1(x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0)), r1(x.hoist.added || 0),
           x.byModel ? r1(x.byModel.hinged.staticLoad) : "", semi ? r1(c.semiMin) : "", semi ? r1(c.semiMax) : "", x.byModel ? r1(x.byModel.rigid.staticLoad) : "", r1(x.hoist.staticLoad), x.model ? TLA.grillage.MODEL_LABEL[x.model] : "load path",
-          x.trim ? r1(Math.abs(x.trim.self)) : "", Math.round(x.hoist.dynamicFactor * 1000) / 1000, r1(x.hoist.dynamicLoad), x.hoist.capacity >= 999999 ? "none" : r1(x.hoist.capacity), x.hoist.status]);
+          Math.round(x.hoist.dynamicFactor * 1000) / 1000, r1(x.hoist.dynamicLoad), x.hoist.capacity >= 999999 ? "none" : r1(x.hoist.capacity), x.hoist.status]);
       });
       return rows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
     }

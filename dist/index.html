@@ -592,8 +592,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.20.0";
+  TLA.VERSION = "1.21.0";
   TLA.CHANGES = [
+    ["1.21.0", "2026-09-24", "G.E. Simmons Falk", "Load-path method taken out of the display; hoist loads and every check are unchanged (they already came from the whole-rig analysis). Gone: the Load path column in the hoist grid (Compare analysis methods now shows the three joint models only), the Results hoist table, the hoist CSV and the calc sheet (hoist loads, bolted connections, truss reactions, the equilibrium row and the basis note), the load-path figure in a hoist's panel, and the warning that a hoist is well above the load-path result. The load-path method is still used, with its warning, when the whole-rig analysis can't run (a very large rig). Level sensitivity is no longer a column in the hoist grid, the Results hoist table, the hoist CSV or the calc sheet: it stays in each hoist's panel, and the level-sensitivity warning stays (in the app and the calc sheet)."],
     ["1.20.0", "2026-09-24", "G.E. Simmons Falk", "Truss checks now count the truss's own weight by default (the Rig settings switch is on unless a rig turns it off; saved rigs that turned it off keep it off). Cantilever check: the self weight is added to the cantilever's load, as the original workbook does. Moment and shear check: the moments and shears include the self weight, and so do the allowables estimated from the tables - each table row also demonstrates its own truss weight, w L^2/8 and w L/2 (Hall, Stress Table Creator 2): allowable moment = k x min(max CPL L/4 + w L^2/8, max UDL L/8 + w L^2/8), shear = k x max(CPL/2 + w L/2, UDL/2 + w L/2). With the switch off the check is net against net, as before. Results change: cantilever, moment and shear workloads go up a little (e.g. a 32 ft box side's cantilever 27% -> 33%); hoist loads do not change. The help and calc sheet no longer say the tables already subtract the truss weight; formula F3 shows the self-weight terms."],
     ["1.19.0", "2026-09-24", "G.E. Simmons Falk", "Interface redesign, plus new deflection results (see the end); hoist loads and the table, moment and shear checks are unchanged. Work in four steps shown above the plan - 1 Structure, 2 Loads, 3 Hoists, 4 Results - and jump between them at any time. Each step has a spreadsheet-style grid under the plan: every truss (type, pieces, position, UDL), every load grouped by truss, and every hoist with its results updating as you type. Tab / Enter / arrows move, typing edits, Ctrl+D fills down, Ctrl+V pastes rows from Excel, Delete removes a row; each edit is one Undo step. Loads: the item cell searches the fixture library (fixtures already on the rig first) and fills in the weight and clamp; type a weight (45 lb) for a custom load; one row per load position (weight + clamp = total); Mirror shows where the mirrored load lands and Mirror all works per truss; while you type, the plan shrinks to a strip of the truss being edited. The side panel now shows whatever you click: the rig (with an outline of every truss, corner block, hoist and load), a truss (sections in working order: truss, corner blocks, placement, loads, hoists, checks, advanced), a hoist (its result and where the load comes from, model, chain, dynamic factor, position), a corner block (a diagram of its faces and what is bolted to each) or a load. Bolt to... then click a corner block on the plan (or click a free face of a block, then the truss). Quick add a load: MAC Aura @ 4, 120 lb @ -6. The plan marks the origin with hard X 0 and Y 0 lines. The Hang order colouring is gone (the load-path order is still used inside the load-path method). Settings that apply to the whole rig (dynamic factor, Add %, hoist stiffness, repetitive-use, self weight, units, length format, calc sheet paper) moved to one Rig settings panel; units are set only there. Menus: File (new, open, save, example, theme, about), Calculators (circular truss, simple UDL, fixture weights, databases), Export (hoist table, PNG, whole-rig model, print). Dark theme by default, light or follow-system under File. Number keys 1-4 switch step, F fits the plan. New results (nothing existing changes): the deflected shape of every truss from the whole-rig analysis, each span's sag against the maker's published limit (Tomcat L/100; JTE L/160 where the sheet states it) or the rig default L/160 (Rig settings): past a maker's limit the truss is Overloaded (their allowable loads are set by it), past the rig default it is a warning; a Hot spots colour mode that shades each truss along its length by local workload; and in a truss's Checks a local-workload strip with the peak, a reaction diagram and a deflection diagram. Rig settings is now a full page. Hot spots: each span's table check follows the shape of its bending moment, so the colour peaks under the loads that work the truss hardest, with a glow at the peak of any truss at 80% or more. Hoists on the plan are drawn as a ring with cross-hairs in their own colour (white in the dark theme, dark in the light one; amber when high, red when overloaded), labelled with the high hook static load and, in italics under it, the high hook dynamic load. A hoist's panel shows its low hook, high hook static and high hook dynamic loads at the top, with the level sensitivity on its own line. A new truss starts with no hoists (hoists are placed in step 3). Where the app quotes a maker (a truss's source, its deflection limit, the list of makers' limits in Rig settings) it links to the maker's own data sheet, opened in a new tab. Rig settings has a Center on 0,0 button that moves the whole rig so the middle of its footprint is at the origin (bolted parts follow; results unchanged). Theme (dark, light, follow the computer) is also in Rig settings."],
     ["1.17.1", "2026-09-24", "G.E. Simmons Falk", "Tests only, no result changes: the Rigging Math Made Simple 3D grid example is now also checked against Production Assist 1.13.10's calculation of the same grid (Derek Epstein). Given Production Assist's own inputs (its 12x12 section, rigid joints, the hoists' wire-rope springs), the whole-rig analysis gives the same hoist loads to within 0.5 lb, and section properties computed from 2 x 0.125 in chords match Production Assist's 12x12 section."],
@@ -2396,7 +2397,6 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       else if (slackIn.length) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": goes slack with " + slackIn.map(function (mm) { return MODEL_LABEL[mm]; }).join(", ") + " only; the " + MODEL_LABEL[m] + " result (" + Math.round(gov.staticLoad) + " lb) is used." });
       if (!h.slack && gov.status !== "Good" && gov.status !== "UNSTABLE") W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": " + TLA.limits.statusText(gov.status) + " (" + Math.round(gov.staticLoad) + " lb static, " + MODEL_LABEL[m] + ")" });
       else if (!h.slack && gov.dynamicOver) W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity (" + MODEL_LABEL[m] + ")" });
-      if (h.compat.higher) W.push({ truss: h.truss, kind: "hoist", level: "info", message: where + ": " + Math.round(gov.staticLoad) + " lb from the whole-rig analysis, well above the load-path method's " + Math.round(lps) + " lb - the truss it is bolted to sags and sheds load onto this hoist." });
       if (h.trim && gov.capacity > 0 && gov.capacity < 999999 && Math.abs(h.trim.self) > TRIM_WARN * gov.capacity) touchy.push({ h: h, share: Math.abs(h.trim.self) / gov.capacity });
     });
     // one warning for every trim-sensitive hoist, led by the worst
@@ -2404,7 +2404,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       touchy.sort(function (a, b) { return b.share - a.share; });
       var w0 = touchy[0].h, t0 = w0.trim;
       W.push({ truss: w0.truss, kind: "hoist", level: "trim", message: (touchy.length === 1 ? "1 hoist is" : touchy.length + " hoists are") + " level-sensitive (a 1/4\" level error changes the load by more than " + Math.round(TRIM_WARN * 100) + "% of the hoist's capacity - short, stiff spans). Worst: " + names[w0.truss + ":" + w0.support] + " - running it 1/4\" high adds about " + Math.round(t0.self) + " lb (" + Math.round(touchy[0].share * 100) + "% of its capacity)" + (t0.other ? " and changes " + t0.other.name + " by " + Math.round(t0.other.lb) + " lb" : "") +
-        (touchy.length > 1 ? ". Also: " + touchy.slice(1).map(function (x) { return names[x.h.truss + ":" + x.h.support]; }).join(", ") : "") + ". Level the hoists carefully; the Level sensitivity column has each hoist's figure." });
+        (touchy.length > 1 ? ". Also: " + touchy.slice(1).map(function (x) { return names[x.h.truss + ":" + x.h.support]; }).join(", ") : "") + ". Level the hoists carefully; each hoist's panel shows its figure." });
     }
 
     var tot = results.totals;
@@ -4798,7 +4798,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (self weight)" : "") }), h("td", { "class": "r", text: U.n("w", p.weight, 1) })); }),
           h("tr", null, h("td", { text: "Hoist + chain" }), h("td", { "class": "r", text: U.n("w", a.hoistChain, 1) })),
           h("tr", null, h("td", null, h("b", { text: "High hook load (static)" })), h("td", { "class": "r" }, h("b", { text: U.n("w", a.staticLoad, 1) }))))));
-        c.appendChild(h("div", { "class": "sub", text: a.model === "load-path" ? "Load-path method (whole-rig analysis not available)." : "Whole-rig analysis, " + TLA.grillage.MODEL_LABEL[a.model] + " (the joint model that loads this hoist most). Load path (reference): " + U.f("w", (x.loadPath || x).hoist.staticLoad, 1) + "." }));
+        c.appendChild(h("div", { "class": "sub", text: a.model === "load-path" ? "Load-path method (whole-rig analysis not available)." : "Whole-rig analysis, " + TLA.grillage.MODEL_LABEL[a.model] + " (the joint model that loads this hoist most)." }));
       }
     }
     c = group(root, "hoist", "Hoist", true, "");
@@ -4963,13 +4963,6 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var txt = Math.abs(c.semiMax - c.semiMin) < 0.05 ? U.n("w", c.semiMax, 1) : U.n("w", c.semiMin, 1) + " - " + U.n("w", c.semiMax, 1), gov = /^semi/.test(x.model);
     return h("td", { "class": "r nowrap", title: "Corner blocks as rotational springs of 1, 4 and 16 x EI/L (between hinged and rigid)" + (gov ? " - " + TLA.grillage.MODEL_LABEL[x.model] + " governs" : "") }, gov ? h("b", { text: txt }) : txt);
   }
-  /** Load change on this hoist when it runs a quarter inch high. */
-  function trimCell(x) {
-    var t = x.trim;
-    if (!t) return h("td", { "class": "r mut", text: "-" });
-    var hot = x.hoist.capacity > 0 && x.hoist.capacity < 999999 && Math.abs(t.self) > 0.1 * x.hoist.capacity;
-    return h("td", { "class": "r" + (hot ? " hi" : ""), title: "Run this hoist 1/4\" (6 mm) high and it picks up this much (1/4\" low: the same, off)" + (t.other ? "; the hoist it affects most, " + t.other.name + ", changes by " + U.f("w", t.other.lb, 0) : "") + " (" + TLA.grillage.MODEL_LABEL[t.model] + ")", text: "±" + U.n("w", Math.abs(t.self), 0) });
-  }
 
   /* ---------- per-truss checks (1.13.0) ---------- */
   function pctCell(u, title) {
@@ -5101,7 +5094,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function hoistTable(container) {
     var r = S.results;
     var tbl = h("table", { "class": "tbl hoists" });
-    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["At (" + L + ")", "r"], ["Hoist"], ["Chain (" + L + ")", "r"], ["Hoist & Chain (" + W + ")", "r"], ["Load path* (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["High hook static (" + W + ")", "r"], ["Level sens. 1/4\" (" + W + ")", "r"], ["Dyn. factor", "r"], ["High hook dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["Workload", "r"], ["Status"]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
+    tbl.appendChild(h("thead", null, h("tr", null, (function (L, W) { return [["Truss"], ["At (" + L + ")", "r"], ["Hoist"], ["Chain (" + L + ")", "r"], ["Hoist & Chain (" + W + ")", "r"], ["Hinged joints* (" + W + ")", "r"], ["Semi-rigid* (" + W + ")", "r"], ["Rigid joints* (" + W + ")", "r"], ["High hook static (" + W + ")", "r"], ["Dyn. factor", "r"], ["High hook dynamic (" + W + ")", "r"], ["Capacity (" + W + ")", "r"], ["Workload", "r"], ["Status"]]; })(U.unit("len"), U.unit("w")).map(function (x) { return h("th", { "class": x[1] || "", text: x[0] }); }))));
     var tb = h("tbody");
     r.hoists.forEach(function (x) {
       var hs = S.truss(x.truss).supports.filter(function (s) { return s.id === x.support; })[0];
@@ -5111,10 +5104,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         h("td", { text: hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
         h("td", { "class": "r", text: hs ? U.n("len", hs.chainLength || 0, 1) : "-" }),
         h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: U.n("w", x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0), 1) }),
-        h("td", { "class": "r mut", title: "Load-path method (each carrying truss treated as unyielding) - for reference", text: U.n("w", (x.loadPath || x).hoist.staticLoad, 1) + ((x.loadPath || x).slack ? " slack" : "") }),
         modelCell(x, "hinged"), semiCell(x), modelCell(x, "rigid"),
-        h("td", { "class": "r" + (x.compat && x.compat.higher ? " hi" : ""), title: (x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" + (x.compat.higher ? " - well above the load-path method" : "") : "Load-path method (whole-rig analysis not available)") + (x.hoist.added ? "; includes " + U.f("w", x.hoist.added, 1) + " added (" + S.rig.settings.addPercent + "%)" : "") }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) })),
-        trimCell(x),
+        h("td", { "class": "r", title: (x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" : "Load-path method (whole-rig analysis not available)") + (x.hoist.added ? "; includes " + U.f("w", x.hoist.added, 1) + " added (" + S.rig.settings.addPercent + "%)" : "") }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) })),
         h("td", { "class": "r", text: fmt(x.hoist.dynamicFactor, 3) }),
         h("td", { "class": "r", text: U.n("w", x.hoist.dynamicLoad, 1) }),
         h("td", { "class": "r", text: x.hoist.capacity >= 999999 ? "none" : U.n("w", x.hoist.capacity, 0) }),
@@ -5128,7 +5119,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function footnote(container) {
     var r = S.results;
     container.appendChild(h("p", { "class": "ghint" }, r.primary === "grillage"
-      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set. Level sensitivity: the change in a hoist's load if it runs 1/4\" (6 mm) high or low - large on short, stiff spans. The load-path column is the per-truss method of the original workbook, for reference only."
+      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set."
       : "* Whole-rig analysis not available" + (r.compat && r.compat.note ? " (" + U.text(r.compat.note) + ")" : "") + ": loads are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid."));
   }
   /** Step 4: summary figures, the first warning, then Trusses / Hoists / Warnings. */
@@ -5155,16 +5146,16 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
     loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
-    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, trimCell: trimCell, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
+    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
-      var rows = [["Truss", "At " + L, "Low hook " + W, "Hoist & Chain " + W, "Added % " + W, "Load path high hook " + W + " (ref.)", "Hinged joints high hook " + W, "Semi-rigid min high hook " + W, "Semi-rigid max high hook " + W, "Rigid joints high hook " + W, "High hook static " + W, "Governing", "Level sensitivity per 1/4 in " + W, "Dynamic factor", "High hook dynamic " + W, "Capacity " + W, "Status"]];
+      var rows = [["Truss", "At " + L, "Low hook " + W, "Hoist & Chain " + W, "Added % " + W, "Hinged joints high hook " + W, "Semi-rigid min high hook " + W, "Semi-rigid max high hook " + W, "Rigid joints high hook " + W, "High hook static " + W, "Governing", "Dynamic factor", "High hook dynamic " + W, "Capacity " + W, "Status"]];
       function r1(v) { return Math.round(U.v("w", v) * 10) / 10; }
       S.results.hoists.forEach(function (x) {
         var c = x.compat || {}, semi = c.semiMin !== null && c.semiMin !== undefined;
-        rows.push([x.trussName, Math.round(U.v("len", x.distance) * 1000) / 1000, r1(x.hoist.reaction), r1(x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0)), r1(x.hoist.added || 0), r1((x.loadPath || x).hoist.staticLoad),
+        rows.push([x.trussName, Math.round(U.v("len", x.distance) * 1000) / 1000, r1(x.hoist.reaction), r1(x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0)), r1(x.hoist.added || 0),
           x.byModel ? r1(x.byModel.hinged.staticLoad) : "", semi ? r1(c.semiMin) : "", semi ? r1(c.semiMax) : "", x.byModel ? r1(x.byModel.rigid.staticLoad) : "", r1(x.hoist.staticLoad), x.model ? TLA.grillage.MODEL_LABEL[x.model] : "load path",
-          x.trim ? r1(Math.abs(x.trim.self)) : "", Math.round(x.hoist.dynamicFactor * 1000) / 1000, r1(x.hoist.dynamicLoad), x.hoist.capacity >= 999999 ? "none" : r1(x.hoist.capacity), x.hoist.status]);
+          Math.round(x.hoist.dynamicFactor * 1000) / 1000, r1(x.hoist.dynamicLoad), x.hoist.capacity >= 999999 ? "none" : r1(x.hoist.capacity), x.hoist.status]);
       });
       return rows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
     }
@@ -5410,8 +5401,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1))
     ];
     if (st.cmp) {
-      [["lp", "Load path*", function (x) { return U.n("w", (x.loadPath || x).hoist.staticLoad, 1); }],
-       ["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
+      [["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
        ["semi", "Semi-rigid*", function (x) { var c = x.compat; return c && c.semiMin != null ? (Math.abs(c.semiMax - c.semiMin) < 0.05 ? U.n("w", c.semiMax, 1) : U.n("w", c.semiMin, 1) + " - " + U.n("w", c.semiMax, 1)) : "-"; }],
        ["rig", "Rigid*", function (x) { var c = x.byModel && x.byModel.rigid; return c ? U.n("w", c.staticLoad, 1) : "-"; }]].forEach(function (m) {
         cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? m[2](x) : "-"; }, { r: true }), { key: m[0], label: m[1] }));
@@ -5419,7 +5409,6 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.staticLoad, 1) : "-"; }, { r: true, cls: "b" }), { key: "hhs", label: "High hook static (" + U.unit("w") + ")" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.dynamicLoad, 1) : "-"; }, { r: true }), { key: "hhd", label: "High hook dyn. (" + U.unit("w") + ")" }));
-    cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.trim ? "±" + U.n("w", Math.abs(x.trim.self), 0) : "-"; }, { r: true, clsOf: function (s) { var x = X(s); return x && x.trim && x.hoist.capacity < 999999 && Math.abs(x.trim.self) > 0.1 * x.hoist.capacity ? "hi" : ""; } }), { key: "lvl", label: "Level sens. 1/4\"" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.hoist.capacity < 999999 ? P.wlCell(x.hoist.staticLoad / x.hoist.capacity).outerHTML : "-"; }, { html: true }), { key: "wl", label: "Workload" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? P.badge(x.hoist.status).outerHTML : "-"; }, { html: true }), { key: "st", label: "Status" }));
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")";
@@ -5431,7 +5420,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
       rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. " + (st.cmp ? "* Load path (reference) and the three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the load-path and joint-model columns.") };
+    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
@@ -6367,7 +6356,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     s2.appendChild(h("ul", { "class": "basis" },
       h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight and any UDL spread over the whole length. Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
       grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a whole-rig analysis: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
-      h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is " + (grill ? "shown for reference." : "the result used here.") }),
+      grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
@@ -6408,11 +6397,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var s4 = sec(sheet, next(), "Hoists");
     if (!r.hoists.length) s4.appendChild(para("No hoists.", "mut"));
     else {
-      s4.appendChild(para("4a. Low hook load R at each hoist (the reaction: what the rig hangs on the hook) from each method; the governing value (largest) is used below.", "cap"));
-      var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model", ["Load path, ref.", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
+      s4.appendChild(para("4a. Low hook load R at each hoist (the reaction: what the rig hangs on the hook) from each joint model; the governing value (largest) is used below.", "cap"));
+      var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model"].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
       s4.appendChild(table("small", headA.map(function (c) { return typeof c === "string" ? c : c; }), r.hoists.map(function (x) {
         var e0 = hoistEntry(supportOf(byId[x.truss], x.support) || {}) || {};
-        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw"), tdr(Wn((x.loadPath || x).reaction) + ((x.loadPath || x).slack ? " slack" : ""), "mut")];
+        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
         MODELS.forEach(function (m) { var c = x.byModel && x.byModel[m]; cells.push(tdr(c ? Wn(c.reaction) + (c.slack ? " slack" : "") : "-", x.model === m ? "b" : "")); });
         cells.push(tdr(Wn(x.reaction), "b"), td(x.model ? shortModel(x.model) : "load path", "nw"));
         return h("tr", null, cells);
@@ -6429,17 +6418,17 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           tdr(Wn(hx.reaction)), tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
           tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(s.chainLength || 0, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
           tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
-          tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"), tdr(x.trim ? "±" + Wn(Math.abs(x.trim.self), 0) : "-"),
+          tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
-      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], ["Level sens. 1/4\"", "r"], "Status"], rowsB,
-        h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware. Level sensitivity: the change in the hoist's load if it runs 1/4\" (6 mm) high or low, in its governing joint model (a hoist is flagged when this passes 10% of its capacity).", "cap"));
+      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"], rowsB,
+        h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware.", "cap"));
     }
 
     /* ---- 5. equilibrium ---- */
     var s5 = sec(sheet, next(), "Equilibrium (self-checks)");
-    var eqRows = [h("tr", null, td("Weight carried (load-path solve)"), tdr(W(tot.applied, 1)), td(""))];
+    var eqRows = [h("tr", null, td("Weight carried"), tdr(W(tot.applied, 1)), td(""))];
     if (grill && r.compat && r.compat.ok) {
       eqRows.push(h("tr", null, td("Weight in the whole-rig model"), tdr(W(r.compat.load, 1)), td(Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "agrees" : "DIFFERS", Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       MODELS.forEach(function (m) {
@@ -6447,14 +6436,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         eqRows.push(h("tr", null, td("Sum of hoist reactions, " + modelName(m)), tdr(W(sumR, 1)), td("out of balance by " + W(err, 3), Math.abs(err) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       });
     }
-    var lpSum = r.hoists.reduce(function (a, x) { return a + (x.loadPath || x).reaction; }, 0);
-    eqRows.push(h("tr", null, td("Sum of hoist reactions, load-path method"), tdr(W(lpSum, 1)), td("difference " + W(lpSum - tot.applied, 3), Math.abs(lpSum - tot.applied) <= 0.5 ? "ok" : "warn")));
+    var lpSum = r.hoists.reduce(function (a, x) { return a + x.reaction; }, 0);
+    if (!grill) eqRows.push(h("tr", null, td("Sum of hoist reactions, load-path method"), tdr(W(lpSum, 1)), td("difference " + W(lpSum - tot.applied, 3), Math.abs(lpSum - tot.applied) <= 0.5 ? "ok" : "warn")));
     s5.appendChild(table("kv wide", null, eqRows));
     s5.appendChild(para("Every model must carry the whole weight: the hoist reactions of each joint model add up to the weight carried. Each truss below also shows its own balance (loads = reactions).", "cap"));
 
     /* ---- 6. trusses ---- */
     var s6 = sec(sheet, next(), "Trusses");
-    s6.appendChild(para("Trusses in load-path order (a truss that is bolted to another comes before the truss that carries it). Positions from the start of the line.", "cap"));
+    s6.appendChild(para("Trusses in order: a truss that is bolted to another comes before the truss that carries it. Positions from the start of the line.", "cap"));
     lines.forEach(function (t, i) { s6.appendChild(trussBlock(t, "6." + (i + 1), hid, MODELS, grill)); });
 
     /* ---- 7. connections and blocks ---- */
@@ -6468,7 +6457,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         var u = byId[s.onTruss], sr = res && res.supports.filter(function (q) { return q.support.id === s.id; })[0];
         // a corner block: say where it sits on the line it is part of
         var host = u && u.isBlock ? byId[u.host || (u.attach && u.attach.b)] : null, hs = host && (u.supports || []).filter(function (q) { return q.kind === "truss" && q.onTruss === host.id; })[0];
-        var cells = [td(t.name), tdr(Ln(s.distance)), td(u ? u.name + (host ? " (on " + host.name + ")" : "") : "?"), tdr(Ln(hs ? hs.onDistance || 0 : s.onDistance || 0)), td(s.mount === "above" ? "sits on top" : s.mount === "below" ? "clamped below" : u && u.isBlock ? "bolted to block" : "bolted"), tdr(sr && sr.loadPathReaction != null ? Wn(sr.loadPathReaction) : sr ? Wn(sr.reaction) : "-", "mut")];
+        var cells = [td(t.name), tdr(Ln(s.distance)), td(u ? u.name + (host ? " (on " + host.name + ")" : "") : "?"), tdr(Ln(hs ? hs.onDistance || 0 : s.onDistance || 0)), td(s.mount === "above" ? "sits on top" : s.mount === "below" ? "clamped below" : u && u.isBlock ? "bolted to block" : "bolted")];
+        if (!grill) cells.push(tdr(sr ? Wn(sr.reaction) : "-"));
         MODELS.forEach(function (m) { cells.push(tdr(sr && sr.byModel && sr.byModel[m] != null ? Wn(sr.byModel[m]) : "-", res && res.model === m ? "b" : "")); });
         cells.push(tdr(s.hardwareWeight ? Wn(s.hardwareWeight) : "-"));
         conRows.push(h("tr", null, cells));
@@ -6476,7 +6466,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     });
     if (conRows.length) {
       s7.appendChild(para("Force passed from each truss to the part it is bolted to (" + U.unit("w") + ", downward on the carrier). Bold: the joint model that governs the bolted truss's checks.", "cap"));
-      s7.appendChild(table("small", ["Truss", ["At (" + U.unit("len") + ")", "r"], "Onto", ["At (" + U.unit("len") + ")", "r"], "How", ["Load path", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Hardware", "r"]]), conRows));
+      s7.appendChild(table("small", ["Truss", ["At (" + U.unit("len") + ")", "r"], "Onto", ["At (" + U.unit("len") + ")", "r"], "How"].concat(grill ? [] : [["Force", "r"]]).concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Hardware", "r"]]), conRows));
     } else s7.appendChild(para("No bolted connections.", "mut"));
     if (blocks.length) {
       s7.appendChild(para("Corner blocks (their weight is carried by the truss line they are part of).", "cap"));
@@ -6560,20 +6550,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       h("tr", null, td("Total"), td(""), tdr(Wn(beam.totalLoad), "b"), td("point loads " + W(pSum, 1) + " + uniform " + W(beam.w * beam.length, 1)), td(""))));
 
     // reactions
-    var rrows = [], sumGov = 0, sumLP = 0, sumBy = {};
+    var rrows = [], sumGov = 0, sumBy = {};
     MODELS.forEach(function (m) { sumBy[m] = 0; });
     res.supports.forEach(function (sr) {
       var s = sr.support, isH = s.kind === "hoist", key = t.id + ":" + s.id, other = S.truss(s.onTruss);
-      var lp = sr.loadPathReaction != null ? sr.loadPathReaction : sr.reaction;
-      sumGov += sr.reaction; sumLP += lp;
-      var cells = [td(isH ? hid[key] || "hoist" : "bolt", "b"), tdr(Ln(s.distance, 3)), td(isH ? "hoist" + (sr.slack ? " (slack)" : "") : (s.mount === "above" ? "on top of " : s.mount === "below" ? "clamped below " : "bolted to ") + (other ? other.name : "?")), tdr(Wn(lp), "mut")];
+      sumGov += sr.reaction;
+      var cells = [td(isH ? hid[key] || "hoist" : "bolt", "b"), tdr(Ln(s.distance, 3)), td(isH ? "hoist" + (sr.slack ? " (slack)" : "") : (s.mount === "above" ? "on top of " : s.mount === "below" ? "clamped below " : "bolted to ") + (other ? other.name : "?"))];
+      if (!MODELS.length) cells.push(tdr(Wn(sr.reaction)));
       MODELS.forEach(function (m) { var v = sr.byModel && sr.byModel[m]; sumBy[m] += v || 0; cells.push(tdr(v != null ? Wn(v) : "-", res.model === m ? "b" : "")); });
       rrows.push(h("tr", null, cells));
     });
-    var foot = [td("Sum"), td(""), td(""), tdr(Wn(sumLP), "mut")].concat(MODELS.map(function (m) { return tdr(Wn(sumBy[m]), res.model === m ? "b" : ""); }));
+    var foot = [td("Sum"), td(""), td("")].concat(MODELS.length ? [] : [tdr(Wn(sumGov))]).concat(MODELS.map(function (m) { return tdr(Wn(sumBy[m]), res.model === m ? "b" : ""); }));
     box.appendChild(para("Reactions (" + U.unit("w") + ", upward on this truss)", "sub"));
-    box.appendChild(para("Bold: the joint model it is checked with. The load-path column balances its own loads from the trusses bolted here, which differ from those listed.", "cap"));
-    box.appendChild(table("small", ["", ["At (" + U.unit("len") + ")", "r"], "Support", ["Load path", "r"]].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })), rrows, h("tr", null, foot)));
+    if (MODELS.length) box.appendChild(para("Bold: the joint model it is checked with.", "cap"));
+    box.appendChild(table("small", ["", ["At (" + U.unit("len") + ")", "r"], "Support"].concat(MODELS.length ? [] : [["Reaction", "r"]]).concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })), rrows, h("tr", null, foot)));
     var diff = sumGov - beam.totalLoad;
     box.appendChild(work("Balance: loads " + W(beam.totalLoad, 1) + " - reactions " + W(sumGov, 1) + " = " + W(-diff, 3) + (Math.abs(diff) <= 0.5 + 1e-6 * Math.abs(beam.totalLoad) ? "  (balances)" : "  (DOES NOT BALANCE)")));
 
@@ -6794,7 +6784,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<h3>Disclaimer</h3><p>This tool is intended for use by entertainment rigging professionals to assist them in making rigging decisions. Every attempt has been made to be accurate. However, the authors of the original program and of this rebuild are not responsible for errors in the program or the results of its use. <b>Users are responsible for verifying the results before using them to make rigging decisions.</b></p>",
     "<h3>Method and assumptions</h3><ul>",
     "<li>Each truss is a continuous beam with cantilevers, solved with Clapeyron's three-moment equation; reactions at supports are exact for the entered loads.</li>",
-    "<li>Where a truss is bolted to another truss, its end reaction at that connection (plus any hardware weight, such as a corner block) is passed to the connected truss as a point load. Trusses are solved in order along the load path down to the hoists. Loops (A bolted to B and B bolted to A) are flagged, not solved. This matches how the original workbooks linked trusses. Since 1.3.0 it is shown for reference only (the Load path column): the whole-rig analysis below is the primary result.</li>",
+    "<li>Where a truss is bolted to another truss, its end reaction at that connection (plus any hardware weight, such as a corner block) is passed to the connected truss as a point load. Trusses are solved in order along the load path down to the hoists. Loops (A bolted to B and B bolted to A) are flagged, not solved. This matches how the original workbooks linked trusses. Since 1.3.0 the whole-rig analysis below is the result used; since 1.21.0 the load-path numbers are no longer shown, except as the fallback when the whole-rig analysis can't run.</li>",
     "<li><b>Truss data</b>: each truss's table is either the original Truss Load Analyzer workbook's (TLA) or the manufacturer's own data sheet (MFG - Tomcat, Christie Lites, James Thomas Engineering, Tyler Truss), with the source shown under the model. Where a workbook row allows more than the maker's current table at a span the rig actually has, the truss gets a warning naming the span and the maker's row to switch to.</li>",
     "<li><b>Corner-block rules</b>: where the maker publishes rules for its corner blocks (so far Christie Lites A Type), the app flags a box truss whose 90-degree corner blocks are not each supported by a hoist, and an unsupported block joining 4 or more sections (the maker allows only part of the truss capacity there). These are warnings only - the results are not changed.</li>",
     "<li><b>Bolted parts</b>: bolted truss and corner blocks only fit within one manufacturer's truss family - JTE 12x12 does not bolt to Christie A Type, even at the same size. The app warns (and draws the bolt red) when bolted parts don't match, including a generic or universal truss bolted to branded parts; generic, universal and custom parts it can't check get a note. A truss stacked on top or clamped below can be any family. It never stops you building the rig.</li>",
@@ -6802,7 +6792,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Checked against Rigging Math Made Simple</b> (Delbert L. Hall): reactions are the statics equations from the book (load x distance to the opposite leg / span, cantilever loads subtract on the far leg, truss weight added as a load at the center of the span and of each cantilever); a span is not overloaded if the point loads on it do not exceed the table CPL for that span, reduced by the share of the UDL capacity already used by any UDL; a cantilever must be no longer than a quarter of the maximum span and carry no more than the CPL for a span four times the cantilever length. By default the truss's self weight is added to the load on each cantilever, as the original workbook does (an option in Rig settings turns it off).</li>",
     "<li><b>Whole-rig analysis (primary, since 1.3.0)</b>: the load-path method treats every truss that carries another as an unyielding support. That is exact when the carrying truss is held up at each connection, but if a truss with its own hoist is bolted to a carrier that has no hoist near the connection, the carrier sags and the bolted truss sheds load to its own hoist, which the load-path method under-estimates (in a test rig by more than 2 times). So the app runs a whole-rig analysis (a finite element analysis, FEA, of the grid - engineers call this a grillage): a matrix (direct-stiffness) analysis of the box as beams meeting at the corner blocks, the standard technique for a bolted grid such as a bridge deck. Hoist loads, the forces in the bolted connections, the loads each span and cantilever check sees, and the bending moment and shear used by the moment and shear check (below) all come from this solve - with rigid joints that includes moment passed through the corner blocks. Since no manufacturer publishes a stiffness for the corner-block hardware itself, the joints are modelled several ways and shown side by side - hinged (the bolt carries vertical force only), semi-rigid (since 1.4.0: the block as a rotational spring of 1, 4 and 16 x EI/L of the lighter truss it joins, the range between nominally pinned and rigid, because a hoist's share can peak in between) and rigid (bending and torsion also pass through the block, the textbook grillage assumption, and the one an independent 3D frame analysis of a similar grid also implies). Every check uses the worst of them: a hoist's total static, dynamic load and status use the largest load, and each truss is checked with the joint model that loads it hardest (named on the truss).</li>",
     "<li><b>Truss stiffness (since 1.4.0)</b>: a lattice truss is not a solid beam. It bends through its chords (so its bending stiffness EI grows with about the square of its depth), shears through its diagonals (on short spans that is a large part of its deflection, so each truss is a Timoshenko beam with a shear stiffness GA), and twists through the diagonals of all its faces working as a closed tube (GJ). Chord and diagonal sizes are not in the tables, so they are <b>estimated from the tables</b>: the largest moment the tables demonstrate is carried by the chords at one effective chord stress (calibrated so a 20.5 in box comes out at the stiffness of 2 x 0.125 in chords, which also matches the maker's published deflection in Rigging Math Made Simple), the diagonals are taken as 0.3 x the chord area at 45 degrees. Real chord and diagonal sizes in the truss data (a <i>section</i> entry: chord and diagonal OD and wall, panel length) replace the estimate. The stiffness used is shown on each truss; scale it with its Stiffness (x) field. Depth: a truss named AxB is taken as A wide and B deep, as the views draw it.</li>",
-    "<li><b>Hoists and level sensitivity (since 1.4.0)</b>: hoists are rigid supports at one level unless you give a hoist stiffness (lb per inch of stretch, for the hoist and its chain) in Rig settings. The Level sensitivity column shows how much a hoist's load changes if it runs 1/4 in high (or low) - on short, stiff spans that can be hundreds of pounds, so a hoist whose level sensitivity passes 10% of its capacity is flagged: level the hoists carefully, or check with a hoist stiffness.</li>",
+    "<li><b>Hoists and level sensitivity (since 1.4.0)</b>: hoists are rigid supports at one level unless you give a hoist stiffness (lb per inch of stretch, for the hoist and its chain) in Rig settings. A hoist's panel shows how much a hoist's load changes if it runs 1/4 in high (or low) - on short, stiff spans that can be hundreds of pounds, so a hoist whose level sensitivity passes 10% of its capacity is flagged: level the hoists carefully, or check with a hoist stiffness.</li>",
     "<li><b>Cross-check</b>: <i>Export whole-rig model</i> (Export menu) saves the rig's whole-rig model with this app's results; <code>python tools/pynite_check.py file</code> rebuilds it in PyNite, the 3D frame engine behind CalcForge, and compares hoist reactions and member forces (without shear deformation, which PyNite doesn't model). If the whole-rig analysis can't run (a load-path loop, or a very large rig) the app says so and falls back to the load-path method.</li>",
     "<li><b>Moment and shear check</b>: the span and cantilever checks compare each span on its own with the tables. A continuous truss also bends over its supports (hogging) from loads in the next span, and a heavy load right beside a support puts most of its weight into shear. So the bending moment and shear are also worked out all along the truss (shown under its diagram) and compared with an allowable moment and shear <b>estimated from the manufacturer's tables</b>: every table entry is a load the maker says the truss carries, so it demonstrates a moment (point load x span / 4, or uniform load x span / 8) and a shear (half the load). The allowable moment is the largest the tables demonstrate - the smaller of the point-load and uniform-load figures - and the allowable shear the largest shear any entry demonstrates (a safe-side estimate), both with the repetitive-use factor. The tables are loads on top of the truss's own weight, so by default (as Delbert Hall's Stress Table Creator does) each entry's moment and shear also include the self weight (+ w x span^2 / 8 and + w x span / 2), and the moments and shears checked include it too; the option in Rig settings leaves self weight out of both. These are estimates, not published values; use the maker's published moment and shear where you have them.</li>",
     "<li><b>Slack hoists</b>: a chain can only pull. If the loads would push a hoist up (a negative reaction - typically a hoist next to a heavily loaded span or cantilever), its chain goes slack: the hoist is shown as <b>Slack</b>, carries only its own weight, and the truss is solved again without it, so the other hoists and the span checks see the real, longer spans. If that leaves a truss with a single support point, it would tip: it is flagged <b>UNSTABLE</b> and its numbers must not be used.</li>",
@@ -6894,7 +6884,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     d.appendChild(h("span", { "class": "grow" }));
     if (step === 2) d.appendChild(h("label", { "class": "chk", title: "While you type in this grid the plan shrinks to a strip of the truss you are on" }, h("input", { type: "checkbox", checked: TLA.grids.showPlan() === false ? false : true, onchange: function (e) { TLA.grids.showPlan(!e.target.checked); } }), "Collapse plan while typing"));
     if (step === 3) {
-      d.appendChild(h("label", { "class": "chk", title: "Show the load-path (reference) and each whole-rig joint model" }, h("input", { type: "checkbox", checked: TLA.grids.compare(), onchange: function (e) { TLA.grids.compare(e.target.checked); renderAll(); } }), "Compare analysis methods"));
+      d.appendChild(h("label", { "class": "chk", title: "Show each whole-rig joint model" }, h("input", { type: "checkbox", checked: TLA.grids.compare(), onchange: function (e) { TLA.grids.compare(e.target.checked); renderAll(); } }), "Compare analysis methods"));
       var ch = h("input", { type: "text", "class": "num w50", placeholder: U.metric() ? "6" : "20", title: "Chain length for every hoist" });
       d.appendChild(h("span", { "class": "vr" }));
       d.appendChild(h("span", { "class": "lbl-sm", text: "Chain" })); d.appendChild(ch);

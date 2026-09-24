@@ -673,7 +673,6 @@
       else if (slackIn.length) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": goes slack with " + slackIn.map(function (mm) { return MODEL_LABEL[mm]; }).join(", ") + " only; the " + MODEL_LABEL[m] + " result (" + Math.round(gov.staticLoad) + " lb) is used." });
       if (!h.slack && gov.status !== "Good" && gov.status !== "UNSTABLE") W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": " + TLA.limits.statusText(gov.status) + " (" + Math.round(gov.staticLoad) + " lb static, " + MODEL_LABEL[m] + ")" });
       else if (!h.slack && gov.dynamicOver) W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity (" + MODEL_LABEL[m] + ")" });
-      if (h.compat.higher) W.push({ truss: h.truss, kind: "hoist", level: "info", message: where + ": " + Math.round(gov.staticLoad) + " lb from the whole-rig analysis, well above the load-path method's " + Math.round(lps) + " lb - the truss it is bolted to sags and sheds load onto this hoist." });
       if (h.trim && gov.capacity > 0 && gov.capacity < 999999 && Math.abs(h.trim.self) > TRIM_WARN * gov.capacity) touchy.push({ h: h, share: Math.abs(h.trim.self) / gov.capacity });
     });
     // one warning for every trim-sensitive hoist, led by the worst
@@ -681,7 +680,7 @@
       touchy.sort(function (a, b) { return b.share - a.share; });
       var w0 = touchy[0].h, t0 = w0.trim;
       W.push({ truss: w0.truss, kind: "hoist", level: "trim", message: (touchy.length === 1 ? "1 hoist is" : touchy.length + " hoists are") + " level-sensitive (a 1/4\" level error changes the load by more than " + Math.round(TRIM_WARN * 100) + "% of the hoist's capacity - short, stiff spans). Worst: " + names[w0.truss + ":" + w0.support] + " - running it 1/4\" high adds about " + Math.round(t0.self) + " lb (" + Math.round(touchy[0].share * 100) + "% of its capacity)" + (t0.other ? " and changes " + t0.other.name + " by " + Math.round(t0.other.lb) + " lb" : "") +
-        (touchy.length > 1 ? ". Also: " + touchy.slice(1).map(function (x) { return names[x.h.truss + ":" + x.h.support]; }).join(", ") : "") + ". Level the hoists carefully; the Level sensitivity column has each hoist's figure." });
+        (touchy.length > 1 ? ". Also: " + touchy.slice(1).map(function (x) { return names[x.h.truss + ":" + x.h.support]; }).join(", ") : "") + ". Level the hoists carefully; each hoist's panel shows its figure." });
     }
 
     var tot = results.totals;
