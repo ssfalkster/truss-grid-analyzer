@@ -206,7 +206,8 @@
         : "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). The diagrams leave out the truss's self weight.") + " Estimates from the tables, not published values."],
       ["F4", "High hook static", "High hook = low hook R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if high hook <= rated capacity."],
       ["F5", "High hook dynamic", "Dynamic = high hook x DLF,  DLF = hoist speed (fpm) / 60 + 1 unless typed on the hoist; " + fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3) + " if the speed is unknown. Flagged if dynamic > capacity."],
-      ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."]
+      ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."],
+      ["F7", "Deflection", "d = the largest sag of a span below the straight line between its two supports, from the whole-rig analysis (worst joint model), so a support that moves (a hoist that stretches, a carrier truss that sags) is not counted against the span. Limit L / n: the maker's published n where there is one (past it the truss fails), else the rig default L/" + (Number(st.deflectionLimit) > 0 ? st.deflectionLimit : TLA.limits.DEFL_DEFAULT) + " (past it is a warning). Cantilever tips are reported, not checked."]
     ];
     // the same formulas typeset (1.17.0); the sentence under each keeps the conditions and notes
     var fxMath = {
@@ -216,7 +217,8 @@
         ml(null, [[mv("V", "allow"), " = ", mv("k"), X, "max( ", fr("CPL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, ", ", fr("UDL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, " )"]])],
       F4: [ml(null, [["High hook = ", mv("R"), ap ? [X, "(1 + " + st.addPercent + "/100)"] : null, " + ", mv("W", "hoist"), " + ", mv("w", "chain"), X, mv("L", "chain"), " + ", mv("W", "hardware")]])],
       F5: [ml(null, [["Dynamic = High hook", X, "DLF"]]), ml(null, [["DLF = ", fr(mv("v"), "60"), " + 1"]])],
-      F6: []
+      F6: [],
+      F7: [h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("d"), LE, fr(mv("L"), mv("n"))))]
     };
     s2.appendChild(table("fx", ["", "Check", "Formula"], fx.map(function (f) { return h("tr", null, td(f[0], "mono b"), td(f[1]), h("td", null, fxMath[f[0]] && fxMath[f[0]].length ? h("div", { "class": "fxm" }, fxMath[f[0]]) : null, h("div", { "class": fxMath[f[0]] && fxMath[f[0]].length ? "fxn" : "", text: f[2] }))); })));
     s2.appendChild(table("kv small", null, [
@@ -436,6 +438,7 @@
     // diagrams
     var fig = h("div", { "class": "rfig" }, P().elevation(t, res));
     var fd = P().forceDiagrams(res); if (fd) fig.appendChild(fd);
+    var dd = P().deflectionDiagram(t, res); if (dd) fig.appendChild(dd);   // 1.25.0
     box.appendChild(fig);
 
     // table checks
@@ -505,7 +508,26 @@
       ];
       box.appendChild(calcs(null, mLines, "Rows used: moment from " + rowOf(at.point, 4) + " and " + rowOf(at.uniform, 8) + "; shear from " + (at.shear ? kindName(at.shear.kind) + " " + Wn(at.shear.load, 0) + " at the " + at.shear.row + " " + at.shear.unit + " row" : "-") + ". Allowables are estimates from the tables, not published values."));
     }
+    deflectionSection(box, res);
     return box;
+  }
+  /** Deflection check (F7, 1.25.0): each span's sag against L / n, and the cantilever tips (reported only). */
+  function deflectionSection(box, res) {
+    var dc = res.deflection; if (!dc) return;
+    var maker = dc.source === "maker", IN = function (ft) { return U.f("inch", ft * 12, 2); };
+    box.appendChild(para("Deflection check (F7) - limit L/" + dc.ratio + ": " + (maker ? dc.note + " (the maker's data sheet; past it the truss fails)" : "the rig default; the maker publishes no limit, so past it is a warning"), "sub"));
+    var rows = dc.spans.map(function (sp) {
+      var over = sp.util > 1 + 1e-9;
+      return h("tr", null, td("Span " + sp.index + " (" + Ln(sp.from, 2) + " - " + Lf(sp.to, 2) + ")"), tdr(Ln(sp.length, 3)), tdr(IN(sp.max)), td("at " + Lf(sp.at, 2)), tdr(sp.max > 1e-9 ? "L/" + Math.round(sp.length / sp.max) : "-"), tdr(IN(sp.allowed)), tdr(pct(sp.util)),
+        statusCell(!over ? "Good" : maker ? "Too much sag" : "Past L/" + dc.ratio + " (warning)", over && maker), td(shortModel(sp.model)));
+    });
+    (dc.cantilevers || []).forEach(function (c) {
+      rows.push(h("tr", null, td("Cantilever, " + c.side + " end"), tdr(Ln(c.length, 3)), tdr(IN(c.tip)), td("at the tip"), tdr("-"), tdr("-"), tdr("-"), td("reported only", "mut"), td(shortModel(c.model))));
+    });
+    if (rows.length) box.appendChild(table("small", ["Segment", ["L (" + U.unit("len") + ")", "r"], ["Sag d", "r"], "Where", ["L/d", "r"], ["Allowed L/" + dc.ratio, "r"], ["Workload", "r"], "Status", "Joint model"], rows));
+    var w = dc.spans.slice().sort(function (a, b) { return b.util - a.util; })[0];
+    if (w) box.appendChild(calcs(null, [mcmp("Worst span", [mv("d"), " (span " + w.index + ")"], IN(w.max), [fr(mv("L"), String(dc.ratio)), " = " + IN(w.allowed)], w.util <= 1 + 1e-9, pct(w.util) + " workload")],
+      "Sag measured from the line between the span's two supports; the drawing above exaggerates it."));
   }
 
   /* ---------------------------------------------------------------- plan drawing */

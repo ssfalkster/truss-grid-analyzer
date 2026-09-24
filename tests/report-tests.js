@@ -105,4 +105,18 @@
     eq(TLA.report.isOpen(), false, "closed"); eq(!!document.getElementById("report-page"), false, "footer style removed");
     var host = document.getElementById("report"); host.parentNode.removeChild(host);
   });
+  add("calc sheet (1.25.0): every truss shows its deflection drawing and an F7 deflection check matching the results", function () {
+    example();
+    var el = TLA.report.build(), text = el.textContent;
+    eq(/F7/.test(text) && /Deflection check \(F7\)/.test(text), true, "F7 formula and per-truss check");
+    var trusses = S.rig.trusses.filter(function (t) { return !t.isBlock && S.results.trusses[t.id] && S.results.trusses[t.id].deflection; });
+    eq(el.querySelectorAll(".rfig svg").length >= trusses.length * 2, true, "deflection drawings present");
+    eq((text.match(/Deflection, exaggerated/g) || []).length, trusses.length, "one drawing per truss");
+    eq((text.match(/Deflection check \(F7\)/g) || []).length, trusses.length, "one check per truss");
+    trusses.forEach(function (t) {
+      var dc = S.results.trusses[t.id].deflection;
+      dc.spans.forEach(function (sp) { var v = TLA.units.f("inch", sp.max * 12, 2); eq(text.indexOf(v) >= 0, true, t.name + " span " + sp.index + " sag " + v); });
+    });
+    eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

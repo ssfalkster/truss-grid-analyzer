@@ -603,8 +603,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.24.0";
+  TLA.VERSION = "1.25.0";
   TLA.CHANGES = [
+    ["1.25.0", "2026-09-24", "G.E. Simmons Falk", "Calculation sheet: each truss now shows its deflection drawing (the exaggerated deflected shape from the whole-rig analysis, as in the truss panel's Checks) and a deflection check (new formula F7): each span's sag against its limit L/n, where it is, L/d, workload and status, plus the cantilever tips (reported only). Calculated results are unchanged."],
     ["1.24.0", "2026-09-24", "G.E. Simmons Falk", "Hoists grid (step 3): select several hoists (Shift+click for a range, Ctrl+click one at a time, Shift+arrows, Ctrl+A, or Select on a truss row) and any edit changes all of them - model, chain, DLF, hardware, Hangs from, level offset, reading - but not their positions; Ctrl+D copies the top selected hoist to the rest and Delete removes them all. A new hoist is now set up like the last hoist placed in the rig (model, chain or rope, hardware, DLF; not its name, level offset, Hangs from or reading) instead of always a 1 ton Lodestar. Calculated results are unchanged for existing rigs."],
     ["1.23.0", "2026-09-24", "G.E. Simmons Falk", "Hoists can be mirrored and copied like loads: Mirror (one hoist) and Mirror all add a hoist at the mirrored spot about the truss centerline; Copy to truss copies one or all hoists to another truss, keeping each one's distance from the centre (clamped to the ends). Unlike a mirrored load, each copy is a real hoist with its own name, result and load-cell reading; it keeps the model, chain or rope, dynamic factor, hardware, level offset and Hangs from. No copy is placed where a hoist already is. Calculated results are unchanged for existing rigs."],
     ["1.22.0", "2026-09-24", "G.E. Simmons Falk", "New features from comparing the app with Vectorworks Braceworks and Production Assist. Rigs that use none of them give exactly the same results as 1.21.0 (checked on the example box and four venue rigs). Hoists hung below a truss: a hoist's Hangs from can be another truss instead of the structure. Its chain joins the two trusses in the whole-rig analysis, so the upper truss (the carrier) sags with the load and the truss below shares load with its other hoists; the chain can only pull. The carrier carries the hung hoist's high hook load, and it - with everything bolted to it - is also checked with the hung hoist's high hook dynamic load; so are the hoists holding the carrier up, unless Rig settings turn that off. Rig totals count only hoists to the structure. Dead hangs: a support can be wire rope with no hoist. Pick the rope (7x19 galvanized aircraft cable or 6x19 IWRC, typical catalogue breaking strengths) and its length; WLL = breaking strength / design factor (Rig settings: 7, 8 or 10:1, default 10:1), capped by a typed assembly WLL; static (dynamic factor 1.0 unless typed); its weight is the rope and hardware; rigid, or a rope spring EA/L when the rig's hoists are springs. DH1, DH2... on the calc sheet. Hoist levels: a hoist can have a designed Level offset (inches, + higher) - a raked or trimmed truss - which the whole-rig analysis solves as that point moved; and an out-of-level tolerance in Rig settings (e.g. 1/4\") adds to every hoist's check the worst it could see if each hoist were that far off on its own, with a warning when the low side could go slack. Allowances: a cable weight per length (Rig settings, or per truss) added to each truss's UDL, and load factors by category (lighting, audio, video, scenic, rigging hardware, other; library fixtures are lighting). Check rig: on every change, a list of input mistakes - a load with no weight, two hoists at one point, a bolted assembly with fewer than 3 hoists or all in a line, bolted ends that don't meet, trusses that cross with no joint, a hoist with no model - in the rig panel and the warnings; the truss panel's Connected button dims everything not joined to it. Measured vs calculated: a load cell reading per hoist (hoist grid or panel), compared with the high hook static or low hook load (Rig settings) and totalled per assembly, flagged past 5%; readings never change a result. Deflection view: a Deflection colour mode colours each truss by its sag against its limit and draws its deflected shape, exaggerated, beside it on the plan and above it in 3D. Also: the calc sheet explains each of these; a hoist's load breakdown now lists Add %, hardware and the level allowance so it adds up; the whole-rig model export lists hung hoists (tools/pynite_check.py does not model them yet)."],
@@ -7191,7 +7192,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         : "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). The diagrams leave out the truss's self weight.") + " Estimates from the tables, not published values."],
       ["F4", "High hook static", "High hook = low hook R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if high hook <= rated capacity."],
       ["F5", "High hook dynamic", "Dynamic = high hook x DLF,  DLF = hoist speed (fpm) / 60 + 1 unless typed on the hoist; " + fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3) + " if the speed is unknown. Flagged if dynamic > capacity."],
-      ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."]
+      ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."],
+      ["F7", "Deflection", "d = the largest sag of a span below the straight line between its two supports, from the whole-rig analysis (worst joint model), so a support that moves (a hoist that stretches, a carrier truss that sags) is not counted against the span. Limit L / n: the maker's published n where there is one (past it the truss fails), else the rig default L/" + (Number(st.deflectionLimit) > 0 ? st.deflectionLimit : TLA.limits.DEFL_DEFAULT) + " (past it is a warning). Cantilever tips are reported, not checked."]
     ];
     // the same formulas typeset (1.17.0); the sentence under each keeps the conditions and notes
     var fxMath = {
@@ -7201,7 +7203,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         ml(null, [[mv("V", "allow"), " = ", mv("k"), X, "max( ", fr("CPL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, ", ", fr("UDL", "2"), sw ? [" + ", fr([mv("w", "self"), X, mv("L")], "2")] : null, " )"]])],
       F4: [ml(null, [["High hook = ", mv("R"), ap ? [X, "(1 + " + st.addPercent + "/100)"] : null, " + ", mv("W", "hoist"), " + ", mv("w", "chain"), X, mv("L", "chain"), " + ", mv("W", "hardware")]])],
       F5: [ml(null, [["Dynamic = High hook", X, "DLF"]]), ml(null, [["DLF = ", fr(mv("v"), "60"), " + 1"]])],
-      F6: []
+      F6: [],
+      F7: [h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("d"), LE, fr(mv("L"), mv("n"))))]
     };
     s2.appendChild(table("fx", ["", "Check", "Formula"], fx.map(function (f) { return h("tr", null, td(f[0], "mono b"), td(f[1]), h("td", null, fxMath[f[0]] && fxMath[f[0]].length ? h("div", { "class": "fxm" }, fxMath[f[0]]) : null, h("div", { "class": fxMath[f[0]] && fxMath[f[0]].length ? "fxn" : "", text: f[2] }))); })));
     s2.appendChild(table("kv small", null, [
@@ -7421,6 +7424,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     // diagrams
     var fig = h("div", { "class": "rfig" }, P().elevation(t, res));
     var fd = P().forceDiagrams(res); if (fd) fig.appendChild(fd);
+    var dd = P().deflectionDiagram(t, res); if (dd) fig.appendChild(dd);   // 1.25.0
     box.appendChild(fig);
 
     // table checks
@@ -7490,7 +7494,26 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       ];
       box.appendChild(calcs(null, mLines, "Rows used: moment from " + rowOf(at.point, 4) + " and " + rowOf(at.uniform, 8) + "; shear from " + (at.shear ? kindName(at.shear.kind) + " " + Wn(at.shear.load, 0) + " at the " + at.shear.row + " " + at.shear.unit + " row" : "-") + ". Allowables are estimates from the tables, not published values."));
     }
+    deflectionSection(box, res);
     return box;
+  }
+  /** Deflection check (F7, 1.25.0): each span's sag against L / n, and the cantilever tips (reported only). */
+  function deflectionSection(box, res) {
+    var dc = res.deflection; if (!dc) return;
+    var maker = dc.source === "maker", IN = function (ft) { return U.f("inch", ft * 12, 2); };
+    box.appendChild(para("Deflection check (F7) - limit L/" + dc.ratio + ": " + (maker ? dc.note + " (the maker's data sheet; past it the truss fails)" : "the rig default; the maker publishes no limit, so past it is a warning"), "sub"));
+    var rows = dc.spans.map(function (sp) {
+      var over = sp.util > 1 + 1e-9;
+      return h("tr", null, td("Span " + sp.index + " (" + Ln(sp.from, 2) + " - " + Lf(sp.to, 2) + ")"), tdr(Ln(sp.length, 3)), tdr(IN(sp.max)), td("at " + Lf(sp.at, 2)), tdr(sp.max > 1e-9 ? "L/" + Math.round(sp.length / sp.max) : "-"), tdr(IN(sp.allowed)), tdr(pct(sp.util)),
+        statusCell(!over ? "Good" : maker ? "Too much sag" : "Past L/" + dc.ratio + " (warning)", over && maker), td(shortModel(sp.model)));
+    });
+    (dc.cantilevers || []).forEach(function (c) {
+      rows.push(h("tr", null, td("Cantilever, " + c.side + " end"), tdr(Ln(c.length, 3)), tdr(IN(c.tip)), td("at the tip"), tdr("-"), tdr("-"), tdr("-"), td("reported only", "mut"), td(shortModel(c.model))));
+    });
+    if (rows.length) box.appendChild(table("small", ["Segment", ["L (" + U.unit("len") + ")", "r"], ["Sag d", "r"], "Where", ["L/d", "r"], ["Allowed L/" + dc.ratio, "r"], ["Workload", "r"], "Status", "Joint model"], rows));
+    var w = dc.spans.slice().sort(function (a, b) { return b.util - a.util; })[0];
+    if (w) box.appendChild(calcs(null, [mcmp("Worst span", [mv("d"), " (span " + w.index + ")"], IN(w.max), [fr(mv("L"), String(dc.ratio)), " = " + IN(w.allowed)], w.util <= 1 + 1e-9, pct(w.util) + " workload")],
+      "Sag measured from the line between the span's two supports; the drawing above exaggerates it."));
   }
 
   /* ---------------------------------------------------------------- plan drawing */
