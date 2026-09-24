@@ -190,7 +190,7 @@
           "only one support point is left, so the truss would tip. Add a hoist or bolted support, or move the load." });
       }
       var limits = t.isBlock ? { derate: 1, maxSpan: 0, maxCantilever: 0, segments: [], worstCode: 0, ok: true }
-        : TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof settings.derate === "number" ? settings.derate : undefined, cantileverSelfWeight: settings.cantileverSelfWeight === true });
+        : TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof settings.derate === "number" ? settings.derate : undefined, cantileverSelfWeight: TLA.limits.countSelfWeight(settings) });
 
       var own = (t.loads || []).reduce(function (a, l) { return a + (Number(l.weight) || 0) * (l.mirror && Math.abs(l.distance - beam.length / 2) > 1e-7 ? 2 : 1); }, 0);
       applied += own + beam.wSelf * beam.length + (Number(t.wallWeight) || 0);

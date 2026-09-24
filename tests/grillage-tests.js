@@ -307,7 +307,7 @@
     eq(S.results.primary, "load-path", "primary");
     eq(S.results.warnings.some(function (w) { return w.level === "fallback"; }), true, "fallback warning");
   });
-  add("primary: the moment/shear check uses the stiffness solve's diagrams (net of self weight); a lone truss matches the load path", function () {
+  add("primary: the moment/shear check uses the stiffness solve's diagrams (with self weight by default, net when turned off); a lone truss matches the load path", function () {
     noCarrierHoists();
     var n = 0;
     S.rig.trusses.forEach(function (t) {
@@ -320,8 +320,13 @@
     var t = S.addTruss({ name: "L", x: 0, y: 0, angle: 45, length: 30, hoists: [0, 24] });
     t.loads.push({ id: S.newId("l"), distance: 5, weight: 300 }, { id: S.newId("l"), distance: 20, weight: 500 }, { id: S.newId("l"), distance: 28, weight: 100 }); S.commit();
     var res = S.results.trusses[t.id], a = res.limits.member, b = res.loadPath.limits.member;
+    near(a.moment, b.moment, 1e-6 * b.moment, "moment (self weight in both)"); near(a.shear, b.shear, 1e-6 * b.shear, "shear");
+    eq(a.checked, a.diagram, "default (1.18.0): self weight counted, the full diagram is checked");
+    near(a.momentAllowed, b.momentAllowed, 1e-9, "same allowable (self weight added back) in both");
+    S.rig.settings.cantileverSelfWeight = false; S.commit();
+    res = S.results.trusses[t.id]; a = res.limits.member; b = res.loadPath.limits.member;
     near(a.moment, b.moment, 1e-6 * b.moment, "moment (self weight left out in both)"); near(a.shear, b.shear, 1e-6 * b.shear, "shear");
-    eq(a.checked === a.diagram, false, "a separate net-of-self-weight diagram");
+    eq(a.checked === a.diagram, false, "turned off: a separate net-of-self-weight diagram");
     // continuous: the load path has no shear deformation, so it is close but not equal
     S.newRig();
     t = S.addTruss({ name: "L", x: 0, y: 0, angle: 45, length: 30, hoists: [0, 12, 30] });

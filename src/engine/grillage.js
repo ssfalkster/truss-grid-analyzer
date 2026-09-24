@@ -557,16 +557,16 @@
     var truss = res.dbTruss, st = rig.settings || {};
     var beam = TLA.beam.solve({ length: t.length, supports: sups.map(function (s) { return s.distance; }), loads: loads, trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless });
     beam.active = sups;
-    // moment/shear check on the whole-rig analysis's own diagrams, net of the truss's own weight as the tables are
+    // moment/shear check on the whole-rig analysis's own diagrams; net of self weight when the rig leaves it out
     var full = sol.forces.members[t.id], net = full, bi = -1;
     model.beams.forEach(function (bm, i) { if (bm.t.id === t.id) bi = i; });
-    if (full && bi >= 0 && st.cantileverSelfWeight !== true && model.beams[bi].wSelf > 0) {
+    if (full && bi >= 0 && !TLA.limits.countSelfWeight(st) && model.beams[bi].wSelf > 0) {
       var bmT = model.beams[bi], F = sol.F.slice(), Fs = sol.udlVector(bi, bmT.wSelf);
       for (var q = 0; q < F.length; q++) F[q] -= Fs[q];
       var r = sol.solveF(F);                            // same structure, same slack hoists
       net = forces(model, { U: r.U, reactions: r.reactions, dofs: sol.dofs, supports: sol.supports }, function (b) { return b === bmT ? b.w - b.wSelf : b.w; }).members[t.id];
     }
-    var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: st.cantileverSelfWeight === true, memberDiagrams: full ? { full: full, net: net } : null });
+    var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: TLA.limits.countSelfWeight(st), memberDiagrams: full ? { full: full, net: net } : null });
     return { beam: beam, limits: limits, injected: injected };
   }
 

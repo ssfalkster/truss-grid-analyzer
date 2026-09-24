@@ -33,10 +33,9 @@
   /**
    * truss: DB entry {max_span_ft, udl_lb[], cpl_lb[], repetitive_use}
    * beam: result of TLA.beam.solve; wallWeight: lb spread over the full length.
-   * opts.derate: override the repetitive-use factor. opts.cantileverSelfWeight: also count the truss's own weight
-   * against the cantilever limit. Rigging Math Made Simple (Lesson 21) says manufacturers' tables already subtract the
-   * truss weight, so by default only the loads (and any UDL) are compared; the original workbook also
-   * counted self weight (stricter).
+   * opts.derate: override the repetitive-use factor. opts.cantileverSelfWeight: also count the truss's self weight
+   * against the cantilever limit (as the original workbook does) and in the moment/shear check. The app turns it on
+   * unless the rig's settings turn it off (countSelfWeight, 1.18.0); left out here, only the loads (and any UDL) count.
    */
   function checkTruss(truss, beam, wallWeight, opts) {
     opts = opts || {};
@@ -93,30 +92,34 @@
    * Moment: the largest demonstrated moment from each table, and the smaller of the two (a point load also bends the
    * chords locally, so the point-load table can be the lower one). Shear: the largest shear any entry demonstrates -
    * a lower bound on the real capacity, so it can only err on the safe side. Estimates - not published values.
+   * wSelf (lb/ft, optional; 1.18.0): the tables are loads on top of the truss's self weight, so each entry also
+   * demonstrates the self weight's moment and shear (Hall, Stress Table Creator): M = P L / 4 + w L^2 / 8 or
+   * W L / 8 + w L^2 / 8, V = P / 2 + w L / 2 or W / 2 + w L / 2. Use it when the checked forces include self weight.
    */
-  function memberCapacity(truss) {
-    var metric = truss.units === "metric" && truss.udl_kg, step = metric ? 1 / FT_M : 1, f = metric ? KG_LB : 1;
+  function memberCapacity(truss, wSelf) {
+    var metric = truss.units === "metric" && truss.udl_kg, step = metric ? 1 / FT_M : 1, f = metric ? KG_LB : 1, w = Number(wSelf) > 0 ? Number(wSelf) : 0;
     var P = (metric ? truss.cpl_kg : truss.cpl_lb) || [], U = (metric ? truss.udl_kg : truss.udl_lb) || [];
     var mc = 0, mu = 0, v = 0, n = Math.min(metric ? Number(truss.max_span_m) || U.length : Number(truss.max_span_ft) || 100, 100);
     // the table row each figure comes from (row = span in the table's own unit), for the calculation sheet
     var at = { point: null, uniform: null, shear: null };
     function row(i, L, load, kind) { return { row: i + 1, unit: metric ? "m" : "ft", length: L, load: load, kind: kind }; }
     for (var i = 0; i < n; i++) {
-      var L = (i + 1) * step, p = (Number(P[i]) || 0) * f, u = (Number(U[i]) || 0) * f;
-      if (p * L / 4 > mc) { mc = p * L / 4; at.point = row(i, L, p, "cpl"); }
-      if (u * L / 8 > mu) { mu = u * L / 8; at.uniform = row(i, L, u, "udl"); }
-      if (p / 2 > v) { v = p / 2; at.shear = row(i, L, p, "cpl"); }
-      if (u / 2 > v) { v = u / 2; at.shear = row(i, L, u, "udl"); }
+      var L = (i + 1) * step, p = (Number(P[i]) || 0) * f, u = (Number(U[i]) || 0) * f, ms = w * L * L / 8, vs = w * L / 2;
+      if (p > 0 && p * L / 4 + ms > mc) { mc = p * L / 4 + ms; at.point = row(i, L, p, "cpl"); }
+      if (u > 0 && u * L / 8 + ms > mu) { mu = u * L / 8 + ms; at.uniform = row(i, L, u, "udl"); }
+      if (p > 0 && p / 2 + vs > v) { v = p / 2 + vs; at.shear = row(i, L, p, "cpl"); }
+      if (u > 0 && u / 2 + vs > v) { v = u / 2 + vs; at.shear = row(i, L, u, "udl"); }
     }
     var m = mc && mu ? Math.min(mc, mu) : mc || mu;
-    return { moment: m, shear: v, momentFromPoint: mc, momentFromUniform: mu, at: at };
+    return { moment: m, shear: v, momentFromPoint: mc, momentFromUniform: mu, at: at, wSelf: w };
   }
 
-  /** Bending moment and shear along the truss (continuous-beam statics) against the table-derived capacity. Like the
-   * table checks, the truss's own weight is left out (the tables already allow for it) unless opts.cantileverSelfWeight.
+  /** Bending moment and shear along the truss (continuous-beam statics) against the table-derived capacity. With
+   * opts.cantileverSelfWeight (the app's default since 1.18.0) the forces include the truss's self weight and so does
+   * the capacity (memberCapacity with wSelf); without, both leave it out.
    * opts.memberDiagrams { full, net } supplies the diagrams instead (from the stiffness solve, 1.3.0). */
   function checkMember(truss, beam, k, opts) {
-    var cap = memberCapacity(truss), given = opts.memberDiagrams, full = given ? given.full : TLA.beam.diagram(beam), net = given ? given.net : full;
+    var cap = memberCapacity(truss, opts.cantileverSelfWeight ? beam.wSelf : 0), given = opts.memberDiagrams, full = given ? given.full : TLA.beam.diagram(beam), net = given ? given.net : full;
     if (!given && !opts.cantileverSelfWeight && beam.wSelf > 0 && beam.positions.length) {
       var nb = TLA.beam.solve({
         length: beam.length, supports: beam.positions, trussWeightPerFt: 0, wallWeight: beam.wDist * beam.length,
@@ -182,5 +185,9 @@
     var d = settings && Number(settings.deflectionLimit) > 0 ? Number(settings.deflectionLimit) : DEFL_DEFAULT;
     return { ratio: d, source: "default", note: "no limit published by the maker - rig default L/" + d };
   }
-  TLA.limits = { checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
+  /** Rig setting: count the truss's self weight in the cantilever and moment/shear checks - on unless turned off
+   * (1.18.0; saved rigs keep an explicit choice). */
+  function countSelfWeight(settings) { return !settings || settings.cantileverSelfWeight !== false; }
+
+  TLA.limits = { countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
 })(typeof globalThis !== "undefined" ? globalThis : window);
