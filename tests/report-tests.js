@@ -80,9 +80,20 @@
     S.commit();
     var seg = S.results.trusses[t.id].limits.segments.filter(function (x) { return x.type === "span"; })[0];
     eq(seg.capacity, 0, "the engine gives this span no capacity");
-    var w = Array.prototype.filter.call(TLA.report.build().querySelectorAll(".work"), function (x) { return /^Span 1/.test(x.textContent); })[0].textContent;
-    eq(/UDL row is 0, so f = 0/.test(w), true, w);
+    var w = Array.prototype.filter.call(TLA.report.build().querySelectorAll(".calcs"), function (x) { return /^Span 1/.test(x.textContent); })[0].textContent;
+    eq(/f = 0 \(the UDL row is 0/.test(w), true, w);
+    eq(/C = CPL × k × f = 2,000 × 0\.85 × 0 = 0 lb/.test(w), true, "capacity line: " + w);
     eq(/f = 1/.test(w), false, "no f = 1: " + w);
+  });
+
+  add("calc sheet paper (1.17.0): Letter for imperial and A4 for metric unless set; the choice is saved with the rig and leaves the input fingerprint alone", function () {
+    example();
+    var fp = TLA.report.fingerprint(S.rig);
+    eq(TLA.report.paper(), "letter", "imperial default");
+    S.rig.settings.units = "metric"; eq(TLA.report.paper(), "a4", "metric default"); delete S.rig.settings.units;
+    S.rig.report = { paper: "a4" }; eq(TLA.report.paper(), "a4", "set: A4 even in imperial");
+    eq(TLA.report.fingerprint(S.rig), fp, "paper is not a calculation input");
+    S.rig.report = { paper: "bogus" }; eq(TLA.report.paper(), "letter", "unknown value falls back to the default");
   });
 
   add("calc sheet: open / close - the page footer style goes with the sheet, isOpen follows it", function () {

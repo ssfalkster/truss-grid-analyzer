@@ -150,10 +150,22 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
 .sheet .ok { color: var(--ok); } .sheet .fail { color: var(--fail); font-weight: 700; } .sheet .warn { color: var(--warn); } .sheet .b { font-weight: 700; }
 .sheet table.rt { width: 100%; border-collapse: collapse; margin: 3px 0; font-variant-numeric: tabular-nums; }
 .sheet .rt th, .sheet .rt td { border: 1px solid #bbb; padding: 1.5px 4px; text-align: left; vertical-align: top; } .sheet .rt th { background: #eef0f3; font-weight: 600; }
-.sheet .rt th.r, .sheet .rt td.r { text-align: right; white-space: nowrap; } .sheet .rt tfoot td { font-weight: 600; background: #f6f7f9; }
+.sheet .rt th.r, .sheet .rt td.r { text-align: right; } .sheet .rt td.r { white-space: nowrap; } .sheet .rt th { hyphens: manual; }
+.sheet .rt td .sub2 { display: block; font-size: 7pt; color: #666; white-space: nowrap; } .sheet .rt tfoot td { font-weight: 600; background: #f6f7f9; }
 .sheet .rt.small { font-size: 8pt; } .sheet .rt.kv td:first-child { width: 34%; color: #333; } .sheet .rt.fx td:first-child { width: 3em; } .sheet .rt.fx td:nth-child(2) { width: 9em; }
 .sheet .rt td.st, .sheet .rt td.nw { font-weight: 700; white-space: nowrap; } .sheet .rt td.nw { font-weight: 400; } .sheet .rt.kv.wide td:first-child { width: 48%; }
 .sheet .work { font: 8pt/1.35 ui-monospace, Consolas, monospace; margin: 2px 0 2px 8px; padding-left: 6px; border-left: 2px solid #ccc; }
+@media screen { .sheet.paper-letter { width: 8.5in; } .sheet.paper-a4 { width: 210mm; } }   /* paper preview; print uses @page size */
+/* typeset working (1.17.0): formula = numbers = result */
+.sheet .calcs { margin: 3px 0 5px 8px; padding: 2px 0 2px 8px; border-left: 2px solid #ccc; font-size: 8.5pt; break-inside: avoid; }
+.sheet .fxm .ml { grid-template-columns: 3.5em 1fr; } .sheet .ml.nl { grid-template-columns: 1fr; } .sheet .fr { white-space: nowrap; } .sheet .fxn { color: #555; font-size: 7.5pt; margin-top: 2px; }
+.sheet .calcs-h { font-weight: 700; margin-bottom: 1px; } .sheet .calcs-n { color: #555; font-size: 7.5pt; margin-top: 1px; }
+.sheet .ml { display: grid; grid-template-columns: 8.5em 1fr; align-items: center; min-height: 1.6em; }
+.sheet .ml-l { color: #555; } .sheet .ml-e { line-height: 1.25; } .sheet .ml .eq { color: #333; }
+.sheet .ml.fail b, .sheet .ml.fail .ml-t { color: #b00020; } .sheet .ml.ok .ml-t { color: #1a7f37; }
+.sheet .mv { font-style: italic; font-family: "Times New Roman", Georgia, serif; font-size: 1.1em; } .sheet .mv sub { font-size: 0.7em; font-style: italic; }
+.sheet .fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 2px; font-size: 0.95em; }
+.sheet .fr > .nu { border-bottom: 1px solid currentColor; padding: 0 3px 1px; } .sheet .fr > .de { padding: 1px 3px 0; }
 .sheet ul.basis, .sheet ol.basis { margin: 3px 0; padding-left: 18px; } .sheet .warns { margin: 3px 0; padding-left: 20px; color: var(--fail); } .sheet .warns.notes { color: #555; }
 .sheet .tblock { margin: 8px 0 12px; } .sheet .tstat { float: right; font-size: 8.5pt; } .sheet .tstat.ok { color: var(--ok); } .sheet .tstat.fail { color: var(--fail); }
 .sheet .rfig { border: 1px solid #ccc; margin: 4px 0; padding: 2px; } .sheet .rfig svg { display: block; width: 100%; height: auto; } .sheet .rfig .elev { max-width: 125mm; margin: 0 auto; overflow: visible; }

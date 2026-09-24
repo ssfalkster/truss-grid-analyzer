@@ -822,6 +822,8 @@
         h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), "Count truss weight against cantilever and moment/shear limits (stricter than the textbook)"),
       h("label", { "class": "mini", title: "Show and type everything in feet and pounds, or metres and kilograms. Only the display changes: the rig, its trusses and hoists, and every result stay exactly the same." }, "Units ",
         select([{ value: "imperial", label: "imperial (ft, lb)" }, { value: "metric", label: "metric (m, kg)" }], U.metric() ? "metric" : "imperial", function (v) { st.units = v === "metric" ? "metric" : undefined; S.commit(); })),
+      h("label", { "class": "mini", title: "Paper size the calculation sheet is laid out and printed on. Saved with the rig; it changes no result." }, "Calc sheet paper ",
+        select(["letter", "a4"].map(function (p) { return { value: p, label: TLA.report.PAPER[p].label }; }), TLA.report.paper(), function (v) { (S.rig.report || (S.rig.report = {})).paper = v; S.commit(); })),
       U.metric() ? null : h("label", { "class": "mini", title: "How length boxes are shown. You can type either way in any length box." }, "Show lengths as ",
         select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); })),
       h("label", { "class": "mini", title: "Used when a hoist has no speed listed (a custom hoist). Hoists with a speed use speed in fpm / 60 + 1 (16 fpm = 4.9 m/min = 1.267). You can also type a factor on any hoist." }, "Default dynamic factor ",
