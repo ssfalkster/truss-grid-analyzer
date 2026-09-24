@@ -145,6 +145,7 @@ main.focus .ctool > :not(.stages):not(#b-add) { display: none; }
 .hoist { --hc: var(--hoist); } .hoist.c-warn { --hc: var(--warn); } .hoist.c-fail { --hc: var(--fail); } .hoist.selected { --hc: var(--accent); }
 .lbl.hoist-dyn { font-size: 10px; font-style: italic; font-weight: 400; fill: var(--muted); }
 .hoist .hsym { fill: var(--panel); stroke: var(--hc); stroke-width: 2.5; cursor: grab; }
+.hoist.hung .hsym { stroke-dasharray: 4 2.5; }
 .hoist .hhalo { stroke: var(--plan-bg); stroke-width: 6; fill: none; stroke-linecap: round; }
 .hoist .hline { stroke: var(--hc); stroke-width: 2.2; fill: none; stroke-linecap: round; }
 .hoist .hdot { fill: var(--hc); stroke: none; }

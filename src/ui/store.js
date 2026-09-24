@@ -94,6 +94,7 @@
     S.rig.trusses = S.rig.trusses.filter(function (t) { return t.id !== tid; });
     S.rig.trusses.forEach(function (t) {
       t.supports = t.supports.filter(function (s) { return !(s.kind === "truss" && s.onTruss === tid); });
+      t.supports.forEach(function (s) { if (s.hangFrom === tid) delete s.hangFrom; });   // its hoists hang from the structure again
       if (t.anchor && t.anchor.block === tid) delete t.anchor;
     });
     S.pruneBlocks();

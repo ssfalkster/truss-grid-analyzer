@@ -85,11 +85,20 @@
       });
     });
 
-    // dependency graph: feeder -> target
-    var feeders = {}, targets = {};
+    // dependency graph: feeder -> target (a truss bolted to another, or hung from it on a hoist)
+    var feeders = {}, targets = {}, hangOf = {};
     rig.trusses.forEach(function (t) { feeders[t.id] = []; targets[t.id] = []; });
     rig.trusses.forEach(function (t) {
       (t.supports || []).forEach(function (s) {
+        if (s.kind === "hoist" && s.hangFrom) {
+          var hp = hangPoint(byId, t, s);
+          if (hp) hangOf[t.id + ":" + s.id] = hp;
+          if (!hp) { warnings.push({ truss: t.id, message: t.name + ": hoist '" + (s.name || s.id) + "' hangs from a truss that does not exist or is this truss - it is treated as hung from the structure" }); return; }
+          if (hp.off) warnings.push({ truss: t.id, kind: "hang", message: t.name + " " + (s.name || "hoist") + ": hangs from " + byId[s.hangFrom].name + " but is not under it on the plan (" + (Math.round(Math.abs(hp.offset) * 12 * 10) / 10) + " in to the side" + (hp.past ? ", past its end" : "") + ") - its load is put on the nearest point of " + byId[s.hangFrom].name + ". Move the hoist or the truss." });
+          if (feeders[hp.truss].indexOf(t.id) < 0) feeders[hp.truss].push(t.id);
+          if (targets[t.id].indexOf(hp.truss) < 0) targets[t.id].push(hp.truss);
+          return;
+        }
         if (s.kind !== "truss") return;
         if (!byId[s.onTruss]) { warnings.push({ truss: t.id, message: t.name + ": support '" + (s.name || s.id) + "' is bolted to a truss that does not exist" }); return; }
         if (s.onTruss === t.id) { warnings.push({ truss: t.id, message: t.name + ": a truss cannot be bolted to itself" }); return; }
@@ -153,6 +162,13 @@
             injected.push(inj);
             loads.push(inj);
           }
+          // a hoist hung below this truss: its high hook load, with its dynamic factor (owner, 2026-09-24)
+          var hp = sr.support.kind === "hoist" && hangOf[fid + ":" + sr.support.id];
+          if (hp && hp.truss === t.id && sr.hoist) {
+            var inj2 = { distance: hp.distance, weight: sr.hoist.dynamicLoad, note: "hoist " + (sr.support.name || "") + " of " + byId[fid].name, source: { truss: fid, support: sr.support.id, hang: true }, injected: true };
+            injected.push(inj2);
+            loads.push(inj2);
+          }
         });
       });
 
@@ -204,8 +220,11 @@
           rec.hoist = TLA.limits.checkHoist(dbHoist(s.hoistId, db), s.chainLength, reaction, s.hardwareWeight, s.dlf, settings.defaultDlf, settings.addPercent);
           if (isSlack) { rec.hoist.status = "Slack"; rec.hoist.slack = true; }
           else if (isUnstable) rec.hoist.status = "UNSTABLE";      // the truss tips: this number means nothing
-          hoistReaction += reaction;
-          hoists.push({ truss: t.id, trussName: t.name, support: s.id, supportName: s.name, layer: layer[t.id], distance: s.distance, reaction: reaction, slack: isSlack, hoist: rec.hoist });
+          var hung = hangOf[t.id + ":" + s.id];
+          // a hoist hung below a truss hangs its own weight on that truss; the structure never sees its load directly
+          if (hung) { rec.hung = hung; applied += rec.hoist.hoistChain + (Number(s.hardwareWeight) || 0); }
+          else hoistReaction += reaction;
+          hoists.push({ truss: t.id, trussName: t.name, support: s.id, supportName: s.name, layer: layer[t.id], distance: s.distance, reaction: reaction, slack: isSlack, hoist: rec.hoist, hung: hung ? hung.truss : null });
         }
         return rec;
       });
@@ -229,14 +248,35 @@
     var bolts = boltFamilies(rig, db);
     bolts.forEach(function (b) { warnings.push({ truss: b.truss, kind: "bolt", level: b.level === "warn" ? "bolt" : "note", message: b.message }); });
 
-    var totals = hoists.reduce(function (a, h) {
-      a.staticLoad += h.hoist.staticLoad; a.dynamicLoad += h.hoist.dynamicLoad; a.hoistChain += h.hoist.hoistChain; a.count++;
-      return a;
-    }, { staticLoad: 0, dynamicLoad: 0, hoistChain: 0, count: 0 });
+    var totals = sumHoists(hoists);
     totals.applied = applied;
     totals.hoistReaction = hoistReaction;
 
     return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable, bolts: bolts };
+  }
+
+  /** Totals over the hoists that hang from the structure (a hoist hung below a truss is inside the rig: its load
+   * reaches the structure through the carrier's hoists). count is every hoist. */
+  function sumHoists(hoists) {
+    return hoists.reduce(function (a, h) {
+      a.count++;
+      if (h.hung) { a.hung++; return a; }
+      a.staticLoad += h.hoist.staticLoad; a.dynamicLoad += h.hoist.dynamicLoad; a.hoistChain += h.hoist.hoistChain;
+      return a;
+    }, { staticLoad: 0, dynamicLoad: 0, hoistChain: 0, count: 0, hung: 0 });
+  }
+
+  /** Where a hoist hung below a truss (support.hangFrom) hooks onto it: the chain is vertical, so the hoist's plan
+   * point projected onto the carrier. A corner block hangs it at the block (the block's own centre). Returns
+   * { truss (the carrier, block or truss), distance, offset ft, off: not under it } or null. */
+  function hangPoint(byId, t, s) {
+    var c = byId[s.hangFrom];
+    if (!c || c === t) return null;
+    if (c.isBlock) return { truss: c.id, distance: (c.length || 0) / 2, offset: 0, off: false };
+    var p = endPoint(t, Number(s.distance) || 0), q = project(c, p), L = Number(c.length) || 0;
+    var d = Math.min(Math.max(q.distance, 0), L), past = q.distance < -0.05 || q.distance > L + 0.05;
+    var tol = widthFt(c) / 2 + 0.25;
+    return { truss: c.id, distance: d, offset: q.offset, past: past, off: past || Math.abs(q.offset) > tol };
   }
 
   function describeSeg(s) {
@@ -512,5 +552,5 @@
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);

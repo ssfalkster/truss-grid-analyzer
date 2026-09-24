@@ -220,6 +220,20 @@
     if (r && r.clamped) alert(r.clamped + " load(s) were past the end of " + dst.name + " and were placed at its end.");
   }
 
+  /** Where a hoist hangs (1.22.0): the structure, or below another truss (type its name). */
+  function hangCell() {
+    var opts = [["", "structure"]].concat(S.rig.trusses.filter(function (t) { return !t.isBlock; }).map(function (t) { return [t.id, "below " + t.name]; }));
+    function label(v) { var o = opts.filter(function (x) { return x[0] === (v || ""); })[0]; return o ? o[1] : "structure"; }
+    return { key: "hang", label: "Hangs from", type: "select", options: opts, get: function (s) { return label(s.hangFrom); }, raw: function (s) { return s.hangFrom || ""; },
+      parse: function (q) {
+        q = String(q).trim().toLowerCase().replace(/^below\s+/, "");
+        if (!q || q === "structure" || q === "roof" || q === "grid") return "";
+        var o = opts.filter(function (x) { return x[0] === q || x[1].toLowerCase().replace(/^below\s+/, "") === q; })[0];
+        return o ? o[0] : undefined;
+      },
+      set: function (s, v, row) { s.hangFrom = v && v !== row.truss.id ? v : undefined; } };
+  }
+
   /* ---------------- step 3: hoists ---------------- */
   function hoists() {
     var len = function (row) { return row.truss.length; };
@@ -232,7 +246,8 @@
         parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { s.hoistId = x.id; } },
       Object.assign({ key: "chain", label: "Chain (" + U.unit("len") + ")" }, lenCell(function (s) { return s.chainLength || 0; }, function (s, v) { s.chainLength = Math.max(0, v); })),
       Object.assign({ key: "dlf", label: "DLF" }, numCell(function (s) { return s.dlf; }, function (s, v) { s.dlf = v > 0 ? v : undefined; }, { blank: 0, ph: function (s) { var x = X(s); return "auto " + (x ? P.fmt(x.hoist.dynamicFactor, 3) : ""); } })),
-      Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1))
+      Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1)),
+      hangCell()
     ];
     if (st.cmp) {
       [["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
