@@ -172,5 +172,15 @@
       .replace(/^TOO LONG!/, "Too long").replace(/^UNSTABLE\b/, "Unstable").replace(/^Over$/, "Overloaded");
   }
 
-  TLA.limits = { checkTruss: checkTruss, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
+  var DEFL_DEFAULT = 160;
+  /** Deflection limit for a truss entry as span / ratio (1.18.0): the maker's published limit where there is one
+   * (data/deflection.js), else the rig's default (settings.deflectionLimit, L/160). */
+  function deflectionLimit(truss, settings) {
+    var rules = (TLA.data && TLA.data.deflection) || [];
+    var r = truss && rules.filter(function (x) { return x.manufacturer === truss.manufacturer && (!x.source || x.source === truss.source) && (!x.sheet || String(truss.source_ref || "").indexOf(x.sheet) >= 0); })[0];
+    if (r) return { ratio: r.ratio, source: "maker", note: r.note };
+    var d = settings && Number(settings.deflectionLimit) > 0 ? Number(settings.deflectionLimit) : DEFL_DEFAULT;
+    return { ratio: d, source: "default", note: "no limit published by the maker - rig default L/" + d };
+  }
+  TLA.limits = { checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
 })(typeof globalThis !== "undefined" ? globalThis : window);

@@ -193,6 +193,26 @@
    * load-path diagrams: points with shear just left/right and moment, sagging positive, plus extremes), and the
    * vertical force in every bolted connection (upward on the truss that is bolted, lb). wOf(bm) overrides the
    * uniform load a beam carries in this load case. */
+  /** Deflected shape of one truss (1.18.0): [[x ft, w ft up], ...]. Between nodes the element carries only its uniform
+   * load, so with M(x) = M0 + V x - w x^2 / 2 (sagging +, w up) the exact Timoshenko shape is the end displacements
+   * joined by a straight line, plus the bending part (w'' = M / EI) and the shear part (w' = -V / GA, i.e. -M / GA),
+   * each made zero at both ends. Output only - nothing else reads it. */
+  function deflected(bm, nds, seg, w) {
+    var EI = bm.EI, GA = bm.GA > 0 && isFinite(bm.GA) ? bm.GA : Infinity, pts = [];
+    nds.forEach(function (nd, e) {
+      var sg = seg[e]; if (!sg) return;
+      var L = sg.L, x0 = nd.d;
+      function B(x) { return (sg.M0 * x * x / 2 + sg.V * x * x * x / 6 - w * x * x * x * x / 24) / EI; }
+      function Sh(x) { return isFinite(GA) ? -(sg.M0 + sg.V * x - w * x * x / 2) / GA : 0; }
+      var BL = B(L), S0 = Sh(0), SL = Sh(L), n = 8;
+      for (var k = e === 0 ? 0 : 1; k <= n; k++) {
+        var x = L * k / n, lin = sg.wA + (sg.wB - sg.wA) * x / L;
+        pts.push([x0 + x, lin + (B(x) - BL * x / L) + (Sh(x) - (S0 + (SL - S0) * x / L))]);
+      }
+    });
+    return pts;
+  }
+
   function forces(model, sol, wOf) {
     var beams = model.beams, U = sol.U, members = {}, ext = {};
     beams.forEach(function (bm, bi) {
@@ -205,7 +225,7 @@
         for (r = 0; r < 6; r++) { var v2 = -w * el.fl[r]; for (q = 0; q < 6; q++) v2 += el.Kl[r][q] * ul[q]; f.push(v2); }
         ext[bi + ":" + e] += f[0]; ext[bi + ":" + (e + 1)] += f[3];
         // end forces on the element: V up at the left end, moments in the slope sense; M(x) = -m1 + V1 x - w x^2 / 2
-        seg[e] = { L: el.L, V: f[0], M0: -f[1], T: Math.abs(f[2]) };
+        seg[e] = { L: el.L, V: f[0], M0: -f[1], T: Math.abs(f[2]), wA: ul[0], wB: ul[3] };
       }
       var scale = 0;
       seg.forEach(function (sg) { if (sg) scale = Math.max(scale, Math.abs(sg.M0), Math.abs(sg.M0 + sg.V * sg.L - w * sg.L * sg.L / 2)); });
@@ -228,6 +248,7 @@
         if (v > out.maxShear) { out.maxShear = v; out.atShear = p.x; }
       });
       out.maxMoment = Math.max(out.maxSag, out.maxHog);
+      out.defl = deflected(bm, nds, seg, w);
       members[bm.t.id] = out;
     });
     // what is left at a node after the hoists there comes through its bolted connections: peel the link tree from
@@ -487,6 +508,44 @@
   }
 
   /** The span/cantilever table checks of one truss with the loads and slack hoists of one whole-rig analysis. */
+  /** Deflection of each span of a truss (1.18.0): the sag relative to the straight line between its two supports
+   * (so a carrier truss sagging under a bolted one, or a hoist stretching, is not counted against the span), worst
+   * of the joint models, against span / ratio. Past a maker's published limit the truss fails; past the rig default
+   * it is a warning. Cantilever tips are reported, not checked (the makers' limits are for simple spans). */
+  function deflectionCheck(t, res, out, MODELS, st) {
+    var lim = TLA.limits.deflectionLimit(res.dbTruss, st), spans = [], cants = [];
+    MODELS.forEach(function (mm) {
+      var mf = out[mm].forces.members[t.id], bw = res.byModel && res.byModel[mm];
+      if (!mf || !mf.defl || !bw) return;
+      var d = mf.defl, P = bw.beam.positions || [];
+      function at(x) {
+        for (var i = 1; i < d.length; i++) if (d[i][0] >= x - 1e-9) { var a = d[i - 1], b = d[i]; return b[0] - a[0] < 1e-12 ? b[1] : a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]); }
+        return d.length ? d[d.length - 1][1] : 0;
+      }
+      for (var i = 0; i + 1 < P.length; i++) {
+        var a = P[i], b = P[i + 1], L = b - a; if (L < 1e-6) continue;
+        var wa = at(a), wb = at(b), mx = 0, x0 = a;
+        d.forEach(function (p) { if (p[0] < a - 1e-9 || p[0] > b + 1e-9) return; var rel = Math.abs(p[1] - (wa + (wb - wa) * (p[0] - a) / L)); if (rel > mx) { mx = rel; x0 = p[0]; } });
+        var allowed = L / lim.ratio, u = mx / allowed, k = spans.length ? spans.filter(function (s) { return Math.abs(s.from - a) < 1e-6 && Math.abs(s.to - b) < 1e-6; })[0] : null;
+        var row = { index: i + 1, from: a, to: b, length: L, max: mx, at: x0, ratio: lim.ratio, allowed: allowed, util: u, model: mm };
+        if (!k) spans.push(row); else if (u > k.util) Object.assign(k, row);
+      }
+      if (P.length) [["left", 0, P[0]], ["right", t.length, P[P.length - 1]]].forEach(function (c) {
+        if (Math.abs(c[1] - c[2]) < 1e-6) return;
+        var tip = Math.abs(at(c[1]) - at(c[2])), k2 = cants.filter(function (x) { return x.side === c[0]; })[0];
+        if (!k2) cants.push({ side: c[0], length: Math.abs(c[1] - c[2]), tip: tip, model: mm }); else if (tip > k2.tip) { k2.tip = tip; k2.model = mm; }
+      });
+    });
+    if (!spans.length && !cants.length) return null;
+    spans.sort(function (a, b) { return a.from - b.from; });
+    spans.forEach(function (s, i) { s.index = i + 1; });
+    // 1.18.0 (owner): past the maker's own published limit the truss fails - their allowable loads are set by it;
+    // past the rig default (no maker limit) it is a warning only
+    spans.forEach(function (s) { s.fail = lim.source === "maker" && s.util > 1 + 1e-9; });
+    var util = spans.reduce(function (m, s) { return Math.max(m, s.util); }, 0);
+    return { ratio: lim.ratio, source: lim.source, note: lim.note, spans: spans, cantilevers: cants, util: util, fail: spans.some(function (s) { return s.fail; }) };
+  }
+
   function checkWith(t, res, sol, rig, byId, results, model) {
     var slack = {}; sol.slack.forEach(function (id) { slack[id] = true; });
     var sups = (t.supports || []).filter(function (s) { return !(s.kind === "hoist" && slack[t.id + ":" + s.id]); });
@@ -548,6 +607,10 @@
       MODELS.forEach(function (mm) { res.memberForces[mm] = out[mm].forces.members[id]; });
       var bm = out.model.beams.filter(function (b) { return b.t.id === id; })[0];
       if (bm) res.section = bm.section;
+      res.deflection = deflectionCheck(t, res, out, MODELS, st);
+      (res.deflection ? res.deflection.spans : []).forEach(function (sp) {
+        if (sp.util > 1 + 1e-9) W.push({ truss: id, kind: "deflection", message: t.name + ": " + (sp.fail ? "Overloaded - " : "") + "span " + sp.index + " (" + (Math.round(sp.length * 100) / 100) + " ft) deflects about " + (Math.round(sp.max * 12 * 100) / 100) + " in, more than span/" + sp.ratio + " (" + (Math.round(sp.allowed * 12 * 100) / 100) + " in) - " + res.deflection.note + " (" + MODEL_LABEL[sp.model] + ")" });
+      });
       // the reactions shown with this truss's diagram are from the same joint model as its checks
       res.supports.forEach(function (sr) {
         var key = id + ":" + sr.support.id;

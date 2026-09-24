@@ -329,4 +329,66 @@
     res = S.results.trusses[t.id]; a = res.limits.member; b = res.loadPath.limits.member;
     near(a.moment, b.moment, 0.05 * b.moment, "moment within 5% of the three-moment answer"); near(a.shear, b.shear, 0.05 * b.shear, "shear");
   });
+
+  /* 1.18.0: deflected shape from the whole-rig analysis, against the textbook simple-span formulas (Timoshenko:
+   * bending + shear). The shape is output only - it must not move any reaction. */
+  function oneSpan(opts) {
+    S.newRig();
+    var t = S.addTruss({ name: "D", length: 20, hoists: [0, 20] });
+    t.weightless = !!opts.weightless; t.loads = opts.loads || []; S.commit();
+    var res = S.results.trusses[t.id], m = res.model, d = res.memberForces[m].defl, sec = res.section;
+    var mid = d.filter(function (p) { return Math.abs(p[0] - 10) < 1e-9; })[0];
+    return { t: t, res: res, mid: mid, d: d, EI: sec.EI, GA: sec.GA };
+  }
+  add("deflection: point load at midspan of a weightless span = PL^3/48EI + PL/4GA, zero at the hoists", function () {
+    var o = oneSpan({ weightless: true, loads: [{ id: "l1", distance: 10, weight: 500, note: "P", mirror: false }] });
+    eq(S.results.primary, "grillage", "whole-rig analysis ran");
+    var P = 500, L = 20, exp = P * L * L * L / (48 * o.EI) + P * L / (4 * o.GA);
+    near(-o.mid[1], exp, 1e-6 * exp + 1e-12, "midspan sag (ft)");
+    near(o.d[0][1], 0, 1e-12, "at the start hoist"); near(o.d[o.d.length - 1][1], 0, 1e-12, "at the end hoist");
+  });
+  add("deflection: truss self weight on a simple span = 5wL^4/384EI + wL^2/8GA", function () {
+    var o = oneSpan({}), w = o.res.dbTruss.weight_per_ft_lb, L = 20;
+    var exp = 5 * w * Math.pow(L, 4) / (384 * o.EI) + w * L * L / (8 * o.GA);
+    near(-o.mid[1], exp, 1e-6 * exp, "midspan sag (ft)");
+    o.d.forEach(function (p) { if (p[1] > 1e-12) throw new Error("a simple span only sags: " + p); });
+  });
+  add("deflection limit: maker's published ratio where there is one, else the rig default", function () {
+    var db = TLA.data.trusses, lim = TLA.limits.deflectionLimit;
+    var tom = db.filter(function (x) { return x.manufacturer === "Tomcat" && x.source === "MFG"; })[0];
+    eq(lim(tom, {}).ratio, 100, "Tomcat L/100"); eq(lim(tom, {}).source, "maker");
+    var gal = db.filter(function (x) { return x.manufacturer === "JTE" && /Galaxy 240/.test(x.description); })[0];
+    eq(lim(gal, {}).ratio, 160, "JTE Galaxy L/160");
+    var gp = db.filter(function (x) { return x.manufacturer === "JTE" && x.description === "General Purpose 12x12"; })[0];
+    eq(lim(gp, {}).source, "default", "JTE GP 12x12 states no limit"); eq(lim(gp, {}).ratio, 160, "default L/160");
+    eq(lim(gp, { deflectionLimit: 240 }).ratio, 240, "rig default");
+  });
+  add("deflection check: past the rig default it is a warning only, hoist statuses unchanged", function () {
+    var o = oneSpan({ loads: [{ id: "l1", distance: 10, weight: 900, note: "P", mirror: false }] });
+    var dc = o.res.deflection, sp = dc.spans[0];
+    near(sp.max, -o.mid[1], 1e-9, "span sag = midspan sag (hoists do not move)");
+    near(sp.allowed, 20 / dc.ratio, 1e-12, "allowed = span / ratio");
+    S.rig.settings.deflectionLimit = 100000; S.commit();
+    var tight = S.results.warnings.filter(function (w) { return w.kind === "deflection"; }).length;
+    eq(tight, 1, "flagged at L/100000");
+    var before = S.results.hoists.map(function (h) { return h.hoist.status; }).join();
+    S.rig.settings.deflectionLimit = 10; S.commit();
+    eq(S.results.warnings.filter(function (w) { return w.kind === "deflection"; }).length, 0, "not flagged at L/10");
+    eq(S.results.hoists.map(function (h) { return h.hoist.status; }).join(), before, "hoist statuses unchanged");
+  });
+  add("deflection check: past the maker's published limit the truss fails (Tomcat L/100)", function () {
+    S.newRig();
+    var tom = TLA.data.trusses.filter(function (x) { return x.manufacturer === "Tomcat" && x.source === "MFG"; })[0];
+    var t = S.addTruss({ name: "D", length: 20, hoists: [0, 20], trussId: tom.id });
+    t.loads = [{ id: "l1", distance: 10, weight: 50, note: "P", mirror: false }]; S.commit();
+    var res = S.results.trusses[t.id];
+    eq(res.deflection.source, "maker"); eq(res.deflection.ratio, 100);
+    var ok = TLA.plan.trussStatus(res).bad;
+    // scale the truss's stiffness down until the span sags past L/100, with the same load
+    t.eiScale = 0.0005; S.commit(); res = S.results.trusses[t.id];
+    eq(res.deflection.fail, true, "past L/100");
+    eq(TLA.plan.trussStatus(res).bad, true, "truss fails");
+    eq(S.results.warnings.some(function (w) { return w.kind === "deflection" && /Overloaded/.test(w.message); }), true, "warning says Overloaded");
+    eq(ok, false, "and it passed before");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);
