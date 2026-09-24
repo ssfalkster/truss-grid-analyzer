@@ -1646,6 +1646,40 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     return seen;
   }
 
+  /* ------------------------------------------------------------------ measured vs calculated (1.22.0, item 7)
+   * Load-cell readings typed on the hoists (support.measured, lb) against the calculated load: the high hook static
+   * load, or the low hook load when Rig settings say the cells hang between the hoist and the truss
+   * (settings.cellReads === "low"). One hoist on an indeterminate rig can legitimately differ a lot from the model
+   * (level, stiffness), so the comparison that counts is per assembly (trusses joined by bolts or hung hoists): the
+   * total of its measured hoists against their calculated total, flagged past MEAS_TOL. Hung hoists are inside an
+   * assembly, so only hoists to the structure are totalled. Information only - no result changes. */
+  var MEAS_TOL = 0.05;
+  /** A difference as "+3.0%" / "-4.1%" / "0.0%" (never "-0%"). */
+  function pctText(d) { var v = Math.round(d * 1000) / 10; return (v > 0 ? "+" : "") + (v === 0 ? "0.0" : v.toFixed(1)) + "%"; }
+  function measured(rig, results) {
+    var st = rig.settings || {}, low = st.cellReads === "low", byId = {}, out = { hoists: {}, assemblies: [], any: false, tol: MEAS_TOL, reads: low ? "low" : "high" };
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    var groups = {}, order = [];
+    (results.hoists || []).forEach(function (h) {
+      var s = ((byId[h.truss] || {}).supports || []).filter(function (x) { return x.id === h.support; })[0];
+      if (!s || !(Number(s.measured) >= 0) || s.measured === "" || s.measured == null) return;
+      var calc = low ? h.hoist.reaction : h.hoist.staticLoad, m = Number(s.measured), key = h.truss + ":" + h.support;
+      out.any = true;
+      out.hoists[key] = { measured: m, calc: calc, diff: calc ? (m - calc) / calc : null };
+      if (h.hung) return;
+      var asm = assembly(rig, h.truss), gk = Object.keys(asm).sort()[0];
+      if (!groups[gk]) { groups[gk] = { ids: asm, measured: 0, calc: 0, n: 0 }; order.push(gk); }
+      groups[gk].measured += m; groups[gk].calc += calc; groups[gk].n++;
+    });
+    order.forEach(function (gk) {
+      var g = groups[gk], names = rig.trusses.filter(function (t) { return g.ids[t.id] && !t.isBlock; }).map(function (t) { return t.name; });
+      var total = (results.hoists || []).filter(function (h) { return g.ids[h.truss] && !h.hung; }).length;
+      var d = g.calc ? (g.measured - g.calc) / g.calc : null;
+      out.assemblies.push({ names: names, n: g.n, of: total, measured: g.measured, calc: g.calc, diff: d, over: d !== null && Math.abs(d) > MEAS_TOL, first: names[0] });
+    });
+    return out;
+  }
+
   /** Totals over the hoists that hang from the structure (a hoist hung below a truss is inside the rig: its load
    * reaches the structure through the carrier's hoists). count is every hoist. */
   function sumHoists(hoists) {
@@ -1943,7 +1977,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { effective: effective, cableOf: cableOf, loadFactor: loadFactor, LOAD_CATS: LOAD_CATS, assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { pctText: pctText, measured: measured, MEAS_TOL: MEAS_TOL, effective: effective, cableOf: cableOf, loadFactor: loadFactor, LOAD_CATS: LOAD_CATS, assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -3839,6 +3873,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       });
     })();
     try { TLA.grillage.annotate(S.rig, S.results, db()); } catch (e) { S.results.compat = { ok: false, note: "Whole-rig analysis failed: " + e.message }; }
+    // 1.22.0: load-cell readings against the calculation, per assembly (information only)
+    var ms = S.results.measured = TLA.rig.measured(S.rig, S.results);
+    ms.assemblies.forEach(function (a) {
+      if (!a.over) return;
+      var t0 = S.rig.trusses.filter(function (t) { return t.name === a.first; })[0];
+      S.results.warnings.push({ truss: t0 && t0.id, kind: "measured", level: "measured", message: "Measured loads: " + a.names.join(", ") + " - the " + a.n + " load cell" + (a.n === 1 ? "" : "s") + " read " + Math.round(a.measured) + " lb against " + Math.round(a.calc) + " lb calculated (" + (a.diff > 0 ? "+" : "") + Math.round(a.diff * 1000) / 10 + "%, more than " + Math.round(TLA.rig.MEAS_TOL * 100) + "%)" + (a.n < a.of ? " - " + (a.of - a.n) + " of its hoists have no reading, so compare those too" : "") + ". Check the rig against the model: weights, positions, levels." });
+    });
     return S.results;
   };
 
@@ -5216,6 +5257,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (x.hoist.capacity < 999999) c.appendChild(h("div", { "class": "checks" }, barRow("Workload", x.hoist.staticLoad / x.hoist.capacity, "High hook static / capacity")));
       if (x.level) c.appendChild(h("div", { "class": "sub" + (x.level.low < 0 ? " hotline" : "") }, "Out of level ±" + U.f("inch", x.level.tol * 12, 2) + " (Rig settings): up to ", h("b", { text: "+" + U.f("w", x.level.add, 0) }), " on this hoist - included in its high hook load; on the low side " + U.f("w", x.level.low, 0) + (x.level.low < 0 ? ", so it could go slack." : ".")));
       if (x.trim) c.appendChild(h("div", { "class": "sub" + (hot ? " hotline" : "") }, "Level sensitivity: ", h("b", { text: "±" + U.f("w", Math.abs(x.trim.self), 0) }), " if this hoist runs 1/4\" (6 mm) high or low" + (x.trim.other ? "; " + x.trim.other.name + " changes by " + U.f("w", x.trim.other.lb, 0) : "") + (hot ? " - more than 10% of its capacity: level it carefully." : ".")));
+      var ms = S.results.measured && S.results.measured.hoists[t.id + ":" + s.id], lowCell = S.rig.settings && S.rig.settings.cellReads === "low";
+      c.appendChild(h("div", { "class": "grid2" }, field("Load cell reading (" + U.unit("w") + ")", (function () {
+        var i = h("input", { type: "number", step: "any", min: 0, "class": "num", value: s.measured != null && s.measured !== "" ? Math.round(U.v("w", s.measured) * 10) / 10 : "", placeholder: "none", title: "What a load cell on this hoist reads (" + (lowCell ? "between the hoist and the truss: compared with the low hook load" : "above the hoist: compared with the high hook static load") + " - set in Rig settings). Blank = no reading." });
+        i.addEventListener("change", function () { var v = parseFloat(i.value); if (i.value.trim() === "" || !(v >= 0)) delete s.measured; else s.measured = U.back("w", v); S.commit(); });
+        return i;
+      })())));
+      if (ms && ms.diff !== null) c.appendChild(h("div", { "class": "sub" + (Math.abs(ms.diff) > TLA.rig.MEAS_TOL ? " hotline" : "") }, "Measured " + U.f("w", ms.measured, 0) + " against " + U.f("w", ms.calc, 0) + " calculated (" + (lowCell ? "low hook" : "high hook static") + "): ", h("b", { text: TLA.rig.pctText(ms.diff) }), ". One hoist can differ a lot on a rig that shares load (level, stiffness) - compare the assembly's total in the rig panel."));
       var a = TLA.grillage.attribution(S.rig, S.results, S.db(), t.id, s.id);
       if (a) {
         c.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Where the load comes from" }), h("th", { "class": "r", text: U.unit("w") }))), h("tbody", null,
@@ -5376,6 +5424,17 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         h("button", { "class": "primary", text: "+ Truss", onclick: function () { S.addTruss({ hoists: [] }); } })));
       return;
     }
+    // 1.22.0: load-cell readings against the calculation, per assembly
+    var mss = r.measured;
+    if (mss && mss.any) {
+      var mc = group(root, "measured", "Measured vs calculated", true, mss.assemblies.some(function (a) { return a.over; }) ? "differs" : "within " + Math.round(mss.tol * 100) + "%");
+      mc.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Assembly" }), h("th", { "class": "r", text: "Cells" }), h("th", { "class": "r", text: "Measured" }), h("th", { "class": "r", text: "Calculated" }), h("th", { "class": "r", text: "Diff." }))),
+        h("tbody", null, mss.assemblies.map(function (a) {
+          return h("tr", null, h("td", { text: a.names.join(", ") }), h("td", { "class": "r", text: a.n + "/" + a.of }), h("td", { "class": "r", text: U.n("w", a.measured, 0) }), h("td", { "class": "r", text: U.n("w", a.calc, 0) }),
+            h("td", { "class": "r" }, h("span", { "class": a.over ? "st w" : "", text: a.diff === null ? "-" : TLA.rig.pctText(a.diff) })));
+        }))));
+      mc.appendChild(h("div", { "class": "sub", text: "Load cells read the " + (mss.reads === "low" ? "low hook load (between hoist and truss)" : "high hook static load (above the hoist)") + " - Rig settings. Flagged past " + Math.round(mss.tol * 100) + "% for an assembly's total; single hoists can differ more on a rig that shares load." }));
+    }
     // 1.22.0: the check-rig list - input mistakes, found on every change (click one to select what it is about)
     var chk = r.warnings.filter(function (w) { return w.kind === "check"; });
     var c = group(root, "check", "Check rig", chk.some(function (w) { return w.level === "check"; }), chk.length ? chk.length + " to look at" : "nothing found");
@@ -5515,6 +5574,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         "How much a hoist and its chain stretch under load (for example " + (U.metric() ? "27 kg/mm" : "1500 lb/in") + " for a 1-ton chain hoist on a long drop - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive."),
       row("Out-of-level tolerance ± (" + U.unit("inch") + ")", numInput(Number(st.levelTolerance) > 0 ? st.levelTolerance : "", function (v) { st.levelTolerance = v > 0 ? v : undefined; S.commit(); }, { q: "inch", placeholder: "off" }),
         "How far any hoist may end up off its level, each on its own (e.g. 1/4\" = 0.25). Each hoist's check then carries the worst it could see: the sum of what every hoist alone running that much high or low does to it (from the whole-rig analysis). Short, stiff spans are very level-sensitive. Blank = off (hoists exactly level). For a hoist trimmed on purpose, use its own Level offset."),
+      row("Load cells read", select([{ value: "high", label: "high hook static (cell above the hoist)" }, { value: "low", label: "low hook (cell between hoist and truss)" }], st.cellReads === "low" ? "low" : "high", function (v) { st.cellReads = v === "low" ? "low" : undefined; S.commit(); }),
+        "Where the load cells hang, for the Measured column of the hoists: readings are compared with that calculated load, and each assembly's total is flagged when it is more than 5% off."),
       row("Hoists hung below a truss", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: st.hungDynamic !== false, onchange: function (e) { st.hungDynamic = e.target.checked ? undefined : false; S.commit(); } }), h("span", { text: "The carrier's hoists also take the hung hoist's dynamic load (on by default)" })),
         "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies)."),
       row("Dead hang rope design factor", select([7, 8, 10].map(function (f) { return { value: String(f), label: f + ":1" + (f === TLA.limits.ROPE_DF ? " (default)" : "") }; }), String(TLA.limits.ropeFactor(st)), function (v) { st.ropeDesignFactor = +v === TLA.limits.ROPE_DF ? undefined : +v; S.commit(); }),
@@ -5931,6 +5992,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.dynamicLoad, 1) : "-"; }, { r: true }), { key: "hhd", label: "High hook dyn. (" + U.unit("w") + ")" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.hoist.capacity < 999999 ? P.wlCell(x.hoist.staticLoad / x.hoist.capacity).outerHTML : "-"; }, { html: true }), { key: "wl", label: "Workload" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? P.badge(x.hoist.status).outerHTML : "-"; }, { html: true }), { key: "st", label: "Status" }));
+    // 1.22.0: load-cell reading (blank = none) and how far it is from the calculation
+    cols.push({ key: "meas", label: "Measured (" + U.unit("w") + ")", type: "w", r: true, get: function (s) { return s.measured != null && s.measured !== "" ? U.n("w", s.measured, 0) : ""; }, raw: function (s) { return s.measured != null && s.measured !== "" ? String(Math.round(U.v("w", s.measured) * 10) / 10) : ""; },
+      parse: function (q) { if (String(q).trim() === "") return null; var v = parseFloat(String(q).replace(/,/g, "")); return isFinite(v) && v >= 0 ? U.back("w", v) : undefined; }, set: function (s, v) { if (v === null) delete s.measured; else s.measured = v; } });
+    cols.push(Object.assign(roCell(function (s, row) { var m = S.results.measured && S.results.measured.hoists[row.truss.id + ":" + s.id]; return m && m.diff !== null ? '<span class="' + (Math.abs(m.diff) > TLA.rig.MEAS_TOL ? "st w" : "mut") + '">' + TLA.rig.pctText(m.diff) + "</span>" : ""; }, { r: true, html: true }), { key: "mdiff", label: "vs calc." }));
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")";
     var rows = [];
     S.rig.trusses.forEach(function (t) {
@@ -6972,6 +7037,15 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
     }
 
+    // 1.22.0: load-cell readings against the calculation
+    var mss = r.measured;
+    if (mss && mss.any && r.hoists.length) {
+      s4.appendChild(para("4c. Measured loads (load cells reading the " + (mss.reads === "low" ? "low hook load" : "high hook static load") + ") against the calculation, per assembly; flagged past " + Math.round(mss.tol * 100) + "% of the total.", "cap"));
+      s4.appendChild(table("small", ["Assembly", ["Cells", "r"], ["Measured", "r"], ["Calculated", "r"], ["Difference", "r"]], mss.assemblies.map(function (a) {
+        return h("tr", null, td(a.names.join(", ")), tdr(a.n + " of " + a.of), tdr(Wn(a.measured)), tdr(Wn(a.calc)), td(a.diff === null ? "-" : TLA.rig.pctText(a.diff), a.over ? "fail" : "ok"));
+      })));
+    }
+
     /* ---- 5. equilibrium ---- */
     var s5 = sec(sheet, next(), "Equilibrium (self-checks)");
     var eqRows = [h("tr", null, td("Weight carried"), tdr(W(tot.applied, 1)), td(""))];
@@ -7350,6 +7424,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Hoist levels (since 1.22.0)</b>: two separate things. A <i>Level offset</i> on a hoist (inches, + higher) is a designed trim - a truss hung raked or at a different height on purpose, or a dead hang whose length is fixed: the whole-rig analysis solves the rig with that point moved, and the loads shift accordingly. The <i>out-of-level tolerance</i> in Rig settings (e.g. ±1/4\") is unintended error: any hoist may end up that far off, each on its own, and every hoist's check carries the worst it could see (the sum of what each hoist alone does to it); the low side is reported, and a hoist that could unload completely is warned about. Both need the whole-rig analysis.</li>" +
     "<li><b>Check rig (since 1.22.0)</b>: on every change the app looks for input mistakes that the calculation would otherwise take at face value - a load with no weight, two hoists at the same point, a bolted assembly with fewer than 3 hoists or all of them in one line, bolted ends that don't meet on the plan, trusses that cross with no joint (a note: they may run one above the other), a hoist with no model. They are listed in the rig's panel (Check rig) and with the warnings; click one to select it. The truss panel's <i>Connected</i> button dims everything not joined to that truss, to spot a part that is not connected. Nothing here changes a result.</li>" +
     "<li><b>Allowances (since 1.22.0)</b>: weight the drawing doesn't show. A <i>cable allowance</i> per length (Rig settings, or a truss's own in its panel; 0 = none) is added to each truss's UDL. <i>Load factors</i> by category (lighting, audio, video, scenic, rigging hardware, other) multiply each load's weight - set a load's category in its panel or the Loads grid; fixtures from the library are lighting. Everything is calculated with the factored weights; the loads keep the weights you typed. (Eurocode partial factors are not used: the manufacturers' tables are allowable loads.)</li>" +
+    "<li><b>Measured vs calculated (since 1.22.0)</b>: type what each load cell reads in the hoist grid's Measured column (or the hoist's panel). Rig settings says where the cells hang - above the hoist (compared with the high hook static load) or between hoist and truss (the low hook load). The rig panel totals each assembly of joined trusses and flags it past 5%; a single hoist on a rig that shares load can legitimately differ more (level, stiffness). Readings never change a result.</li>" +
     "<li><b>Slack hoists</b>: a chain can only pull. If the loads would push a hoist up (a negative reaction - typically a hoist next to a heavily loaded span or cantilever), its chain goes slack: the hoist is shown as <b>Slack</b>, carries only its own weight, and the truss is solved again without it, so the other hoists and the span checks see the real, longer spans. If that leaves a truss with a single support point, it would tip: it is flagged <b>UNSTABLE</b> and its numbers must not be used.</li>",
     "<li><b>Units</b>: the Units setting in Rig settings shows and takes everything in feet and pounds or in metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm). Only the display changes: the rig is stored and solved the same way, so every result and every truss or hoist choice stays exactly as it was. Trusses whose manufacturer data is metric are checked against their own metric table in either mode.</li>",
     "<li>Loads are based on ANSI repetitive-use rules: capacities are multiplied by 0.85 unless the truss data is marked as already including the repetitive-use factor (the generic <i>Universal</i> trusses from EOT 2.4 use 0.75).</li>",

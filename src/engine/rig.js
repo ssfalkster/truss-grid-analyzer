@@ -388,6 +388,40 @@
     return seen;
   }
 
+  /* ------------------------------------------------------------------ measured vs calculated (1.22.0, item 7)
+   * Load-cell readings typed on the hoists (support.measured, lb) against the calculated load: the high hook static
+   * load, or the low hook load when Rig settings say the cells hang between the hoist and the truss
+   * (settings.cellReads === "low"). One hoist on an indeterminate rig can legitimately differ a lot from the model
+   * (level, stiffness), so the comparison that counts is per assembly (trusses joined by bolts or hung hoists): the
+   * total of its measured hoists against their calculated total, flagged past MEAS_TOL. Hung hoists are inside an
+   * assembly, so only hoists to the structure are totalled. Information only - no result changes. */
+  var MEAS_TOL = 0.05;
+  /** A difference as "+3.0%" / "-4.1%" / "0.0%" (never "-0%"). */
+  function pctText(d) { var v = Math.round(d * 1000) / 10; return (v > 0 ? "+" : "") + (v === 0 ? "0.0" : v.toFixed(1)) + "%"; }
+  function measured(rig, results) {
+    var st = rig.settings || {}, low = st.cellReads === "low", byId = {}, out = { hoists: {}, assemblies: [], any: false, tol: MEAS_TOL, reads: low ? "low" : "high" };
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    var groups = {}, order = [];
+    (results.hoists || []).forEach(function (h) {
+      var s = ((byId[h.truss] || {}).supports || []).filter(function (x) { return x.id === h.support; })[0];
+      if (!s || !(Number(s.measured) >= 0) || s.measured === "" || s.measured == null) return;
+      var calc = low ? h.hoist.reaction : h.hoist.staticLoad, m = Number(s.measured), key = h.truss + ":" + h.support;
+      out.any = true;
+      out.hoists[key] = { measured: m, calc: calc, diff: calc ? (m - calc) / calc : null };
+      if (h.hung) return;
+      var asm = assembly(rig, h.truss), gk = Object.keys(asm).sort()[0];
+      if (!groups[gk]) { groups[gk] = { ids: asm, measured: 0, calc: 0, n: 0 }; order.push(gk); }
+      groups[gk].measured += m; groups[gk].calc += calc; groups[gk].n++;
+    });
+    order.forEach(function (gk) {
+      var g = groups[gk], names = rig.trusses.filter(function (t) { return g.ids[t.id] && !t.isBlock; }).map(function (t) { return t.name; });
+      var total = (results.hoists || []).filter(function (h) { return g.ids[h.truss] && !h.hung; }).length;
+      var d = g.calc ? (g.measured - g.calc) / g.calc : null;
+      out.assemblies.push({ names: names, n: g.n, of: total, measured: g.measured, calc: g.calc, diff: d, over: d !== null && Math.abs(d) > MEAS_TOL, first: names[0] });
+    });
+    return out;
+  }
+
   /** Totals over the hoists that hang from the structure (a hoist hung below a truss is inside the rig: its load
    * reaches the structure through the carrier's hoists). count is every hoist. */
   function sumHoists(hoists) {
@@ -685,5 +719,5 @@
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { effective: effective, cableOf: cableOf, loadFactor: loadFactor, LOAD_CATS: LOAD_CATS, assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { pctText: pctText, measured: measured, MEAS_TOL: MEAS_TOL, effective: effective, cableOf: cableOf, loadFactor: loadFactor, LOAD_CATS: LOAD_CATS, assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);

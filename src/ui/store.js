@@ -792,6 +792,13 @@
       });
     })();
     try { TLA.grillage.annotate(S.rig, S.results, db()); } catch (e) { S.results.compat = { ok: false, note: "Whole-rig analysis failed: " + e.message }; }
+    // 1.22.0: load-cell readings against the calculation, per assembly (information only)
+    var ms = S.results.measured = TLA.rig.measured(S.rig, S.results);
+    ms.assemblies.forEach(function (a) {
+      if (!a.over) return;
+      var t0 = S.rig.trusses.filter(function (t) { return t.name === a.first; })[0];
+      S.results.warnings.push({ truss: t0 && t0.id, kind: "measured", level: "measured", message: "Measured loads: " + a.names.join(", ") + " - the " + a.n + " load cell" + (a.n === 1 ? "" : "s") + " read " + Math.round(a.measured) + " lb against " + Math.round(a.calc) + " lb calculated (" + (a.diff > 0 ? "+" : "") + Math.round(a.diff * 1000) / 10 + "%, more than " + Math.round(TLA.rig.MEAS_TOL * 100) + "%)" + (a.n < a.of ? " - " + (a.of - a.n) + " of its hoists have no reading, so compare those too" : "") + ". Check the rig against the model: weights, positions, levels." });
+    });
     return S.results;
   };
 

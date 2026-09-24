@@ -267,6 +267,10 @@
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.dynamicLoad, 1) : "-"; }, { r: true }), { key: "hhd", label: "High hook dyn. (" + U.unit("w") + ")" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.hoist.capacity < 999999 ? P.wlCell(x.hoist.staticLoad / x.hoist.capacity).outerHTML : "-"; }, { html: true }), { key: "wl", label: "Workload" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? P.badge(x.hoist.status).outerHTML : "-"; }, { html: true }), { key: "st", label: "Status" }));
+    // 1.22.0: load-cell reading (blank = none) and how far it is from the calculation
+    cols.push({ key: "meas", label: "Measured (" + U.unit("w") + ")", type: "w", r: true, get: function (s) { return s.measured != null && s.measured !== "" ? U.n("w", s.measured, 0) : ""; }, raw: function (s) { return s.measured != null && s.measured !== "" ? String(Math.round(U.v("w", s.measured) * 10) / 10) : ""; },
+      parse: function (q) { if (String(q).trim() === "") return null; var v = parseFloat(String(q).replace(/,/g, "")); return isFinite(v) && v >= 0 ? U.back("w", v) : undefined; }, set: function (s, v) { if (v === null) delete s.measured; else s.measured = v; } });
+    cols.push(Object.assign(roCell(function (s, row) { var m = S.results.measured && S.results.measured.hoists[row.truss.id + ":" + s.id]; return m && m.diff !== null ? '<span class="' + (Math.abs(m.diff) > TLA.rig.MEAS_TOL ? "st w" : "mut") + '">' + TLA.rig.pctText(m.diff) + "</span>" : ""; }, { r: true, html: true }), { key: "mdiff", label: "vs calc." }));
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")";
     var rows = [];
     S.rig.trusses.forEach(function (t) {

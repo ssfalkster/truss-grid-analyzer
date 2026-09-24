@@ -822,6 +822,13 @@
       if (x.hoist.capacity < 999999) c.appendChild(h("div", { "class": "checks" }, barRow("Workload", x.hoist.staticLoad / x.hoist.capacity, "High hook static / capacity")));
       if (x.level) c.appendChild(h("div", { "class": "sub" + (x.level.low < 0 ? " hotline" : "") }, "Out of level ±" + U.f("inch", x.level.tol * 12, 2) + " (Rig settings): up to ", h("b", { text: "+" + U.f("w", x.level.add, 0) }), " on this hoist - included in its high hook load; on the low side " + U.f("w", x.level.low, 0) + (x.level.low < 0 ? ", so it could go slack." : ".")));
       if (x.trim) c.appendChild(h("div", { "class": "sub" + (hot ? " hotline" : "") }, "Level sensitivity: ", h("b", { text: "±" + U.f("w", Math.abs(x.trim.self), 0) }), " if this hoist runs 1/4\" (6 mm) high or low" + (x.trim.other ? "; " + x.trim.other.name + " changes by " + U.f("w", x.trim.other.lb, 0) : "") + (hot ? " - more than 10% of its capacity: level it carefully." : ".")));
+      var ms = S.results.measured && S.results.measured.hoists[t.id + ":" + s.id], lowCell = S.rig.settings && S.rig.settings.cellReads === "low";
+      c.appendChild(h("div", { "class": "grid2" }, field("Load cell reading (" + U.unit("w") + ")", (function () {
+        var i = h("input", { type: "number", step: "any", min: 0, "class": "num", value: s.measured != null && s.measured !== "" ? Math.round(U.v("w", s.measured) * 10) / 10 : "", placeholder: "none", title: "What a load cell on this hoist reads (" + (lowCell ? "between the hoist and the truss: compared with the low hook load" : "above the hoist: compared with the high hook static load") + " - set in Rig settings). Blank = no reading." });
+        i.addEventListener("change", function () { var v = parseFloat(i.value); if (i.value.trim() === "" || !(v >= 0)) delete s.measured; else s.measured = U.back("w", v); S.commit(); });
+        return i;
+      })())));
+      if (ms && ms.diff !== null) c.appendChild(h("div", { "class": "sub" + (Math.abs(ms.diff) > TLA.rig.MEAS_TOL ? " hotline" : "") }, "Measured " + U.f("w", ms.measured, 0) + " against " + U.f("w", ms.calc, 0) + " calculated (" + (lowCell ? "low hook" : "high hook static") + "): ", h("b", { text: TLA.rig.pctText(ms.diff) }), ". One hoist can differ a lot on a rig that shares load (level, stiffness) - compare the assembly's total in the rig panel."));
       var a = TLA.grillage.attribution(S.rig, S.results, S.db(), t.id, s.id);
       if (a) {
         c.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Where the load comes from" }), h("th", { "class": "r", text: U.unit("w") }))), h("tbody", null,
@@ -982,6 +989,17 @@
         h("button", { "class": "primary", text: "+ Truss", onclick: function () { S.addTruss({ hoists: [] }); } })));
       return;
     }
+    // 1.22.0: load-cell readings against the calculation, per assembly
+    var mss = r.measured;
+    if (mss && mss.any) {
+      var mc = group(root, "measured", "Measured vs calculated", true, mss.assemblies.some(function (a) { return a.over; }) ? "differs" : "within " + Math.round(mss.tol * 100) + "%");
+      mc.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Assembly" }), h("th", { "class": "r", text: "Cells" }), h("th", { "class": "r", text: "Measured" }), h("th", { "class": "r", text: "Calculated" }), h("th", { "class": "r", text: "Diff." }))),
+        h("tbody", null, mss.assemblies.map(function (a) {
+          return h("tr", null, h("td", { text: a.names.join(", ") }), h("td", { "class": "r", text: a.n + "/" + a.of }), h("td", { "class": "r", text: U.n("w", a.measured, 0) }), h("td", { "class": "r", text: U.n("w", a.calc, 0) }),
+            h("td", { "class": "r" }, h("span", { "class": a.over ? "st w" : "", text: a.diff === null ? "-" : TLA.rig.pctText(a.diff) })));
+        }))));
+      mc.appendChild(h("div", { "class": "sub", text: "Load cells read the " + (mss.reads === "low" ? "low hook load (between hoist and truss)" : "high hook static load (above the hoist)") + " - Rig settings. Flagged past " + Math.round(mss.tol * 100) + "% for an assembly's total; single hoists can differ more on a rig that shares load." }));
+    }
     // 1.22.0: the check-rig list - input mistakes, found on every change (click one to select what it is about)
     var chk = r.warnings.filter(function (w) { return w.kind === "check"; });
     var c = group(root, "check", "Check rig", chk.some(function (w) { return w.level === "check"; }), chk.length ? chk.length + " to look at" : "nothing found");
@@ -1121,6 +1139,8 @@
         "How much a hoist and its chain stretch under load (for example " + (U.metric() ? "27 kg/mm" : "1500 lb/in") + " for a 1-ton chain hoist on a long drop - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive."),
       row("Out-of-level tolerance ± (" + U.unit("inch") + ")", numInput(Number(st.levelTolerance) > 0 ? st.levelTolerance : "", function (v) { st.levelTolerance = v > 0 ? v : undefined; S.commit(); }, { q: "inch", placeholder: "off" }),
         "How far any hoist may end up off its level, each on its own (e.g. 1/4\" = 0.25). Each hoist's check then carries the worst it could see: the sum of what every hoist alone running that much high or low does to it (from the whole-rig analysis). Short, stiff spans are very level-sensitive. Blank = off (hoists exactly level). For a hoist trimmed on purpose, use its own Level offset."),
+      row("Load cells read", select([{ value: "high", label: "high hook static (cell above the hoist)" }, { value: "low", label: "low hook (cell between hoist and truss)" }], st.cellReads === "low" ? "low" : "high", function (v) { st.cellReads = v === "low" ? "low" : undefined; S.commit(); }),
+        "Where the load cells hang, for the Measured column of the hoists: readings are compared with that calculated load, and each assembly's total is flagged when it is more than 5% off."),
       row("Hoists hung below a truss", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: st.hungDynamic !== false, onchange: function (e) { st.hungDynamic = e.target.checked ? undefined : false; S.commit(); } }), h("span", { text: "The carrier's hoists also take the hung hoist's dynamic load (on by default)" })),
         "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies)."),
       row("Dead hang rope design factor", select([7, 8, 10].map(function (f) { return { value: String(f), label: f + ":1" + (f === TLA.limits.ROPE_DF ? " (default)" : "") }; }), String(TLA.limits.ropeFactor(st)), function (v) { st.ropeDesignFactor = +v === TLA.limits.ROPE_DF ? undefined : +v; S.commit(); }),

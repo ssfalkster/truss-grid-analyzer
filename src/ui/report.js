@@ -265,6 +265,15 @@
       s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
     }
 
+    // 1.22.0: load-cell readings against the calculation
+    var mss = r.measured;
+    if (mss && mss.any && r.hoists.length) {
+      s4.appendChild(para("4c. Measured loads (load cells reading the " + (mss.reads === "low" ? "low hook load" : "high hook static load") + ") against the calculation, per assembly; flagged past " + Math.round(mss.tol * 100) + "% of the total.", "cap"));
+      s4.appendChild(table("small", ["Assembly", ["Cells", "r"], ["Measured", "r"], ["Calculated", "r"], ["Difference", "r"]], mss.assemblies.map(function (a) {
+        return h("tr", null, td(a.names.join(", ")), tdr(a.n + " of " + a.of), tdr(Wn(a.measured)), tdr(Wn(a.calc)), td(a.diff === null ? "-" : TLA.rig.pctText(a.diff), a.over ? "fail" : "ok"));
+      })));
+    }
+
     /* ---- 5. equilibrium ---- */
     var s5 = sec(sheet, next(), "Equilibrium (self-checks)");
     var eqRows = [h("tr", null, td("Weight carried"), tdr(W(tot.applied, 1)), td(""))];

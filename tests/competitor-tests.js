@@ -260,4 +260,31 @@
     eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
     Array.prototype.forEach.call(el.querySelectorAll(".work"), function (w) { if (/^Balance:/.test(w.textContent)) eq(/\(balances\)/.test(w.textContent), true, w.textContent); });
   });
+
+  add("measured loads: per assembly against the high hook static (or low hook) load, flagged past 5%, no result changes", function () {
+    S.newRig(); TLA.samples.box(S); S.commit();
+    var before = JSON.stringify(S.results.hoists.map(function (x) { return x.hoist.staticLoad; }));
+    var calc = 0;
+    S.results.hoists.forEach(function (h) {
+      var s = S.truss(h.truss).supports.filter(function (q) { return q.id === h.support; })[0];
+      s.measured = h.hoist.staticLoad * 1.03; calc += h.hoist.staticLoad;
+    });
+    S.commit();
+    var m = S.results.measured;
+    eq(m.assemblies.length, 1, "the box is one assembly");
+    near(m.assemblies[0].diff, 0.03, 1e-9, "3% over");
+    eq(m.assemblies[0].over, false, "within 5%");
+    eq(S.results.warnings.some(function (w) { return w.kind === "measured"; }), false, "no warning");
+    eq(JSON.stringify(S.results.hoists.map(function (x) { return x.hoist.staticLoad; })), before, "results unchanged");
+    S.rig.trusses.forEach(function (t) { t.supports.forEach(function (s) { if (s.measured != null) s.measured *= 1.1 / 1.03; }); });
+    S.commit();
+    eq(S.results.measured.assemblies[0].over, true, "10% over is flagged");
+    eq(S.results.warnings.some(function (w) { return w.kind === "measured"; }), true, "warned");
+    S.rig.settings.cellReads = "low"; S.commit();
+    var h0 = S.results.hoists[0], k0 = h0.truss + ":" + h0.support;
+    near(S.results.measured.hoists[k0].calc, h0.hoist.reaction, 1e-9, "low hook when the cells hang below the hoist");
+    TLA.panels.mount(S); TLA.report.mount(S);
+    var text = TLA.report.build().textContent;
+    eq(/4c\. Measured loads/.test(text), true, "calc sheet 4c"); eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);
