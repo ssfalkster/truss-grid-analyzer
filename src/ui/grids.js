@@ -4,7 +4,7 @@
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
   var S = null, P = null, U = TLA.units, h = null;
-  var st = { act: null, edit: false, cmp: false, noFocus: false, cols: null, rows: null, host: null, typed: null };
+  var st = { act: null, edit: false, cmp: false, noFocus: false, cols: null, rows: null, host: null, typed: null, multi: [], multiOn: false, noun: "rows", fixed: [] };
 
   function round(v) { return Math.round(v * 1000) / 1000; }
   function flat(x) { return String(x).toLowerCase().replace(/[^a-z0-9.]/g, ""); }
@@ -277,11 +277,11 @@
       var hs = t.supports.filter(function (s) { return s.kind === "hoist"; });
       if (t.isBlock && !hs.length) return;
       rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: hs.length + " hoist" + (hs.length === 1 ? "" : "s") + " · " + U.f("len", t.length, 2),
-        acts: hs.length ? [["Mirror all", function () { P.mirrorHoistsUi(t); }], ["Copy to truss…", function () { P.copyHoistsPrompt(t); }]] : [] });
+        acts: hs.length ? [["Select", function () { selectRows(hs.map(function (s) { return "H:" + s.id; }), true); }], ["Mirror all", function () { P.mirrorHoistsUi(t); }], ["Copy to truss…", function () { P.copyHoistsPrompt(t); }]] : [] });
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
-      rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
+      rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.newHoist(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
+    return { cols: cols, rows: rows, multi: true, noun: "hoists", fixed: ["at"], hint: "Select several hoists with Shift+click (a range), Ctrl+click (one at a time), Shift+arrows, Ctrl+A or Select on a truss row; then any edit changes all of them (not the position). New hoists copy the last hoist placed. Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
@@ -294,13 +294,21 @@
   }
   function render(container, spec) {
     st.host = container; st.cols = spec.cols; st.rows = spec.rows;
+    st.multiOn = !!spec.multi; st.noun = spec.noun || "rows"; st.fixed = spec.fixed || [];
+    st.multi = st.multiOn ? st.multi.filter(function (k) { var i = rowIndex(k); return i >= 0 && !st.rows[i].kind; }) : [];
     container.textContent = "";
+    if (st.multi.length > 1) container.appendChild(h("div", { "class": "gmulti" },
+      h("b", { text: st.multi.length + " " + st.noun + " selected" }),
+      h("span", { "class": "mini", text: "Type in any of their cells to change all " + st.multi.length + (st.fixed.length ? " (not the position)" : "") + " · Ctrl+D copies the top one to the rest" }),
+      h("span", { "class": "grow" }),
+      h("button", { "class": "lnk danger", text: "Delete " + st.multi.length, onclick: function () { deleteRow(); } }),
+      h("button", { "class": "lnk", text: "Clear selection (Esc)", onclick: function () { clearMulti(); } })));
     var tbl = h("table", { "class": "xg" }), thead = h("thead"), tr = h("tr", null, h("th"));
     spec.cols.forEach(function (c) { tr.appendChild(h("th", { "class": (c.r ? "r " : "") + (c.ro ? "ro" : ""), text: c.label })); });
     thead.appendChild(tr); tbl.appendChild(thead);
     var tb = h("tbody"), n = 0;
     spec.rows.forEach(function (row, ri) {
-      var r = h("tr", { "data-r": ri, "class": (row.kind === "group" ? "gh" : row.kind === "new" ? "new" : "") + (selRow(row) ? " selrow" : "") });
+      var r = h("tr", { "data-r": ri, "class": (row.kind === "group" ? "gh" : row.kind === "new" ? "new" : "") + (selRow(row) ? " selrow" : "") + (st.multi.length > 1 && st.multi.indexOf(row.key) >= 0 ? " multi" : "") });
       if (row.kind === "group") {
         var td = h("td", { colspan: spec.cols.length + 1 }, row.label, row.acts && row.acts.length ? h("span", { "class": "gacts" }, row.acts.map(function (a) { return h("button", { "class": "lnk", text: a[0], onclick: function (e) { e.stopPropagation(); a[1](); } }); })) : null, h("span", { "class": "r", text: row.right || "" }));
         r.appendChild(td); tb.appendChild(r); return;
@@ -332,8 +340,34 @@
     if (row.sel && row.sel.support) return s.support === row.sel.support;
     return row.sel && row.sel.truss && s.truss === row.sel.truss && !s.load && !s.support;
   }
+  /** The rows an edit of column c on row goes to: the whole selection when row is in it (not for fixed columns). */
+  function targets(row, c) { return inMulti(row) && st.fixed.indexOf(c.key) < 0 ? multiRows() : [row]; }
   function rowIndex(key) { for (var i = 0; i < st.rows.length; i++) if (st.rows[i].key === key) return i; return -1; }
   function colIndex(key) { for (var i = 0; i < st.cols.length; i++) if (st.cols[i].key === key) return i; return -1; }
+  /* Multi-select (1.24.0, grids with spec.multi): a set of row keys; an edit on one of them is applied to all. */
+  function isData(row) { return !!row && !row.kind; }
+  function inMulti(row) { return st.multi.length > 1 && !!row && st.multi.indexOf(row.key) >= 0; }
+  function multiRows() { return st.multi.map(rowIndex).filter(function (i) { return i >= 0; }).sort(function (a, b) { return a - b; }).map(function (i) { return st.rows[i]; }).filter(isData); }
+  function clearMulti() { if (!st.multi.length) return; st.multi = []; redraw(); }
+  function redraw() { if (TLA.app && TLA.app.renderAll) TLA.app.renderAll(); }
+  /** Select rows by key (add = keep the ones already selected). */
+  function selectRows(keys, add) {
+    if (!st.multiOn || !keys.length) return;
+    var cur = add ? st.multi.slice() : [];
+    keys.forEach(function (k) { if (cur.indexOf(k) < 0) cur.push(k); });
+    st.multi = cur;
+    var ai = st.act ? rowIndex(st.act.row) : -1;
+    if (ai < 0 || !isData(st.rows[ai]) || cur.indexOf(st.act.row) < 0) st.act = { row: keys[0], col: st.cols[0].key };
+    redraw();
+  }
+  function rangeKeys(a, b) { var out = []; for (var i = Math.min(a, b); i <= Math.max(a, b); i++) if (isData(st.rows[i])) out.push(st.rows[i].key); return out; }
+  /** Shift / Ctrl(+Cmd) click on row ri: Shift = range from the active row, Ctrl = add or remove one row. */
+  function multiClick(e, ri) {
+    var key = st.rows[ri].key, from = st.act ? rowIndex(st.act.row) : -1;
+    if (e.shiftKey && from >= 0) { st.multi = rangeKeys(from, ri); return; }
+    if (!st.multi.length && from >= 0 && isData(st.rows[from])) st.multi = [st.rows[from].key];
+    var at = st.multi.indexOf(key); if (at >= 0) st.multi.splice(at, 1); else st.multi.push(key);
+  }
   function tdAt(ri, ci) { return st.host && st.host.querySelector('tr[data-r="' + ri + '"] td[data-c="' + ci + '"]'); }
   function restoreAct() {
     if (!st.act) return;
@@ -358,10 +392,26 @@
   }
   function onMouse(e) {
     var td = e.target.closest("td[data-c]"), tr = e.target.closest("tr[data-r]");
-    if (!td || !tr) { var idx = e.target.closest("td.idx"); if (idx && tr) { var row = st.rows[+tr.getAttribute("data-r")]; if (row.sel) { st.act = { row: row.key, col: st.cols[0].key }; S.select(row.sel); } } return; }
+    if (!td || !tr) {
+      var idx = e.target.closest("td.idx"); if (!idx || !tr) return;
+      var ix = +tr.getAttribute("data-r"), row = st.rows[ix];
+      if (st.multiOn && isData(row) && (e.shiftKey || e.ctrlKey || e.metaKey)) { e.preventDefault(); multiClick(e, ix); redraw(); return; }
+      st.multi = [];
+      if (row.sel) { st.act = { row: row.key, col: st.cols[0].key }; S.select(row.sel); }
+      return;
+    }
     if (e.target.tagName === "INPUT" && e.target.type === "checkbox") return;
     if (e.target.classList.contains("ci")) return;
     var ri = +tr.getAttribute("data-r"), ci = +td.getAttribute("data-c");
+    if (st.multiOn && (e.shiftKey || e.ctrlKey || e.metaKey) && isData(st.rows[ri])) {
+      e.preventDefault(); if (st.edit) commitEdit();
+      var shiftFrom = e.shiftKey && st.act ? st.act.row : null;
+      multiClick(e, ri);
+      st.act = { row: shiftFrom && rowIndex(shiftFrom) >= 0 ? shiftFrom : st.rows[ri].key, col: st.cols[ci].key };
+      redraw();
+      return;
+    }
+    if (st.multi.length && !inMulti(st.rows[ri])) st.multi = [];
     var same = st.act && st.act.row === st.rows[ri].key && st.act.col === st.cols[ci].key;
     if (st.edit) commitEdit();
     if (same && !td.classList.contains("ro")) { e.preventDefault(); beginEdit(); return; }
@@ -375,7 +425,7 @@
     var row = st.rows[+tr.getAttribute("data-r")], c = st.cols[+td.getAttribute("data-c")];
     if (!row || row.kind || !c.set) return;
     st.act = { row: row.key, col: c.key };
-    c.set(row.obj, e.target.checked, row); S.commit();
+    targets(row, c).forEach(function (r) { c.set(r.obj, e.target.checked, r); }); S.commit();
   }
 
   /* ---------------- editing ---------------- */
@@ -384,7 +434,7 @@
     if (!st.act) return;
     var ri = rowIndex(st.act.row), ci = colIndex(st.act.col), row = st.rows[ri], c = st.cols[ci];
     if (!row || !c || isRo(c, row) || (row.kind && row.kind !== "new")) return;
-    if (c.type === "check") { if (!row.kind) { c.set(row.obj, !c.val(row.obj), row); S.commit(); } return; }
+    if (c.type === "check") { if (!row.kind) { var nv = !c.val(row.obj); targets(row, c).forEach(function (r) { c.set(r.obj, nv, r); }); S.commit(); } return; }
     var td = tdAt(ri, ci); if (!td) return;
     st.edit = true;
     var inp;
@@ -427,7 +477,7 @@
     if (v !== undefined && !(row.kind === "new" && String(text).trim() === "" && ed.picked === undefined)) {
       var target = row;
       if (row.kind === "new") { var made = row.create(); target = made; newKey = made.key; }
-      if (!(c.type === "ac" && !c.free && v === undefined)) { c.set(target.obj, v, target); changed = true; }
+      if (!(c.type === "ac" && !c.free && v === undefined)) { (row.kind === "new" ? [target] : targets(row, c)).forEach(function (r) { c.set(r.obj, v, r); }); changed = true; }
     } else if (v === undefined && String(text).trim() !== "" && row.kind !== "new") {
       ed.inp.classList.add("bad");
     }
@@ -459,13 +509,21 @@
     if (!st.act) return;
     var ri = rowIndex(st.act.row), ci = colIndex(st.act.col), row = st.rows[ri], c = st.cols[ci];
     if (!row || row.kind || isRo(c, row)) return;
+    if (inMulti(row)) {   // 1.24.0: the top selected row's value goes to the rest of the selection
+      if (st.fixed.indexOf(c.key) >= 0) return;
+      var sel = multiRows();
+      sel.slice(1).forEach(function (r) { fillFrom(c, sel[0], r); });
+      S.commit(); return;
+    }
     var up = ri - 1; while (up >= 0 && st.rows[up].kind) up--;
     if (up < 0) return;
-    var src = st.rows[up];
+    fillFrom(c, st.rows[up], row);
+    S.commit();
+  }
+  function fillFrom(c, src, row) {
     var v = c.type === "check" ? c.val(src.obj) : c.type === "ac" && c.key === "item" ? src.obj : c.type === "ac" && c.key === "hoist" ? P.hoistDb(src.obj.hoistId) : c.type === "ac" && c.key === "type" ? S.db().trusses.filter(function (x) { return x.id === src.obj.trussId; })[0] : c.parse(c.raw(src.obj, src));
     if (c.key === "item") { var o = src.obj; row.obj.note = o.note; if (typeof o.fixtureLb === "number") { row.obj.fixtureLb = o.fixtureLb; row.obj.clampLb = o.clampLb || 0; } else { delete row.obj.fixtureLb; delete row.obj.clampLb; } row.obj.weight = o.weight; delete row.obj.qty; }
     else if (v !== undefined && v !== null) c.set(row.obj, v, row);
-    S.commit();
   }
   /** Ctrl+V: tab-separated rows from a spreadsheet, from the active cell right and down (new rows added in the group). */
   function paste(text) {
@@ -496,6 +554,13 @@
     if (!st.act) return;
     var ri = rowIndex(st.act.row), row = st.rows[ri];
     if (!row || row.kind) return;
+    if (inMulti(row)) {   // 1.24.0: the whole selection
+      var sel = multiRows().filter(function (r) { return r.del; });
+      if (!sel.length || !confirm("Delete " + sel.length + " " + st.noun + "? (Undo brings them back.)")) return;
+      sel.forEach(function (r) { r.del(); });
+      st.multi = []; st.act = null; S.sel = { truss: row.truss ? row.truss.id : null, support: null, load: null };
+      S.commit(); return;
+    }
     if (!row.del) { if (row.obj && row.obj.id && S.truss(row.obj.id) && confirm("Delete " + row.obj.name + "?")) { S.removeTruss(row.obj.id); } return; }
     row.del();
     var nx = st.rows[ri + 1]; st.act = nx ? { row: nx.key, col: st.act.col } : null;
@@ -511,6 +576,19 @@
     var ri = rowIndex(st.act.row), ci = colIndex(st.act.col);
     if (ri < 0 || ci < 0) return;
     var k = e.key, handled = true;
+    if (st.multiOn && e.shiftKey && (k === "ArrowDown" || k === "ArrowUp")) {   // 1.24.0: grow / shrink the selection
+      var d = k === "ArrowDown" ? 1 : -1, ni = ri + d; while (ni >= 0 && ni < st.rows.length && !isData(st.rows[ni])) ni += d;
+      if (ni >= 0 && ni < st.rows.length && isData(st.rows[ri])) {
+        if (!st.multi.length) st.multi = [st.rows[ri].key];
+        var nk = st.rows[ni].key;
+        if (st.multi.indexOf(nk) >= 0) st.multi.splice(st.multi.indexOf(st.rows[ri].key), 1); else st.multi.push(nk);
+        st.act = { row: nk, col: st.cols[ci].key }; redraw();
+      }
+      e.preventDefault(); e.stopPropagation(); return;
+    }
+    if (st.multiOn && (e.ctrlKey || e.metaKey) && k.toLowerCase() === "a") { selectRows(st.rows.filter(isData).map(function (r) { return r.key; })); e.preventDefault(); e.stopPropagation(); return; }
+    if (st.multi.length && k === "Escape") { clearMulti(); e.preventDefault(); e.stopPropagation(); return; }
+    if (st.multi.length && /^(Arrow|Tab$|Enter$)/.test(k) && !(e.ctrlKey || e.metaKey)) { st.multi = []; redraw(); }
     if (k === "ArrowDown") moveBy(ri, ci, 1, 0);
     else if (k === "ArrowUp") moveBy(ri, ci, -1, 0);
     else if (k === "ArrowRight") moveBy(ri, ci, 0, 1);
@@ -601,11 +679,11 @@
     render(container, spec);
     if (st.pendingMove && st.act) { var pm = st.pendingMove; st.pendingMove = null; moveBy(rowIndex(st.act.row), colIndex(st.act.col), pm[0], pm[1], true, pm[1] ? "tab" : "enter"); [].forEach.call(container.querySelectorAll("td.act"), function (x) { x.classList.remove("act"); }); restoreAct(); }
   }
-  function leave() { st.act = null; st.edit = false; editor = null; closeAc(); focusMode(); }
+  function leave() { st.act = null; st.edit = false; st.multi = []; editor = null; closeAc(); focusMode(); }
 
   TLA.grids = {
     mount: mount, show: show, leave: leave, tsv: tsv, focusMode: focusMode, findFixture: findFixture, fixtureSource: fixtureSource, attachFixtureAc: attachFixtureAc, attachAc: attachAc,
     compare: function (v) { if (v === undefined) return st.cmp; st.cmp = !!v; }, showPlan: function (v) { if (v === undefined) return !st.noFocus; st.noFocus = !v; focusMode(); },
-    active: function () { return !!st.act; }
+    active: function () { return !!st.act; }, selected: function () { return multiRows().map(function (r) { return r.obj; }); }, selectRows: selectRows
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

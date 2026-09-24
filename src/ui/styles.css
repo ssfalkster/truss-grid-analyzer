@@ -299,6 +299,11 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .xg tr.new td { color: var(--muted); font-style: italic; }
 .xg tr.selrow td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .xg tr.selrow td.ro { background: color-mix(in srgb, var(--accent) 10%, var(--panel-2)); }
+.xg tr.multi td { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.xg tr.multi td.ro { background: color-mix(in srgb, var(--accent) 18%, var(--panel-2)); }
+.xg tr.multi td.idx { box-shadow: inset 3px 0 0 var(--accent); color: var(--ink); }
+.gmulti { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 12px; padding: 5px 8px; background: var(--accent-soft); border-bottom: 1px solid var(--accent); font-size: 12px; flex-wrap: wrap; }
+.gmulti .grow { flex: 1; }
 .xg .tick { color: var(--accent); font-weight: 700; }
 .xg .pill { font-size: 10.5px; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; color: var(--muted); margin-left: 4px; }
 .xg td.hi > .cv { color: var(--warn); font-weight: 700; }
