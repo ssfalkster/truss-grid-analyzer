@@ -307,6 +307,11 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .xg tr.new td { color: var(--muted); font-style: italic; }
 .xg tr.selrow td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .xg tr.selrow td.ro { background: color-mix(in srgb, var(--accent) 10%, var(--panel-2)); }
+.xg tr.multi td { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.xg tr.multi td.ro { background: color-mix(in srgb, var(--accent) 18%, var(--panel-2)); }
+.xg tr.multi td.idx { box-shadow: inset 3px 0 0 var(--accent); color: var(--ink); }
+.gmulti { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 12px; padding: 5px 8px; background: var(--accent-soft); border-bottom: 1px solid var(--accent); font-size: 12px; flex-wrap: wrap; }
+.gmulti .grow { flex: 1; }
 .xg .tick { color: var(--accent); font-weight: 700; }
 .xg .pill { font-size: 10.5px; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; color: var(--muted); margin-left: 4px; }
 .xg td.hi > .cv { color: var(--warn); font-weight: 700; }
@@ -598,8 +603,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.23.0";
+  TLA.VERSION = "1.24.0";
   TLA.CHANGES = [
+    ["1.24.0", "2026-09-24", "G.E. Simmons Falk", "Hoists grid (step 3): select several hoists (Shift+click for a range, Ctrl+click one at a time, Shift+arrows, Ctrl+A, or Select on a truss row) and any edit changes all of them - model, chain, DLF, hardware, Hangs from, level offset, reading - but not their positions; Ctrl+D copies the top selected hoist to the rest and Delete removes them all. A new hoist is now set up like the last hoist placed in the rig (model, chain or rope, hardware, DLF; not its name, level offset, Hangs from or reading) instead of always a 1 ton Lodestar. Calculated results are unchanged for existing rigs."],
     ["1.23.0", "2026-09-24", "G.E. Simmons Falk", "Hoists can be mirrored and copied like loads: Mirror (one hoist) and Mirror all add a hoist at the mirrored spot about the truss centerline; Copy to truss copies one or all hoists to another truss, keeping each one's distance from the centre (clamped to the ends). Unlike a mirrored load, each copy is a real hoist with its own name, result and load-cell reading; it keeps the model, chain or rope, dynamic factor, hardware, level offset and Hangs from. No copy is placed where a hoist already is. Calculated results are unchanged for existing rigs."],
     ["1.22.0", "2026-09-24", "G.E. Simmons Falk", "New features from comparing the app with Vectorworks Braceworks and Production Assist. Rigs that use none of them give exactly the same results as 1.21.0 (checked on the example box and four venue rigs). Hoists hung below a truss: a hoist's Hangs from can be another truss instead of the structure. Its chain joins the two trusses in the whole-rig analysis, so the upper truss (the carrier) sags with the load and the truss below shares load with its other hoists; the chain can only pull. The carrier carries the hung hoist's high hook load, and it - with everything bolted to it - is also checked with the hung hoist's high hook dynamic load; so are the hoists holding the carrier up, unless Rig settings turn that off. Rig totals count only hoists to the structure. Dead hangs: a support can be wire rope with no hoist. Pick the rope (7x19 galvanized aircraft cable or 6x19 IWRC, typical catalogue breaking strengths) and its length; WLL = breaking strength / design factor (Rig settings: 7, 8 or 10:1, default 10:1), capped by a typed assembly WLL; static (dynamic factor 1.0 unless typed); its weight is the rope and hardware; rigid, or a rope spring EA/L when the rig's hoists are springs. DH1, DH2... on the calc sheet. Hoist levels: a hoist can have a designed Level offset (inches, + higher) - a raked or trimmed truss - which the whole-rig analysis solves as that point moved; and an out-of-level tolerance in Rig settings (e.g. 1/4\") adds to every hoist's check the worst it could see if each hoist were that far off on its own, with a warning when the low side could go slack. Allowances: a cable weight per length (Rig settings, or per truss) added to each truss's UDL, and load factors by category (lighting, audio, video, scenic, rigging hardware, other; library fixtures are lighting). Check rig: on every change, a list of input mistakes - a load with no weight, two hoists at one point, a bolted assembly with fewer than 3 hoists or all in a line, bolted ends that don't meet, trusses that cross with no joint, a hoist with no model - in the rig panel and the warnings; the truss panel's Connected button dims everything not joined to it. Measured vs calculated: a load cell reading per hoist (hoist grid or panel), compared with the high hook static or low hook load (Rig settings) and totalled per assembly, flagged past 5%; readings never change a result. Deflection view: a Deflection colour mode colours each truss by its sag against its limit and draws its deflected shape, exaggerated, beside it on the plan and above it in 3D. Also: the calc sheet explains each of these; a hoist's load breakdown now lists Add %, hardware and the level allowance so it adds up; the whole-rig model export lists hung hoists (tools/pynite_check.py does not model them yet)."],
     ["1.21.0", "2026-09-24", "G.E. Simmons Falk", "Load-path method taken out of the display; hoist loads and every check are unchanged (they already came from the whole-rig analysis). Gone: the Load path column in the hoist grid (Compare analysis methods now shows the three joint models only), the Results hoist table, the hoist CSV and the calc sheet (hoist loads, bolted connections, truss reactions, the equilibrium row and the basis note), the load-path figure in a hoist's panel, and the warning that a hoist is well above the load-path result. The load-path method is still used, with its warning, when the whole-rig analysis can't run (a very large rig). Level sensitivity is no longer a column in the hoist grid, the Results hoist table, the hoist CSV or the calc sheet: it stays in each hoist's panel, and the level-sensitivity warning stays (in the app and the calc sheet)."],
@@ -3145,6 +3151,22 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
   S.defaultTrussId = defaultTrussId;
   S.defaultHoistId = defaultHoistId;
+  /** The hoist placed last in this rig (1.24.0): ids count up per rig, so the highest one. Null when the rig has none. */
+  S.lastHoist = function () {
+    var best = null, bn = -1;
+    S.rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) { var n = s.kind === "hoist" ? parseInt(String(s.id).replace(/^\D+/, ""), 10) : NaN; if (n > bn) { bn = n; best = s; } });
+    });
+    return best;
+  };
+  var TEMPLATE_KEYS = ["hoistId", "chainLength", "hardwareWeight", "dlf", "dead", "rope", "ropeLength", "wll"];
+  /** A new hoist from the UI (1.24.0): set up like the last hoist placed (model, chain or rope, hardware, DLF; not its
+      name, level offset, Hangs from or reading), or the rig default when there is none. */
+  S.newHoist = function (distance) {
+    var last = S.lastHoist(), extra = {};
+    if (last) TEMPLATE_KEYS.forEach(function (k) { if (last[k] !== undefined) extra[k] = JSON.parse(JSON.stringify(last[k])); });
+    return S.hoistSupport(distance, extra);
+  };
 
   S.hoistSupport = function (distance, extra) {
     return Object.assign({ id: id("s"), name: "", distance: distance, kind: "hoist", hoistId: defaultHoistId(), chainLength: 20, hardwareWeight: 0 }, extra || {});
@@ -3575,7 +3597,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   /** Add a hoist at the middle of a truss (edit its position afterwards). */
   S.addHoist = function (tid) {
     var t = S.truss(tid); if (!t) return null;
-    var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t);
+    var sp = S.applyMeasure(S.newHoist(round(t.length / 2)), t);
     t.supports.push(sp); S.commit(); return sp;
   };
   /** Remove every load from a truss (Undo brings them back). */
@@ -5837,7 +5859,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
   var S = null, P = null, U = TLA.units, h = null;
-  var st = { act: null, edit: false, cmp: false, noFocus: false, cols: null, rows: null, host: null, typed: null };
+  var st = { act: null, edit: false, cmp: false, noFocus: false, cols: null, rows: null, host: null, typed: null, multi: [], multiOn: false, noun: "rows", fixed: [] };
 
   function round(v) { return Math.round(v * 1000) / 1000; }
   function flat(x) { return String(x).toLowerCase().replace(/[^a-z0-9.]/g, ""); }
@@ -6110,11 +6132,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var hs = t.supports.filter(function (s) { return s.kind === "hoist"; });
       if (t.isBlock && !hs.length) return;
       rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: hs.length + " hoist" + (hs.length === 1 ? "" : "s") + " · " + U.f("len", t.length, 2),
-        acts: hs.length ? [["Mirror all", function () { P.mirrorHoistsUi(t); }], ["Copy to truss…", function () { P.copyHoistsPrompt(t); }]] : [] });
+        acts: hs.length ? [["Select", function () { selectRows(hs.map(function (s) { return "H:" + s.id; }), true); }], ["Mirror all", function () { P.mirrorHoistsUi(t); }], ["Copy to truss…", function () { P.copyHoistsPrompt(t); }]] : [] });
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
-      rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
+      rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.newHoist(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
+    return { cols: cols, rows: rows, multi: true, noun: "hoists", fixed: ["at"], hint: "Select several hoists with Shift+click (a range), Ctrl+click (one at a time), Shift+arrows, Ctrl+A or Select on a truss row; then any edit changes all of them (not the position). New hoists copy the last hoist placed. Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
@@ -6127,13 +6149,21 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
   function render(container, spec) {
     st.host = container; st.cols = spec.cols; st.rows = spec.rows;
+    st.multiOn = !!spec.multi; st.noun = spec.noun || "rows"; st.fixed = spec.fixed || [];
+    st.multi = st.multiOn ? st.multi.filter(function (k) { var i = rowIndex(k); return i >= 0 && !st.rows[i].kind; }) : [];
     container.textContent = "";
+    if (st.multi.length > 1) container.appendChild(h("div", { "class": "gmulti" },
+      h("b", { text: st.multi.length + " " + st.noun + " selected" }),
+      h("span", { "class": "mini", text: "Type in any of their cells to change all " + st.multi.length + (st.fixed.length ? " (not the position)" : "") + " · Ctrl+D copies the top one to the rest" }),
+      h("span", { "class": "grow" }),
+      h("button", { "class": "lnk danger", text: "Delete " + st.multi.length, onclick: function () { deleteRow(); } }),
+      h("button", { "class": "lnk", text: "Clear selection (Esc)", onclick: function () { clearMulti(); } })));
     var tbl = h("table", { "class": "xg" }), thead = h("thead"), tr = h("tr", null, h("th"));
     spec.cols.forEach(function (c) { tr.appendChild(h("th", { "class": (c.r ? "r " : "") + (c.ro ? "ro" : ""), text: c.label })); });
     thead.appendChild(tr); tbl.appendChild(thead);
     var tb = h("tbody"), n = 0;
     spec.rows.forEach(function (row, ri) {
-      var r = h("tr", { "data-r": ri, "class": (row.kind === "group" ? "gh" : row.kind === "new" ? "new" : "") + (selRow(row) ? " selrow" : "") });
+      var r = h("tr", { "data-r": ri, "class": (row.kind === "group" ? "gh" : row.kind === "new" ? "new" : "") + (selRow(row) ? " selrow" : "") + (st.multi.length > 1 && st.multi.indexOf(row.key) >= 0 ? " multi" : "") });
       if (row.kind === "group") {
         var td = h("td", { colspan: spec.cols.length + 1 }, row.label, row.acts && row.acts.length ? h("span", { "class": "gacts" }, row.acts.map(function (a) { return h("button", { "class": "lnk", text: a[0], onclick: function (e) { e.stopPropagation(); a[1](); } }); })) : null, h("span", { "class": "r", text: row.right || "" }));
         r.appendChild(td); tb.appendChild(r); return;
@@ -6165,8 +6195,34 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (row.sel && row.sel.support) return s.support === row.sel.support;
     return row.sel && row.sel.truss && s.truss === row.sel.truss && !s.load && !s.support;
   }
+  /** The rows an edit of column c on row goes to: the whole selection when row is in it (not for fixed columns). */
+  function targets(row, c) { return inMulti(row) && st.fixed.indexOf(c.key) < 0 ? multiRows() : [row]; }
   function rowIndex(key) { for (var i = 0; i < st.rows.length; i++) if (st.rows[i].key === key) return i; return -1; }
   function colIndex(key) { for (var i = 0; i < st.cols.length; i++) if (st.cols[i].key === key) return i; return -1; }
+  /* Multi-select (1.24.0, grids with spec.multi): a set of row keys; an edit on one of them is applied to all. */
+  function isData(row) { return !!row && !row.kind; }
+  function inMulti(row) { return st.multi.length > 1 && !!row && st.multi.indexOf(row.key) >= 0; }
+  function multiRows() { return st.multi.map(rowIndex).filter(function (i) { return i >= 0; }).sort(function (a, b) { return a - b; }).map(function (i) { return st.rows[i]; }).filter(isData); }
+  function clearMulti() { if (!st.multi.length) return; st.multi = []; redraw(); }
+  function redraw() { if (TLA.app && TLA.app.renderAll) TLA.app.renderAll(); }
+  /** Select rows by key (add = keep the ones already selected). */
+  function selectRows(keys, add) {
+    if (!st.multiOn || !keys.length) return;
+    var cur = add ? st.multi.slice() : [];
+    keys.forEach(function (k) { if (cur.indexOf(k) < 0) cur.push(k); });
+    st.multi = cur;
+    var ai = st.act ? rowIndex(st.act.row) : -1;
+    if (ai < 0 || !isData(st.rows[ai]) || cur.indexOf(st.act.row) < 0) st.act = { row: keys[0], col: st.cols[0].key };
+    redraw();
+  }
+  function rangeKeys(a, b) { var out = []; for (var i = Math.min(a, b); i <= Math.max(a, b); i++) if (isData(st.rows[i])) out.push(st.rows[i].key); return out; }
+  /** Shift / Ctrl(+Cmd) click on row ri: Shift = range from the active row, Ctrl = add or remove one row. */
+  function multiClick(e, ri) {
+    var key = st.rows[ri].key, from = st.act ? rowIndex(st.act.row) : -1;
+    if (e.shiftKey && from >= 0) { st.multi = rangeKeys(from, ri); return; }
+    if (!st.multi.length && from >= 0 && isData(st.rows[from])) st.multi = [st.rows[from].key];
+    var at = st.multi.indexOf(key); if (at >= 0) st.multi.splice(at, 1); else st.multi.push(key);
+  }
   function tdAt(ri, ci) { return st.host && st.host.querySelector('tr[data-r="' + ri + '"] td[data-c="' + ci + '"]'); }
   function restoreAct() {
     if (!st.act) return;
@@ -6191,10 +6247,26 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
   function onMouse(e) {
     var td = e.target.closest("td[data-c]"), tr = e.target.closest("tr[data-r]");
-    if (!td || !tr) { var idx = e.target.closest("td.idx"); if (idx && tr) { var row = st.rows[+tr.getAttribute("data-r")]; if (row.sel) { st.act = { row: row.key, col: st.cols[0].key }; S.select(row.sel); } } return; }
+    if (!td || !tr) {
+      var idx = e.target.closest("td.idx"); if (!idx || !tr) return;
+      var ix = +tr.getAttribute("data-r"), row = st.rows[ix];
+      if (st.multiOn && isData(row) && (e.shiftKey || e.ctrlKey || e.metaKey)) { e.preventDefault(); multiClick(e, ix); redraw(); return; }
+      st.multi = [];
+      if (row.sel) { st.act = { row: row.key, col: st.cols[0].key }; S.select(row.sel); }
+      return;
+    }
     if (e.target.tagName === "INPUT" && e.target.type === "checkbox") return;
     if (e.target.classList.contains("ci")) return;
     var ri = +tr.getAttribute("data-r"), ci = +td.getAttribute("data-c");
+    if (st.multiOn && (e.shiftKey || e.ctrlKey || e.metaKey) && isData(st.rows[ri])) {
+      e.preventDefault(); if (st.edit) commitEdit();
+      var shiftFrom = e.shiftKey && st.act ? st.act.row : null;
+      multiClick(e, ri);
+      st.act = { row: shiftFrom && rowIndex(shiftFrom) >= 0 ? shiftFrom : st.rows[ri].key, col: st.cols[ci].key };
+      redraw();
+      return;
+    }
+    if (st.multi.length && !inMulti(st.rows[ri])) st.multi = [];
     var same = st.act && st.act.row === st.rows[ri].key && st.act.col === st.cols[ci].key;
     if (st.edit) commitEdit();
     if (same && !td.classList.contains("ro")) { e.preventDefault(); beginEdit(); return; }
@@ -6208,7 +6280,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var row = st.rows[+tr.getAttribute("data-r")], c = st.cols[+td.getAttribute("data-c")];
     if (!row || row.kind || !c.set) return;
     st.act = { row: row.key, col: c.key };
-    c.set(row.obj, e.target.checked, row); S.commit();
+    targets(row, c).forEach(function (r) { c.set(r.obj, e.target.checked, r); }); S.commit();
   }
 
   /* ---------------- editing ---------------- */
@@ -6217,7 +6289,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (!st.act) return;
     var ri = rowIndex(st.act.row), ci = colIndex(st.act.col), row = st.rows[ri], c = st.cols[ci];
     if (!row || !c || isRo(c, row) || (row.kind && row.kind !== "new")) return;
-    if (c.type === "check") { if (!row.kind) { c.set(row.obj, !c.val(row.obj), row); S.commit(); } return; }
+    if (c.type === "check") { if (!row.kind) { var nv = !c.val(row.obj); targets(row, c).forEach(function (r) { c.set(r.obj, nv, r); }); S.commit(); } return; }
     var td = tdAt(ri, ci); if (!td) return;
     st.edit = true;
     var inp;
@@ -6260,7 +6332,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (v !== undefined && !(row.kind === "new" && String(text).trim() === "" && ed.picked === undefined)) {
       var target = row;
       if (row.kind === "new") { var made = row.create(); target = made; newKey = made.key; }
-      if (!(c.type === "ac" && !c.free && v === undefined)) { c.set(target.obj, v, target); changed = true; }
+      if (!(c.type === "ac" && !c.free && v === undefined)) { (row.kind === "new" ? [target] : targets(row, c)).forEach(function (r) { c.set(r.obj, v, r); }); changed = true; }
     } else if (v === undefined && String(text).trim() !== "" && row.kind !== "new") {
       ed.inp.classList.add("bad");
     }
@@ -6292,13 +6364,21 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (!st.act) return;
     var ri = rowIndex(st.act.row), ci = colIndex(st.act.col), row = st.rows[ri], c = st.cols[ci];
     if (!row || row.kind || isRo(c, row)) return;
+    if (inMulti(row)) {   // 1.24.0: the top selected row's value goes to the rest of the selection
+      if (st.fixed.indexOf(c.key) >= 0) return;
+      var sel = multiRows();
+      sel.slice(1).forEach(function (r) { fillFrom(c, sel[0], r); });
+      S.commit(); return;
+    }
     var up = ri - 1; while (up >= 0 && st.rows[up].kind) up--;
     if (up < 0) return;
-    var src = st.rows[up];
+    fillFrom(c, st.rows[up], row);
+    S.commit();
+  }
+  function fillFrom(c, src, row) {
     var v = c.type === "check" ? c.val(src.obj) : c.type === "ac" && c.key === "item" ? src.obj : c.type === "ac" && c.key === "hoist" ? P.hoistDb(src.obj.hoistId) : c.type === "ac" && c.key === "type" ? S.db().trusses.filter(function (x) { return x.id === src.obj.trussId; })[0] : c.parse(c.raw(src.obj, src));
     if (c.key === "item") { var o = src.obj; row.obj.note = o.note; if (typeof o.fixtureLb === "number") { row.obj.fixtureLb = o.fixtureLb; row.obj.clampLb = o.clampLb || 0; } else { delete row.obj.fixtureLb; delete row.obj.clampLb; } row.obj.weight = o.weight; delete row.obj.qty; }
     else if (v !== undefined && v !== null) c.set(row.obj, v, row);
-    S.commit();
   }
   /** Ctrl+V: tab-separated rows from a spreadsheet, from the active cell right and down (new rows added in the group). */
   function paste(text) {
@@ -6329,6 +6409,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (!st.act) return;
     var ri = rowIndex(st.act.row), row = st.rows[ri];
     if (!row || row.kind) return;
+    if (inMulti(row)) {   // 1.24.0: the whole selection
+      var sel = multiRows().filter(function (r) { return r.del; });
+      if (!sel.length || !confirm("Delete " + sel.length + " " + st.noun + "? (Undo brings them back.)")) return;
+      sel.forEach(function (r) { r.del(); });
+      st.multi = []; st.act = null; S.sel = { truss: row.truss ? row.truss.id : null, support: null, load: null };
+      S.commit(); return;
+    }
     if (!row.del) { if (row.obj && row.obj.id && S.truss(row.obj.id) && confirm("Delete " + row.obj.name + "?")) { S.removeTruss(row.obj.id); } return; }
     row.del();
     var nx = st.rows[ri + 1]; st.act = nx ? { row: nx.key, col: st.act.col } : null;
@@ -6344,6 +6431,19 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var ri = rowIndex(st.act.row), ci = colIndex(st.act.col);
     if (ri < 0 || ci < 0) return;
     var k = e.key, handled = true;
+    if (st.multiOn && e.shiftKey && (k === "ArrowDown" || k === "ArrowUp")) {   // 1.24.0: grow / shrink the selection
+      var d = k === "ArrowDown" ? 1 : -1, ni = ri + d; while (ni >= 0 && ni < st.rows.length && !isData(st.rows[ni])) ni += d;
+      if (ni >= 0 && ni < st.rows.length && isData(st.rows[ri])) {
+        if (!st.multi.length) st.multi = [st.rows[ri].key];
+        var nk = st.rows[ni].key;
+        if (st.multi.indexOf(nk) >= 0) st.multi.splice(st.multi.indexOf(st.rows[ri].key), 1); else st.multi.push(nk);
+        st.act = { row: nk, col: st.cols[ci].key }; redraw();
+      }
+      e.preventDefault(); e.stopPropagation(); return;
+    }
+    if (st.multiOn && (e.ctrlKey || e.metaKey) && k.toLowerCase() === "a") { selectRows(st.rows.filter(isData).map(function (r) { return r.key; })); e.preventDefault(); e.stopPropagation(); return; }
+    if (st.multi.length && k === "Escape") { clearMulti(); e.preventDefault(); e.stopPropagation(); return; }
+    if (st.multi.length && /^(Arrow|Tab$|Enter$)/.test(k) && !(e.ctrlKey || e.metaKey)) { st.multi = []; redraw(); }
     if (k === "ArrowDown") moveBy(ri, ci, 1, 0);
     else if (k === "ArrowUp") moveBy(ri, ci, -1, 0);
     else if (k === "ArrowRight") moveBy(ri, ci, 0, 1);
@@ -6434,12 +6534,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     render(container, spec);
     if (st.pendingMove && st.act) { var pm = st.pendingMove; st.pendingMove = null; moveBy(rowIndex(st.act.row), colIndex(st.act.col), pm[0], pm[1], true, pm[1] ? "tab" : "enter"); [].forEach.call(container.querySelectorAll("td.act"), function (x) { x.classList.remove("act"); }); restoreAct(); }
   }
-  function leave() { st.act = null; st.edit = false; editor = null; closeAc(); focusMode(); }
+  function leave() { st.act = null; st.edit = false; st.multi = []; editor = null; closeAc(); focusMode(); }
 
   TLA.grids = {
     mount: mount, show: show, leave: leave, tsv: tsv, focusMode: focusMode, findFixture: findFixture, fixtureSource: fixtureSource, attachFixtureAc: attachFixtureAc, attachAc: attachAc,
     compare: function (v) { if (v === undefined) return st.cmp; st.cmp = !!v; }, showPlan: function (v) { if (v === undefined) return !st.noFocus; st.noFocus = !v; focusMode(); },
-    active: function () { return !!st.act; }
+    active: function () { return !!st.act; }, selected: function () { return multiRows().map(function (r) { return r.obj; }); }, selectRows: selectRows
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
@@ -7546,6 +7646,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Corner blocks</b>: trusses are bolted together at corner blocks, which are special short trusses with their own weight. The block type comes from the Christie Lites and James Thomas Engineering catalogues (weights as published on their product pages; blocks that use end/face plates add weight per truss bolted on, and bolt-on blocks default to the middle published bolt count). The truss it is bolted through carries the block, and every truss bolted to it passes its end reaction into the block. Faces used are counted (a truss ending at the block uses 1, one running through it uses 2) and compared with the block's ways. Where a maker publishes no weight, enter your own on the block. Truss lengths are measured center to center of the blocks in the plan.</li>",
     "<li>Truss self weight is spread uniformly over the whole length, including cantilevers. Hoist and chain weight are added after the analysis.</li>",
     "<li>Mirror loads: a load can be mirrored about the truss centerline; the twin follows edits to the original.</li>",
+    "<li><b>Edit many hoists at once (since 1.24.0)</b>: in the Hoists grid (step 3), Shift+click selects a range, Ctrl+click adds or removes one hoist, Shift+arrows grow the selection, Ctrl+A selects all and <i>Select</i> on a truss row selects its hoists. Any edit then changes every selected hoist (not their positions); Ctrl+D copies the top one to the rest; Delete removes them; Esc clears. A new hoist starts as a copy of the last hoist placed (model, chain or rope, hardware, dynamic factor).</li>",
     "<li><b>Mirror and copy hoists (since 1.23.0)</b>: <i>Mirror</i> (hoist panel) and <i>Mirror all</i> (truss panel, Hoists grid) add a hoist at the mirrored spot about the centerline; <i>Copy to truss</i> copies hoists to another truss at the same distance from its centre. Each copy is its own hoist (edit it separately) with the same model, chain or rope, dynamic factor, hardware, level offset and Hangs from - but no name or load-cell reading. No copy is placed where a hoist already is.</li>",
     "<li><b>Deflection (since 1.18.0)</b>: each truss's deflected shape comes from the whole-rig analysis (exact for the beam model between its nodes: bending plus shear, with the stiffness estimated from the tables, so it is an estimate). Each span's sag is measured from the straight line between its two supports - so a carrier truss sagging under a bolted truss, or a hoist stretching, is not counted against the span - and compared with the maker's published limit (Tomcat L/100, the JTE sheets that state L/160) or, where the maker publishes none, the rig default in Rig settings (L/160). Past a maker's limit the truss is Overloaded (the maker's allowable loads are set by that limit); past the rig default it is a warning. Cantilever tips are shown, not checked (the makers' limits are for simple spans).</li>",
     "<li><b>Deflection view (since 1.22.0)</b>: the <i>Deflection</i> colour mode colours each truss by its worst span's sag against its limit, and draws its deflected shape from the whole-rig analysis, exaggerated with one scale for the whole rig - beside the truss on the plan (a sag is drawn to its right-hand side) and above it in 3D. Hover a shape on the plan for its largest sag. It also shows a truss that sags with its carrier or a springy hoist, and a part that is not connected.</li>" +

@@ -61,6 +61,22 @@
   }
   S.defaultTrussId = defaultTrussId;
   S.defaultHoistId = defaultHoistId;
+  /** The hoist placed last in this rig (1.24.0): ids count up per rig, so the highest one. Null when the rig has none. */
+  S.lastHoist = function () {
+    var best = null, bn = -1;
+    S.rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) { var n = s.kind === "hoist" ? parseInt(String(s.id).replace(/^\D+/, ""), 10) : NaN; if (n > bn) { bn = n; best = s; } });
+    });
+    return best;
+  };
+  var TEMPLATE_KEYS = ["hoistId", "chainLength", "hardwareWeight", "dlf", "dead", "rope", "ropeLength", "wll"];
+  /** A new hoist from the UI (1.24.0): set up like the last hoist placed (model, chain or rope, hardware, DLF; not its
+      name, level offset, Hangs from or reading), or the rig default when there is none. */
+  S.newHoist = function (distance) {
+    var last = S.lastHoist(), extra = {};
+    if (last) TEMPLATE_KEYS.forEach(function (k) { if (last[k] !== undefined) extra[k] = JSON.parse(JSON.stringify(last[k])); });
+    return S.hoistSupport(distance, extra);
+  };
 
   S.hoistSupport = function (distance, extra) {
     return Object.assign({ id: id("s"), name: "", distance: distance, kind: "hoist", hoistId: defaultHoistId(), chainLength: 20, hardwareWeight: 0 }, extra || {});
@@ -491,7 +507,7 @@
   /** Add a hoist at the middle of a truss (edit its position afterwards). */
   S.addHoist = function (tid) {
     var t = S.truss(tid); if (!t) return null;
-    var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t);
+    var sp = S.applyMeasure(S.newHoist(round(t.length / 2)), t);
     t.supports.push(sp); S.commit(); return sp;
   };
   /** Remove every load from a truss (Undo brings them back). */
