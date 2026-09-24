@@ -84,6 +84,10 @@
     near(TLA.rig.blockWeight({ weightOverride: 30 }, jte6, 3), 30, 1e-9, "override");
     eq(TLA.rig.blockWeight({}, C.filter(function (c) { return c.code === "TRUHA-02"; })[0], 2), 0, "unpublished weight is 0 until entered");
   });
+  add("database links: every manufacturer truss links to its load table, JTE links use the site's x and degree signs", function () {
+    TLA.data.trusses.forEach(function (x) { if (x.source === "MFG") eq(/^https:\/\/[^ ]+$/.test(x.url || ""), true, "load table url for " + x.description); });
+    TLA.data.corners.forEach(function (c) { if (/jthomaseng/.test(c.source)) eq(!/\d-x-\d/.test(c.source) && !/pivot-section-0-\d+$/.test(c.source), true, "JTE url for " + c.family + " " + c.name); });
+  });
   add("corner blocks: block carries bolted truss, adds own weight, counts faces, equilibrium", function () {
     var cid = dbId("Christie", '12"x12" A Type Bolted');
     var a90 = TLA.data.corners.filter(function (c) { return c.code === "TRUAA-90"; })[0];

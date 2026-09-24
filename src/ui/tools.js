@@ -1,9 +1,9 @@
-/* Side tools: Circular Truss, Simple UDL, Fixture weights, Databases (custom trusses / hoists / fixtures). */
+/* Side tools: Circular Truss, Simple UDL, Fixture weights, Databases (trusses and corner blocks in one table, custom hoists). */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
   var S, P, h, fmt, U;
   var NS = "http://www.w3.org/2000/svg";
-  var state = { circ: { trussId: null, n: 5, d: 60, orig: false }, udl: { total: 1000, exact: false }, fx: { q: "", mfr: "" } };
+  var state = { circ: { trussId: null, n: 5, d: 60, orig: false }, udl: { total: 1000, exact: false }, fx: { q: "", mfr: "" }, db: { q: "", type: "", mfr: "", fam: "" } };
 
   function trussPicker(get, set) {
     var db = S.db().trusses, cur = db.filter(function (x) { return x.id === get(); })[0] || db[0];
@@ -100,18 +100,80 @@
     box.appendChild(card);
   }
 
+  var MAKER = { "Christie Lites": "Christie", "James Thomas Engineering": "JTE" };
+  function maker(m) { return MAKER[m] || m; }
+
+  // One table for trusses and corner blocks: they share a family_key (e.g. "jte-gp-12x12"), so a truss and the blocks
+  // that fit it can be shown together. Trusses link to the maker's load table, corner blocks to the product page.
+  function equipment(card) {
+    var u = S.userDb, f = state.db;
+    var blocks = TLA.data.corners.concat(u.corners || []);
+    var trusses = S.db().trusses.filter(function (x) { return !x.hidden; });
+    var famName = {};
+    blocks.forEach(function (c) { if (c.family_key && !famName[c.family_key]) famName[c.family_key] = c.family.replace(/^Christie /, ""); });
+    trusses.forEach(function (x) { if (x.family_key && !famName[x.family_key]) famName[x.family_key] = String(x.description).trim(); });
+    function wtxt(c) { return c.base_lb != null ? U.n("w", c.base_lb, 1) + " + " + U.n("w", c.per_connection_lb, 1) + " / plate" : c.variants ? c.variants.map(function (v) { return U.n("w", v[1], 1); }).join(" / ") : c.weight_lb != null ? U.n("w", c.weight_lb, 1) : "n/a"; }
+    var rows = trusses.map(function (x) {
+      return { t: "Truss", x: x, mk: maker(x.manufacturer), fam: x.family_key ? famName[x.family_key] : "", key: x.family_key, name: String(x.description).trim(), code: "",
+        spec: "max span " + U.f("len", x.max_span_ft, 1) + (x.repetitive_use ? ", repetitive use" : ""), wt: U.f("wpl", x.weight_per_ft_lb, 2),
+        url: x.url, link: "load table", src: x.source === "User" ? "custom" : x.source === "TLA" ? "workbook" : "", tip: P.trussSource(x), custom: x.source === "User" };
+    }).concat(blocks.map(function (c) {
+      var w = wtxt(c);
+      return { t: "Corner block", x: c, mk: maker(c.manufacturer), fam: c.family_key ? famName[c.family_key] : c.family.replace(/^Christie /, ""), key: c.family_key, name: c.name, code: c.code || "",
+        spec: c.ways + "-way" + (c.kind && c.kind !== "corner" ? " " + c.kind : "") + (c.fits ? ", fits " + c.fits : ""), wt: w === "n/a" ? w : w + " " + U.unit("w"),
+        url: c.source, link: "product page", src: c.custom ? "custom" : "", tip: c.notes || "", custom: !!c.custom };
+    }));
+    rows.sort(function (a, b) { return a.mk.localeCompare(b.mk) || (a.fam || "~").localeCompare(b.fam || "~") || (a.t === b.t ? 0 : a.t === "Truss" ? -1 : 1) || a.name.localeCompare(b.name); });
+    var mfrs = []; rows.forEach(function (r) { if (mfrs.indexOf(r.mk) < 0) mfrs.push(r.mk); });
+    if (mfrs.indexOf(f.mfr) < 0) f.mfr = "";
+
+    var q = h("input", { type: "text", placeholder: "Search trusses and corner blocks", value: f.q });
+    var famChip = h("span"), count = h("span", { "class": "sub" }), tb = h("tbody");
+    function list() {
+      tb.textContent = ""; famChip.textContent = "";
+      var term = f.q.toLowerCase(), n = 0;
+      if (f.fam) famChip.appendChild(h("button", { "class": "chip-btn", title: "Show all families", text: "Family: " + (famName[f.fam] || f.fam) + "  x", onclick: function () { f.fam = ""; list(); } }));
+      rows.forEach(function (r) {
+        if ((f.type && r.t !== f.type) || (f.mfr && r.mk !== f.mfr) || (f.fam && r.key !== f.fam)) return;
+        if (term && (r.t + " " + r.mk + " " + r.x.manufacturer + " " + r.fam + " " + r.name + " " + r.code + " " + r.spec).toLowerCase().indexOf(term) < 0) return;
+        n++;
+        var del = r.custom ? h("button", { "class": "x", title: "Delete this custom entry", text: "x", onclick: function () {
+          if (r.t === "Truss") u.trusses = u.trusses.filter(function (x) { return x !== r.x; }); else u.corners = u.corners.filter(function (x) { return x.id !== r.x.id; });
+          S.commit({ noUndo: true }); render(); } }) : null;
+        tb.appendChild(h("tr", { title: r.tip },
+          h("td", { "class": "mut", text: r.t === "Truss" ? "Truss" : "Block" }), h("td", { text: r.mk }),
+          h("td", null, r.key ? h("a", { href: "#", title: "Show this family's trusses and corner blocks", text: r.fam, onclick: function (e) { e.preventDefault(); f.fam = r.key; list(); } }) : r.fam || ""),
+          h("td", { text: r.name }), h("td", { style: "white-space:nowrap", text: r.code }), h("td", { text: r.spec }), h("td", { "class": "r", style: "white-space:nowrap", text: r.wt }),
+          h("td", { style: "white-space:nowrap" }, r.url ? h("a", { href: r.url, target: "_blank", rel: "noopener", text: r.link }) : h("span", { "class": "mut", text: r.src })), h("td", null, del)));
+      });
+      count.textContent = n + " of " + rows.length;
+    }
+    q.addEventListener("input", function () { f.q = q.value; list(); });
+    card.appendChild(h("div", { "class": "formrow" }, q,
+      P.select([{ value: "", label: "Trusses and corner blocks" }, { value: "Truss", label: "Trusses" }, { value: "Corner block", label: "Corner blocks" }], f.type, function (v) { f.type = v; list(); }),
+      P.select([{ value: "", label: "All makers" }].concat(mfrs.map(function (m) { return { value: m, label: m }; })), f.mfr, function (v) { f.mfr = v; list(); }),
+      famChip, count));
+    card.appendChild(h("div", { style: "max-height:60vh;overflow:auto" }, h("table", { "class": "tbl wide" },
+      h("thead", null, h("tr", null, ["Type", "Maker", "Family", "Item", "Code", "Spec", "Weight", "Source", ""].map(function (x) { return h("th", { "class": x === "Weight" ? "r" : "", text: x }); }))), tb)));
+    list();
+  }
+
   function databases(box) {
     box.textContent = "";
     var u = S.userDb, M = U.metric();
-    var card = h("div", { "class": "card" }, h("h2", { text: "Custom trusses" }),
-      h("p", { "class": "sub", text: "Add a truss that is not in the built-in table. Enter the max uniformly distributed load (UDL, total) and max center point load (CPL) in " + (M ? "kilograms" : "pounds") + "; they are applied for every span up to the max span. For different values per length, paste one number per " + (M ? "metre (1 m, 2 m, ...)" : "foot (1 ft to 100 ft)") + " instead. The truss is saved in the units you enter it in (" + (M ? "metric" : "imperial") + ")." }));
+    var card = h("div", { "class": "card" }, h("h2", { text: "Trusses and corner blocks" }),
+      h("p", { "class": "sub", text: "Every truss and corner block the app knows, including your own. Manufacturer trusses link to the maker's load table, corner blocks to the product page. Click a family to see a truss with the corner blocks that fit it. Trusses marked \"workbook\" come from Hall & Sogoian's Truss Load Analyzer - hover a row for where its numbers come from. Corner block weights marked n/a are not published - enter your own on the block in the rig; blocks with end/face plates add weight per connection." }));
+    equipment(card);
+
+    var ta = h("details", { "class": "grp" }, h("summary", { text: "Add your own truss" }),
+      h("p", { "class": "sub", text: "For a truss that is not in the table. Enter the max uniformly distributed load (UDL, total) and max center point load (CPL) in " + (M ? "kilograms" : "pounds") + "; they are applied for every span up to the max span. For different values per length, paste one number per " + (M ? "metre (1 m, 2 m, ...)" : "foot (1 ft to 100 ft)") + " instead. The truss is saved in the units you enter it in (" + (M ? "metric" : "imperial") + ")." }));
     var KW = M ? "kg/m" : "lb/ft", KS = M ? "Max span (m)" : "Max span (ft)", KU = M ? "UDL (kg)" : "UDL (lb)", KC = M ? "CPL (kg)" : "CPL (lb)";
     var f = {}; ["Manufacturer", "Model", KW, KS, KU, KC].forEach(function (k) { f[k] = h("input", { type: k === "Manufacturer" || k === "Model" ? "text" : "number", step: "any", "class": k === "Manufacturer" || k === "Model" ? "" : "num", placeholder: k }); });
     var udlList = h("input", { type: "text", placeholder: "Optional: UDL per " + (M ? "metre" : "foot") + ", comma separated" }), cplList = h("input", { type: "text", placeholder: "Optional: CPL per " + (M ? "metre" : "foot") + ", comma separated" });
     var rep = h("input", { type: "checkbox" });
-    card.appendChild(h("div", { "class": "formrow" }, f.Manufacturer, f.Model, f[KW], f[KS], f[KU], f[KC]));
-    card.appendChild(h("div", { "class": "formrow" }, udlList, cplList));
-    card.appendChild(h("div", { "class": "formrow" }, h("label", { "class": "mini check" }, rep, "Data already includes the repetitive-use factor (no 0.85 derate)"),
+    ta.appendChild(h("div", { "class": "formrow" }, f.Manufacturer, f.Model, f[KW], f[KS], f[KU], f[KC]));
+    ta.appendChild(h("div", { "class": "formrow" }, udlList, cplList));
+    ta.appendChild(h("div", { "class": "formrow" }, h("label", { "class": "mini check" }, rep, "Data already includes the repetitive-use factor (no 0.85 derate)"),
       h("button", { "class": "primary", text: "Add truss", onclick: function () {
         var ms = parseFloat(f[KS].value) || 0, n = M ? Math.ceil(ms) : 100;
         if (!f.Model.value || !ms) { alert("Enter a model name and max span."); return; }
@@ -127,7 +189,22 @@
         u.trusses.push(e);
         S.commit({ noUndo: true }); render();
       } })));
-    card.appendChild(listBlock(u.trusses, function (x) { return x.manufacturer + " " + x.description + " - " + U.f("wpl", x.weight_per_ft_lb, 2) + ", max span " + U.f("len", x.max_span_ft, 1) + (x.units === "metric" ? " (metric data)" : ""); }, function (i) { u.trusses.splice(i, 1); S.commit({ noUndo: true }); render(); }));
+    card.appendChild(ta);
+
+    var ba = h("details", { "class": "grp" }, h("summary", { text: "Add your own corner block" }));
+    var CW = "Weight (" + U.unit("w") + ")", CS = "Size (" + U.unit("inch") + ")";
+    var cf = {}; ["Maker", "Truss family", "Name", "Ways", CW, CS].forEach(function (k) { cf[k] = h("input", { type: /Ways|Weight|Size/.test(k) ? "number" : "text", step: "any", "class": /Ways|Weight|Size/.test(k) ? "num" : "", placeholder: k }); });
+    var fitsIn = h("input", { type: "text", placeholder: "Fits e.g. 12x12" });
+    ba.appendChild(h("div", { "class": "formrow" }, cf.Maker, cf["Truss family"], cf.Name, fitsIn, cf.Ways, cf[CW], cf[CS],
+      h("button", { "class": "primary", text: "Add block", onclick: function () {
+        if (!cf.Name.value) { alert("Enter a name."); return; }
+        u.corners = u.corners || [];
+        var nid = 2000 + u.corners.length + 1;
+        u.corners.push({ id: nid, custom: true, manufacturer: cf.Maker.value || "Custom", family: cf["Truss family"].value || "Custom", fits: (fitsIn.value || "12x12").toLowerCase().replace(/\s|"/g, ""), name: cf.Name.value, code: "", kind: "corner",
+          ways: parseInt(cf.Ways.value, 10) || 6, size_in: parseFloat(cf[CS].value) ? U.back("inch", parseFloat(cf[CS].value)) : null, weight_lb: parseFloat(cf[CW].value) ? U.back("w", parseFloat(cf[CW].value)) : null, variants: null, base_lb: null, per_connection_lb: null, notes: "user-added", source: "" });
+        S.commit({ noUndo: true }); render();
+      } })));
+    card.appendChild(ba);
     box.appendChild(card);
 
     var hc = h("div", { "class": "card" }, h("h2", { text: "Custom chain hoists" }));
@@ -142,47 +219,9 @@
       } })));
     hc.appendChild(listBlock(u.hoists, function (x) { return x.brand + " " + x.description + " - " + U.f("w", x.capacity_lb, 0) + ", " + U.f("speed", x.speed_fpm, 0); }, function (i) { u.hoists.splice(i, 1); S.commit({ noUndo: true }); render(); }));
     box.appendChild(hc);
-    var cc = h("div", { "class": "card" }, h("h2", { text: "Corner blocks" }),
-      h("p", { "class": "sub", text: "Christie Lites and James Thomas Engineering corner blocks, hubs, pivots, hinges and gates, with the weights published on the manufacturers' product pages. Weights marked n/a are not published - enter your own on the block in the rig. Blocks with end/face plates add weight per connection." }));
-    var all = TLA.data.corners.concat(u.corners || []);
-    var q2 = h("input", { type: "text", placeholder: "Search corner blocks" });
-    var tb2 = h("tbody");
-    function wtxt(c) { return c.base_lb != null ? U.n("w", c.base_lb, 1) + " + " + U.n("w", c.per_connection_lb, 1) + " / plate" : c.variants ? c.variants.map(function (v) { return U.n("w", v[1], 1); }).join(" / ") : c.weight_lb != null ? U.n("w", c.weight_lb, 1) : "n/a"; }
-    function list2() {
-      tb2.textContent = "";
-      var term = q2.value.toLowerCase();
-      all.filter(function (c) { return !term || (c.manufacturer + " " + c.family + " " + c.name + " " + c.code + " " + c.fits).toLowerCase().indexOf(term) >= 0; }).forEach(function (c) {
-        tb2.appendChild(h("tr", null, h("td", { text: c.manufacturer.replace("James Thomas Engineering", "JTE") }), h("td", { text: c.family }), h("td", null, c.source ? h("a", { href: c.source, target: "_blank", rel: "noopener", text: c.name }) : c.name), h("td", { text: c.code || "" }),
-          h("td", { "class": "r", text: String(c.ways) }), h("td", { "class": "r", text: wtxt(c) }), h("td", null, c.custom ? h("button", { "class": "x", text: "x", onclick: function () { u.corners = u.corners.filter(function (x) { return x.id !== c.id; }); S.commit({ noUndo: true }); render(); } }) : null)));
-      });
-    }
-    q2.addEventListener("input", list2); list2();
-    cc.appendChild(h("div", { "class": "formrow" }, q2));
-    cc.appendChild(h("div", { style: "max-height:40vh;overflow:auto" }, h("table", { "class": "tbl wide" }, h("thead", null, h("tr", null, ["Maker", "Truss", "Block", "Code", "Ways", "Weight (" + U.unit("w") + ")", ""].map(function (x, i) { return h("th", { "class": i === 4 || i === 5 ? "r" : "", text: x }); }))), tb2)));
-    var CW = "Weight (" + U.unit("w") + ")", CS = "Size (" + U.unit("inch") + ")";
-    var cf = {}; ["Maker", "Truss family", "Name", "Ways", CW, CS].forEach(function (k) { cf[k] = h("input", { type: /Ways|Weight|Size/.test(k) ? "number" : "text", step: "any", "class": /Ways|Weight|Size/.test(k) ? "num" : "", placeholder: k }); });
-    var fitsIn = h("input", { type: "text", placeholder: "Fits e.g. 12x12" });
-    cc.appendChild(h("h3", { text: "Add your own corner block" }));
-    cc.appendChild(h("div", { "class": "formrow" }, cf.Maker, cf["Truss family"], cf.Name, fitsIn, cf.Ways, cf[CW], cf[CS],
-      h("button", { "class": "primary", text: "Add block", onclick: function () {
-        if (!cf.Name.value) { alert("Enter a name."); return; }
-        u.corners = u.corners || [];
-        var nid = 2000 + u.corners.length + 1;
-        u.corners.push({ id: nid, custom: true, manufacturer: cf.Maker.value || "Custom", family: cf["Truss family"].value || "Custom", fits: (fitsIn.value || "12x12").toLowerCase().replace(/\s|"/g, ""), name: cf.Name.value, code: "", kind: "corner",
-          ways: parseInt(cf.Ways.value, 10) || 6, size_in: parseFloat(cf[CS].value) ? U.back("inch", parseFloat(cf[CS].value)) : null, weight_lb: parseFloat(cf[CW].value) ? U.back("w", parseFloat(cf[CW].value)) : null, variants: null, base_lb: null, per_connection_lb: null, notes: "user-added", source: "" });
-        S.commit({ noUndo: true }); render();
-      } })));
-    box.appendChild(cc);
 
     function srcCount(src) { return TLA.data.trusses.filter(function (x) { return x.source === src; }).length; }
     box.appendChild(h("div", { "class": "card" }, h("h2", { text: "Built-in data" }), h("p", { "class": "sub", text: TLA.data.trusses.length + " trusses (" + srcCount("TLA") + " from the Truss Load Analyzer workbooks, " + srcCount("MFG") + " straight from manufacturers' data; " + TLA.data.trusses.filter(function (x) { return x.units === "metric"; }).length + " with native metric tables), " + TLA.data.hoists.length + " chain hoists, " + TLA.data.fixtures.length + " fixtures from the original workbook (read-only), plus " + TLA.data.corners.length + " corner blocks from the manufacturers. Your custom entries are stored in this browser and included in saved rig files." })));
-    var rows = TLA.data.trusses.map(function (x) {
-      return h("tr", { title: P.trussSource(x) }, h("td", { text: x.manufacturer }), h("td", { text: String(x.description).trim() }), h("td", { text: x.units === "metric" ? "metric" : "imperial" }),
-        h("td", { "class": "r", text: U.n("wpl", x.weight_per_ft_lb, 2) }), h("td", { "class": "r", text: U.n("len", x.max_span_ft, 1) }), h("td", { text: x.repetitive_use ? "yes" : "no" + (typeof x.derate === "number" ? " (" + x.derate + ")" : "") }),
-        h("td", { text: x.source === "MFG" ? "MFG" : x.source || "" }), h("td", { "class": "mut", text: x.source_ref || "" }));
-    });
-    box.appendChild(h("details", { "class": "card" }, h("summary", { text: "Built-in trusses and where their numbers come from (" + rows.length + ")" }),
-      h("table", { "class": "tbl wide" }, h("thead", null, h("tr", null, ["Manufacturer", "Model", "Native units", U.unit("wpl"), "Max span " + U.unit("len"), "Repetitive-use data", "Source", "Reference"].map(function (c) { return h("th", { text: c }); }))), h("tbody", null, rows))));
   }
 
   function listBlock(items, label, remove) {
