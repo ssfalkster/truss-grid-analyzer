@@ -446,6 +446,48 @@
     if (list.length) S.commit();
     return { copied: list.length, clamped: clamped };
   };
+  /* Hoists (1.23.0): mirror and copy make real hoists (loads keep a linked twin instead) - each hoist has its own
+     name, result, level offset and load-cell reading. A copy keeps the model, chain/rope, DLF, hardware, dead-hang
+     fields, level offset and "Hangs from"; it drops the name and the reading. No copy lands on an existing hoist. */
+  var HOIST_TOL = 0.01;   // ft: closer than this counts as the same spot
+  function hoistAt(t, d) { return t.supports.some(function (s) { return s.kind === "hoist" && Math.abs(s.distance - d) < HOIST_TOL; }); }
+  function hoistCopy(s, t, d) {
+    var c = JSON.parse(JSON.stringify(s));
+    c.id = id("s"); c.name = ""; delete c.measured;
+    if (c.hangFrom === t.id) delete c.hangFrom;
+    c.distance = round(d);
+    if (c.from === "end" || c.from === "center") S.measureFrom(c, c.from, t.length); else delete c.pos;
+    return c;
+  }
+  /** Add the mirror of hoists (ids, or all when empty) about their truss's centerline. Returns { added, skipped }
+      (skipped = on the centerline, or a hoist is already at the mirrored spot). */
+  S.mirrorHoists = function (tid, ids) {
+    var t = S.truss(tid); if (!t) return null;
+    var list = t.supports.filter(function (s) { return s.kind === "hoist" && (!ids || !ids.length || ids.indexOf(s.id) >= 0); }), added = [];
+    list.forEach(function (s) {
+      var d = t.length - s.distance;
+      if (Math.abs(d - s.distance) < HOIST_TOL || hoistAt(t, d)) return;
+      var c = hoistCopy(s, t, d); t.supports.push(c); added.push(c);
+    });
+    if (added.length) S.commit();
+    return { added: added, skipped: list.length - added.length };
+  };
+  /** Copy hoists (ids, or all when empty) to another truss, keeping each one's distance from the CENTRE (as copyLoads).
+      Returns { copied, clamped, skipped } (skipped = the other truss already has a hoist there). */
+  S.copyHoists = function (srcId, ids, dstId) {
+    var A = S.truss(srcId), B = S.truss(dstId);
+    if (!A || !B || A === B) return null;
+    var list = A.supports.filter(function (s) { return s.kind === "hoist" && (!ids || !ids.length || ids.indexOf(s.id) >= 0); }), copied = 0, clamped = 0, skipped = 0;
+    list.forEach(function (s) {
+      var off = (Number(s.distance) || 0) - A.length / 2, half = B.length / 2, cl = false;
+      if (Math.abs(off) > half) { off = off < 0 ? -half : half; cl = true; }
+      if (hoistAt(B, half + off)) { skipped++; return; }
+      var c = hoistCopy(s, B, half + off); c.from = "center"; c.pos = round(off);
+      B.supports.push(c); copied++; if (cl) clamped++;
+    });
+    if (copied) S.commit();
+    return { copied: copied, clamped: clamped, skipped: skipped };
+  };
   /** Add a hoist at the middle of a truss (edit its position afterwards). */
   S.addHoist = function (tid) {
     var t = S.truss(tid); if (!t) return null;

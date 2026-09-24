@@ -276,11 +276,12 @@
     S.rig.trusses.forEach(function (t) {
       var hs = t.supports.filter(function (s) { return s.kind === "hoist"; });
       if (t.isBlock && !hs.length) return;
-      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: hs.length + " hoist" + (hs.length === 1 ? "" : "s") + " · " + U.f("len", t.length, 2) });
+      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: hs.length + " hoist" + (hs.length === 1 ? "" : "s") + " · " + U.f("len", t.length, 2),
+        acts: hs.length ? [["Mirror all", function () { P.mirrorHoistsUi(t); }], ["Copy to truss…", function () { P.copyHoistsPrompt(t); }]] : [] });
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
       rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.hoistSupport(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
+    return { cols: cols, rows: rows, hint: "Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
