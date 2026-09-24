@@ -177,6 +177,36 @@
     });
   });
 
+  add("RMMS 3D grid example in Production Assist 1.13.10 (Derek Epstein, RMMS12 downloads, Calculations.pdf): same hoist loads from the same model", function () {
+    // PA's model of the grid: 12x12 box as one beam (EN-AW-6082-T6, E 70000 MPa, G 27000 MPa, Iy 3118.87 cm4,
+    // Ix 1130.16 cm4), no shear deformation, frames continuous through the corner blocks (rigid joints), nodes at
+    // 120.75 in centres, 100.03 lbf/ft on every span, 300.10 lbf hung under the N3 corner block, weightless truss.
+    // Each hoist hangs on a 352 in "StiffRope" element (A 10000 mm2, E 110000 MPa): a spring. Expected = PA's
+    // "Motor force" (hook load, roof force less hoist weight), p. 6; PA's N1-N9 run 1 2 3 / 4 5 6 / 7 8 9.
+    var MPA = 145.0377, CM4 = 1 / Math.pow(2.54, 4), s = 120.75 / 12;
+    var EI = 70000 * MPA * 3118.87 * CM4 / 144, GJ = 27000 * MPA * 1130.16 * CM4 / 144;           // lb-ft2
+    var k = (10000 / 645.16) * 110000 * MPA / 352 * 12;                                             // lb/ft
+    var beams = [], links = [], supports = [];
+    function beam(c, sn) { return { t: { name: "b" + beams.length }, c: c, s: sn, EI: EI, GJ: GJ, w: 100.03, L: 2 * s, nodes: [{ d: 0, P: 0 }, { d: s, P: 0 }, { d: 2 * s, P: 0 }] }; }
+    for (var i = 0; i < 3; i++) beams.push(beam(1, 0));
+    for (var j = 0; j < 3; j++) beams.push(beam(0, 1));
+    beams[0].nodes[2].P = 300.10;
+    for (i = 0; i < 3; i++) for (j = 0; j < 3; j++) {
+      links.push({ a: i, na: j, b: 3 + j, nb: i, rigid: true });
+      supports.push({ b: i, n: j, id: "N" + i + j, k: k });
+    }
+    var r = TLA.grillage.solveModel({ beams: beams, links: links, supports: supports }, true), R = r.reactions;
+    eq(r.ok, true, "solved");
+    var PA = { N02: 1057.81, N01: 1634.73, N12: 1634.73, N10: 1634.05, N21: 1634.05, N11: 2509.50, N00: 758.08, N22: 758.08, N20: 758.38 };
+    // within 0.5 lb: PA also carries 0.21 lb of corner blocks and bolts, and prints to 2 decimals
+    Object.keys(PA).forEach(function (id) { near(R[id], PA[id], 0.5, "PA " + id); });
+    near(r.total, 12378.72, 0.01, "total");
+    // PA's section is four 2 x 0.125 in chords 10 in apart - what section.js computes from the same chord sizes
+    // (chord self-inertia left out: 1.7% less)
+    var sec = TLA.section.estimate({ description: "12x12 box", section: { chordOD: 2, chordWall: 0.125, depthIn: 12, widthIn: 12 } });
+    near(sec.EI * 144 / sec.E, 3118.87 * CM4, 0.02 * 3118.87 * CM4, "I of the chords vs PA's Iy");
+  });
+
   /* ---------- 1.3.0: the stiffness solve is primary ---------- */
 
   function noCarrierHoists() {
