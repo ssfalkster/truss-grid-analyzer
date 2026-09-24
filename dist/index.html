@@ -154,6 +154,7 @@ main.focus .ctool > :not(.stages):not(#b-add) { display: none; }
 .lbl.hoist-dyn { font-size: 10px; font-style: italic; font-weight: 400; fill: var(--muted); }
 .hoist .hsym { fill: var(--panel); stroke: var(--hc); stroke-width: 2.5; cursor: grab; }
 .hoist.hung .hsym { stroke-dasharray: 4 2.5; }
+.hoist.dead .hline, .hoist.dead .hhalo { display: none; } .hoist.dead .hsym { fill: var(--hc); } .hoist.dead .hdot { fill: var(--panel); }
 .hoist .hhalo { stroke: var(--plan-bg); stroke-width: 6; fill: none; stroke-linecap: round; }
 .hoist .hline { stroke: var(--hc); stroke-width: 2.2; fill: none; stroke-linecap: round; }
 .hoist .hdot { fill: var(--hc); stroke: none; }
@@ -1064,6 +1065,54 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     };
   }
 
+  /* ---- dead hangs (1.22.0): a support that is just wire rope (and its shackles) from the truss to the hang point ----
+   * Typical catalogue values - minimum breaking strength (lb) and weight (lb/ft). 7x19 galvanized aircraft cable per
+   * MIL-DTL-83420; 6x19 IWRC, extra improved plow steel, bright (Wire Rope Users Manual). EA (lb) per d^2 (in^2) for a
+   * rope spring, from the metallic area (about 0.44 d^2 for 7x19, 0.40 d^2 for 6x19 IWRC) and a rope modulus of about
+   * 11e6 and 13.5e6 psi - estimates, used only when the rig's hoists are springs. Check your own rope's certificate. */
+  var ROPES = [
+    ["gac-1/8", "1/8\" 7x19 GAC", 0.125, 2000, 0.029], ["gac-5/32", "5/32\" 7x19 GAC", 0.15625, 2800, 0.045], ["gac-3/16", "3/16\" 7x19 GAC", 0.1875, 4200, 0.065],
+    ["gac-7/32", "7/32\" 7x19 GAC", 0.21875, 5600, 0.086], ["gac-1/4", "1/4\" 7x19 GAC", 0.25, 7000, 0.11], ["gac-5/16", "5/16\" 7x19 GAC", 0.3125, 9800, 0.173],
+    ["gac-3/8", "3/8\" 7x19 GAC", 0.375, 14400, 0.243],
+    ["iwrc-1/4", "1/4\" 6x19 IWRC EIPS", 0.25, 6800, 0.12], ["iwrc-5/16", "5/16\" 6x19 IWRC EIPS", 0.3125, 10540, 0.18], ["iwrc-3/8", "3/8\" 6x19 IWRC EIPS", 0.375, 15100, 0.26],
+    ["iwrc-7/16", "7/16\" 6x19 IWRC EIPS", 0.4375, 20400, 0.35], ["iwrc-1/2", "1/2\" 6x19 IWRC EIPS", 0.5, 26600, 0.46]
+  ].map(function (r) { return { id: r[0], name: r[1], d_in: r[2], mbs_lb: r[3], weight_per_ft_lb: r[4], ea_per_d2: /^gac/.test(r[0]) ? 11e6 * 0.44 : 13.5e6 * 0.40 }; });
+  var ROPE_DF = 10;      // owner, 2026-09-24: 10:1 unless Rig settings say otherwise
+  function rope(id) { return ROPES.filter(function (r) { return r.id === id; })[0] || null; }
+  function ropeFactor(settings) { return settings && Number(settings.ropeDesignFactor) > 0 ? Number(settings.ropeDesignFactor) : ROPE_DF; }
+  /** A dead hang's working load limit: the rope's breaking strength / design factor, capped by a typed assembly WLL
+   * (the weakest shackle or fitting). No rope and no WLL: 0 (always Overloaded - it must be entered). */
+  function deadHangWll(s, settings) {
+    var r = rope(s.rope), a = r ? r.mbs_lb / ropeFactor(settings) : Infinity, b = Number(s.wll) > 0 ? Number(s.wll) : Infinity, w = Math.min(a, b);
+    return isFinite(w) ? w : 0;
+  }
+  /** The hoist-like entry a support is checked with: its hoist from the database, or (dead hang) the rope as the
+   * "chain" (its weight per ft x the rope length), no hoist body, capacity = the dead hang's WLL. */
+  function supportEntry(s, db, settings) {
+    if (s && s.dead) { var r = rope(s.rope); return { dead: true, rope: r, weight_lb: 0, chain_weight_per_ft_lb: r ? r.weight_per_ft_lb : 0, speed_fpm: 0, capacity_lb: deadHangWll(s, settings) }; }
+    var list = (db && db.hoists) || [];
+    return list.filter(function (h) { return h.id === (s && s.hoistId); })[0] || list[0] || null;
+  }
+  /** Check one hoist or dead hang support (low hook reaction in, high hook loads out). A dead hang is static: factor
+   * 1.0 unless one is typed (owner, 2026-09-24). */
+  function checkSupport(s, db, reaction, settings) {
+    settings = settings || {};
+    var e = supportEntry(s, db, settings), dead = !!(s && s.dead);
+    var c = checkHoist(e, dead ? s.ropeLength : s.chainLength, reaction, s.hardwareWeight, dead ? (Number(s.dlf) > 0 ? Number(s.dlf) : 1) : s.dlf, settings.defaultDlf, settings.addPercent);
+    if (dead) c.dead = true;
+    return c;
+  }
+  /** Weight hanging with a support (hoist + chain, or rope), lb - without its hardware. */
+  function supportWeight(s, db, settings) {
+    var e = supportEntry(s, db, settings);
+    return e ? (Number(e.weight_lb) || 0) + (Number(e.chain_weight_per_ft_lb) || 0) * (Number(s.dead ? s.ropeLength : s.chainLength) || 0) : 0;
+  }
+  /** A dead hang's rope as a spring, lb/ft (EA / L), or 0 when unknown. */
+  function ropeStiffness(s) {
+    var r = s && s.dead ? rope(s.rope) : null, L = Number(s && s.ropeLength) || 0;
+    return r && L > 0 ? r.ea_per_d2 * r.d_in * r.d_in / L : 0;
+  }
+
   /** Status as shown to the user. The status values stay the workbook's words (Good, OVERLOADED...), which the code
    * compares against; what people read is OK / Overloaded / Too long / Slack / Unstable, for trusses and hoists alike. */
   function statusText(status) {
@@ -1085,7 +1134,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * (1.18.0; saved rigs keep an explicit choice). */
   function countSelfWeight(settings) { return !settings || settings.cantileverSelfWeight !== false; }
 
-  TLA.limits = { countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
+  TLA.limits = { ROPES: ROPES, ROPE_DF: ROPE_DF, rope: rope, ropeFactor: ropeFactor, deadHangWll: deadHangWll, supportEntry: supportEntry, checkSupport: checkSupport, supportWeight: supportWeight, ropeStiffness: ropeStiffness, countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -1423,7 +1472,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         var isSlack = !!slack[s.id], reaction = isSlack ? 0 : reactionOf[s.id];
         var rec = { support: s, reaction: reaction, slack: isSlack };
         if (s.kind === "hoist") {
-          rec.hoist = TLA.limits.checkHoist(dbHoist(s.hoistId, db), s.chainLength, reaction, s.hardwareWeight, s.dlf, settings.defaultDlf, settings.addPercent);
+          rec.hoist = TLA.limits.checkSupport(s, db, reaction, settings);
           if (isSlack) { rec.hoist.status = "Slack"; rec.hoist.slack = true; }
           else if (isUnstable) rec.hoist.status = "UNSTABLE";      // the truss tips: this number means nothing
           var hung = hangOf[t.id + ":" + s.id];
@@ -2109,7 +2158,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         }
         if (!c || index[c.id] === undefined || c.id === t.id) return;
         var cb = beams[index[c.id]], dc = pt(cb, Number(d) || 0), lb = beams[index[t.id]], dl = pt(lb, s.distance);
-        var w = hoistWeight(db, s) + (Number(s.hardwareWeight) || 0);
+        var w = TLA.limits.supportWeight(s, db, rig.settings) + (Number(s.hardwareWeight) || 0);
         if (w) addP(cb, dc, w, t.id);
         hangPending.push({ a: t.id, da: dl, b: c.id, db: dc, id: t.id + ":" + s.id, s: s });
       });
@@ -2178,15 +2227,22 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     });
     // hoist springs (lb/in -> lb/ft): the hoist's own stiffness, else the rig's; none = rigid
     var kRig = Number(rig.settings && rig.settings.hoistStiffness) || 0;
+    // lb/in: the support's own stiffness, else - when the rig's hoists are springs - a dead hang's rope (EA / L), else
+    // the rig's hoist stiffness; none = rigid (a dead hang on a rig of rigid hoists is rigid too)
+    function supportK(s) {
+      if (s && Number(s.stiffness) > 0) return Number(s.stiffness);
+      var kr = s && s.dead && kRig > 0 ? TLA.limits.ropeStiffness(s) / 12 : 0;
+      return kr > 0 ? kr : kRig;
+    }
     function nodeOf(bm, d) { return bm.nodes.findIndex(function (nd) { return Math.abs(nd.d - d) < 1e-6; }); }
     var hangs = hangPending.map(function (p) {
-      var k = Number(p.s.stiffness) > 0 ? Number(p.s.stiffness) : kRig, A = beams[index[p.a]], B = beams[index[p.b]];
+      var k = supportK(p.s), A = beams[index[p.a]], B = beams[index[p.b]];
       return { a: index[p.a], na: nodeOf(A, p.da), b: index[p.b], nb: nodeOf(B, p.db), id: p.id, k: k > 0 ? k * 12 : 0, truss: p.a, carrier: p.b };
     });
     beams.forEach(function (bm, bi) {
       bm.nodes.forEach(function (nd, ni) {
         (nd.hoist || []).forEach(function (id) {
-          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = Number(s && s.stiffness) > 0 ? Number(s.stiffness) : kRig;
+          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = supportK(s);
           supports.push(k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id });
         });
       });
@@ -2194,11 +2250,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     return { beams: beams, links: links, supports: supports, hangs: hangs };
   }
 
-  /** Hoist + chain weight of one hoist support (lb). */
-  function hoistWeight(db, s) {
-    var h = hoistEntry(db, s.hoistId);
-    return h ? (Number(h.weight_lb) || 0) + (Number(h.chain_weight_per_ft_lb) || 0) * (Number(s.chainLength) || 0) : 0;
-  }
+
 
   var last = { sig: null, out: null };
   function signature(rig, results) {
@@ -2308,7 +2360,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     rig.trusses.forEach(function (t) { byId[t.id] = t; });
     model.hangs.forEach(function (hg) {
       var p = hg.id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")); if (!s) return;
-      var T = sol.reactions[hg.id] || 0, c = TLA.limits.checkHoist(hoistEntry(db, s.hoistId), s.chainLength, T, s.hardwareWeight, s.dlf, st.defaultDlf, st.addPercent);
+      var T = sol.reactions[hg.id] || 0, c = TLA.limits.checkSupport(s, db, T, st);
       out[hg.id] = dynamic ? c.dynamicLoad : T + c.hoistChain + (Number(s.hardwareWeight) || 0);
     });
     return out;
@@ -2514,11 +2566,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     results.hoists.forEach(function (h) {
       var id = h.truss + ":" + h.support, s = supportOf(byId[h.truss], h.support);
       if (!s || MODELS.some(function (mm) { return out[mm].reactions[id] === undefined; })) return;
-      var entry = hoistEntry(db, s.hoistId), by = {};
+      var by = {};
       // hoists of a carrier take a hung hoist's dynamic load too, unless Rig settings turn it off (owner, 2026-09-24)
       var HL = !h.hung && DYN.length && out.dynGroup[h.truss] && st.hungDynamic !== false ? MODELS.concat(DYN) : MODELS;
       HL.forEach(function (mm) {
-        by[mm] = TLA.limits.checkHoist(entry, s.chainLength, out[mm].reactions[id], s.hardwareWeight, s.dlf, st.defaultDlf, st.addPercent);
+        by[mm] = TLA.limits.checkSupport(s, db, out[mm].reactions[id], st);
         by[mm].model = mm;
         if (out[mm].slack.indexOf(id) >= 0) { by[mm].slack = true; by[mm].status = "Slack"; }
       });
@@ -3944,9 +3996,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           var selected = S.sel.support === s.id;
           if (s.kind === "hoist") {
             var ok = sr.hoist.status === "Good" && !sr.hoist.dynamicOver;
-            var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") + (sr.hung ? " hung" : "") }, grp);
+            var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") + (sr.hung ? " hung" : "") + (s.dead ? " dead" : "") }, grp);
             var tt = el("title", null, hg), carrier = sr.hung && S.truss(sr.hung.truss);
-            tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + TLA.limits.statusText(sr.hoist.status) + ")" +
+            tt.textContent = (s.name || (s.dead ? "Dead hang" : "Hoist")) + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + (s.dead ? " WLL (" : " capacity (") + TLA.limits.statusText(sr.hoist.status) + ")" +
               (carrier ? " - hung below " + carrier.name : "");
             hoistSymbol(hg, X(p.x), Y(p.y), Math.max(6, sc * 0.5));
             if (dragHoist && dragHoist.s === s) {
@@ -4703,6 +4755,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function hoistRes(sid) { return (S.results.hoists || []).filter(function (x) { return x.support === sid; })[0] || null; }
   function hoistDb(id) { return S.db().hoists.filter(function (q) { return q.id === id; })[0] || null; }
   function hoistName(hd) { return hd ? (hd.brand ? hd.brand + " " : "") + String(hd.description).trim() + " " + hd.capacity_label : "-"; }
+  /** What holds a support up: its hoist model, or (1.22.0) "Dead hang" and its rope. */
+  function supportName(s) {
+    if (!s.dead) return hoistName(hoistDb(s.hoistId));
+    var r = TLA.limits.rope(s.rope);
+    return "Dead hang, " + (r ? r.name : Number(s.wll) > 0 ? "rope by WLL" : "no rope set");
+  }
   function posLabel(item, t) {
     var v = S.measureDisplay(item, t.length), ref = item.from === "center" ? " from CL" : item.from === "end" ? " from end" : "";
     return (item.from === "center" && v > 0 ? "+" : "") + U.n("len", v, 3) + " " + U.unit("len") + ref;
@@ -4877,7 +4935,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         if (s.kind !== "hoist") return;
         var x = hoistRes(s.id), hd = hoistDb(s.hoistId);
         hb.appendChild(h("tr", { onclick: function () { sel({ truss: t.id, support: s.id }); } },
-          h("td", { "class": "mono", text: posLabel(s, t) }), h("td", { text: hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
+          h("td", { "class": "mono", text: posLabel(s, t) }), h("td", { text: s.dead ? supportName(s) : hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
           h("td", { "class": "r", text: x ? U.n("w", x.hoist.staticLoad, 0) : "-" }),
           h("td", null, x && x.hoist.capacity < 999999 ? wlCell(x.hoist.staticLoad / x.hoist.capacity) : h("span", { "class": "mini", text: "-" })),
           h("td", null, x ? badge(x.hoist.status) : null)));
@@ -4943,10 +5001,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
   function hoistInspector(root, t, s, res, db) {
-    var x = hoistRes(s.id), hd = hoistDb(s.hoistId), hoists = t.supports.filter(function (q) { return q.kind === "hoist"; }), k = hoists.indexOf(s);
-    root.appendChild(crumb([["Rig", function () { sel({}); }], [t.name, function () { sel({ truss: t.id }); }], ["Hoist @ " + posLabel(s, t)]], "hoist"));
-    root.appendChild(insHead(textInput(s.name, function (v) { s.name = v; S.commit(); }, "title-input", "Hoist " + (k + 1) + " on " + t.name), x ? badge(x.hoist.status) : null,
-      [h("b", { text: hoistName(hd) }), hd && hd.capacity_lb < 999999 ? h("span", { text: U.f("w", hd.capacity_lb, 0) + " capacity" }) : null, hd && hd.speed_fpm ? h("span", { text: U.f("speed", hd.speed_fpm, 0) }) : null],
+    var x = hoistRes(s.id), hd = s.dead ? null : hoistDb(s.hoistId), hoists = t.supports.filter(function (q) { return q.kind === "hoist"; }), k = hoists.indexOf(s), noun = s.dead ? "Dead hang" : "Hoist";
+    var wll = s.dead ? TLA.limits.deadHangWll(s, S.rig.settings) : 0;
+    root.appendChild(crumb([["Rig", function () { sel({}); }], [t.name, function () { sel({ truss: t.id }); }], [noun + " @ " + posLabel(s, t)]], "hoist"));
+    root.appendChild(insHead(textInput(s.name, function (v) { s.name = v; S.commit(); }, "title-input", noun + " " + (k + 1) + " on " + t.name), x ? badge(x.hoist.status) : null,
+      [h("b", { text: supportName(s) }), hd && hd.capacity_lb < 999999 ? h("span", { text: U.f("w", hd.capacity_lb, 0) + " capacity" }) : null, hd && hd.speed_fpm ? h("span", { text: U.f("speed", hd.speed_fpm, 0) }) : null,
+        s.dead ? h("span", { text: wll > 0 ? U.f("w", wll, 0) + " WLL" : "no WLL" }) : null],
       [h("button", { "class": "icon", text: "‹", title: "Previous hoist on this truss", disabled: k <= 0, onclick: function () { sel({ truss: t.id, support: hoists[k - 1].id }); } }),
        h("button", { "class": "icon", text: "›", title: "Next hoist on this truss", disabled: k >= hoists.length - 1, onclick: function () { sel({ truss: t.id, support: hoists[k + 1].id }); } }),
        h("span", { "class": "grow" }),
@@ -4964,19 +5024,34 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (a) {
         c.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Where the load comes from" }), h("th", { "class": "r", text: U.unit("w") }))), h("tbody", null,
           a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (self weight)" : "") }), h("td", { "class": "r", text: U.n("w", p.weight, 1) })); }),
-          h("tr", null, h("td", { text: "Hoist + chain" }), h("td", { "class": "r", text: U.n("w", a.hoistChain, 1) })),
+          h("tr", null, h("td", { text: s.dead ? "Rope" : "Hoist + chain" }), h("td", { "class": "r", text: U.n("w", a.hoistChain, 1) })),
           h("tr", null, h("td", null, h("b", { text: "High hook load (static)" })), h("td", { "class": "r" }, h("b", { text: U.n("w", a.staticLoad, 1) }))))));
         c.appendChild(h("div", { "class": "sub", text: a.model === "load-path" ? "Load-path method (whole-rig analysis not available)." : "Whole-rig analysis, " + TLA.grillage.MODEL_LABEL[a.model] + " (the joint model that loads this hoist most)." }));
       }
     }
-    c = group(root, "hoist", "Hoist", true, "");
-    var hsel = select(db.hoists.map(function (q) { return { value: q.id, label: hoistName(q) + (U.metric() && q.capacity_lb < 999999 ? " (" + U.f("w", q.capacity_lb, 0) + ")" : "") + " " + U.f("speed", q.speed_fpm, 0) }; }), s.hoistId, function (v) { s.hoistId = parseInt(v, 10); S.commit(); });
-    c.appendChild(field("Model", hsel, "span3"));
-    var auto = x ? x.hoist.dynamicFactor : 1.25;
-    c.appendChild(h("div", { "class": "grid3" },
-      field("Chain (" + U.unit("len") + ")", numInput(s.chainLength || 0, function (v) { s.chainLength = Math.max(0, v); S.commit(); }, { ft: true })),
-      field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: s.dlf ? "auto" : "auto " + fmt(auto, 3), title: "Blank = from the hoist speed (fpm / 60 + 1), or the rig default if the speed is unknown" })),
-      field("Hardware (" + U.unit("w") + ")", numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { q: "w", title: "Hardware weight at this hoist (shackles, spansets, beam clamp...)" }))));
+    c = group(root, "hoist", s.dead ? "Dead hang" : "Hoist", true, "");
+    c.appendChild(field("Support", select([{ value: "hoist", label: "Chain hoist" }, { value: "dead", label: "Dead hang (wire rope, no hoist)" }], s.dead ? "dead" : "hoist", function (v) { setDead(s, v === "dead"); S.commit(); }), "span3"));
+    if (s.dead) {
+      var sf = TLA.limits.ropeFactor(S.rig.settings);
+      c.appendChild(field("Rope", select([{ value: "", label: "not in the list - WLL typed below" }].concat(TLA.limits.ROPES.map(function (r) { return { value: r.id, label: r.name + " - WLL " + U.f("w", r.mbs_lb / sf, 0) }; })), s.rope || "", function (v) { s.rope = v || undefined; S.commit(); }), "span3"));
+      c.appendChild(h("div", { "class": "grid3" },
+        field("Rope (" + U.unit("len") + ")", numInput(s.ropeLength || 0, function (v) { s.ropeLength = Math.max(0, v); S.commit(); }, { ft: true, title: "Rope length, for its weight (and its stretch when the rig's hoists are springs)" })),
+        field("Assembly WLL (" + U.unit("w") + ")", numInput(Number(s.wll) > 0 ? s.wll : "", function (v) { s.wll = v > 0 ? v : undefined; S.commit(); }, { q: "w", placeholder: "rope", title: "The WLL of the weakest part of the assembly (shackles, fittings); caps the rope's WLL" })),
+        field("Hardware (" + U.unit("w") + ")", numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { q: "w", title: "Hardware weight (shackles, beam clamp, spanset...)" }))));
+      c.appendChild(h("div", { "class": "grid3" },
+        field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: "1.000 static", title: "A dead hang does not move: 1.0 unless you type a factor" }))));
+      var rp = TLA.limits.rope(s.rope);
+      c.appendChild(h("div", { "class": "sub" + (wll > 0 ? "" : " hotline") }, wll > 0 ? "WLL " + U.f("w", wll, 0) + (rp ? " = min(" + rp.name + " breaking strength " + U.f("w", rp.mbs_lb, 0) + " / " + sf + (Number(s.wll) > 0 ? ", assembly " + U.f("w", s.wll, 0) : "") + ")" : " (typed)") + ". Design factor " + sf + ":1 is set in Rig settings; breaking strengths are typical catalogue values - check your rope's certificate."
+        : "Pick the rope or type the assembly WLL - without one this dead hang is Overloaded."));
+    } else {
+      var hsel = select(db.hoists.map(function (q) { return { value: q.id, label: hoistName(q) + (U.metric() && q.capacity_lb < 999999 ? " (" + U.f("w", q.capacity_lb, 0) + ")" : "") + " " + U.f("speed", q.speed_fpm, 0) }; }), s.hoistId, function (v) { s.hoistId = parseInt(v, 10); S.commit(); });
+      c.appendChild(field("Model", hsel, "span3"));
+      var auto = x ? x.hoist.dynamicFactor : 1.25;
+      c.appendChild(h("div", { "class": "grid3" },
+        field("Chain (" + U.unit("len") + ")", numInput(s.chainLength || 0, function (v) { s.chainLength = Math.max(0, v); S.commit(); }, { ft: true })),
+        field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: s.dlf ? "auto" : "auto " + fmt(auto, 3), title: "Blank = from the hoist speed (fpm / 60 + 1), or the rig default if the speed is unknown" })),
+        field("Hardware (" + U.unit("w") + ")", numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { q: "w", title: "Hardware weight at this hoist (shackles, spansets, beam clamp...)" }))));
+    }
     c = group(root, "hpos", "Position", true, "on " + t.name);
     c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(s, t.length)), field("Hangs from", hangSelect(t, s))));
     c.appendChild(h("div", { "class": "sub", text: "= " + U.f("len", s.distance, 3) + " from the start of " + t.name + " (" + U.f("len", t.length, 2) + "). Drag the hoist on the plan to move it in 1\" (2 cm) steps." }));
@@ -4985,6 +5060,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       (hp.off ? " - but the hoist is not under it on the plan; move the hoist or the truss." : ". " + hp.name + " carries this hoist's high hook load, and is checked with the high hook dynamic load.")));
   }
 
+  /** Turn a hoist into a dead hang (a 3/8" GAC rope as long as its chain) or back. */
+  function setDead(s, on) {
+    if (on) { s.dead = true; if (!s.rope && !(Number(s.wll) > 0)) s.rope = "gac-3/8"; if (s.ropeLength == null) s.ropeLength = s.chainLength || 0; s.dlf = undefined; }
+    else delete s.dead;
+  }
   /** Where a hoist hangs: the structure (the usual), or below another truss (1.22.0). */
   function hangSelect(t, s) {
     var opts = [{ value: "", label: "the structure" }].concat(S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; }).map(function (o) { return { value: o.id, label: "below " + o.name }; }));
@@ -5098,7 +5178,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       });
       nh.forEach(function (s) {
         var x = hoistRes(s.id);
-        ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id, support: s.id }); } }, h("span", { "class": "ic", text: "○" }), "Hoist @ " + posLabel(s, t), h("span", { "class": "r", text: x ? U.f("w", x.hoist.staticLoad, 0) : "" })));
+        ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id, support: s.id }); } }, h("span", { "class": "ic", text: s.dead ? "●" : "○" }), (s.dead ? "Dead hang @ " : "Hoist @ ") + posLabel(s, t), h("span", { "class": "r", text: x ? U.f("w", x.hoist.staticLoad, 0) : "" })));
       });
       if (t.loads.length) ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id }); if (TLA.app) TLA.app.setStep(2); } }, h("span", { "class": "ic", text: "▾" }), t.loads.length + " load" + (t.loads.length === 1 ? "" : "s"),
         h("span", { "class": "r", text: U.f("w", t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (mirrorAt(l, t) ? 2 : 1); }, 0), 1) })));
@@ -5213,7 +5293,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       row("Hoist stiffness (" + U.unit("stiff") + ")", numInput(Number(st.hoistStiffness) > 0 ? st.hoistStiffness : "", function (v) { st.hoistStiffness = v > 0 ? v : undefined; S.commit(); }, { q: "stiff", placeholder: "rigid" }),
         "How much a hoist and its chain stretch under load (for example " + (U.metric() ? "27 kg/mm" : "1500 lb/in") + " for a 1-ton chain hoist on a long drop - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive."),
       row("Hoists hung below a truss", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: st.hungDynamic !== false, onchange: function (e) { st.hungDynamic = e.target.checked ? undefined : false; S.commit(); } }), h("span", { text: "The carrier's hoists also take the hung hoist's dynamic load (on by default)" })),
-        "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies).")]));
+        "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies)."),
+      row("Dead hang rope design factor", select([7, 8, 10].map(function (f) { return { value: String(f), label: f + ":1" + (f === TLA.limits.ROPE_DF ? " (default)" : "") }; }), String(TLA.limits.ropeFactor(st)), function (v) { st.ropeDesignFactor = +v === TLA.limits.ROPE_DF ? undefined : +v; S.commit(); }),
+        "A dead hang's WLL is its rope's minimum breaking strength divided by this, capped by the assembly WLL typed on the dead hang. Dead hangs are static (dynamic factor 1.0 unless typed).")]));
     body.appendChild(card("Truss checks", "The span, cantilever, moment and shear checks against the manufacturers' tables.", [
       row("Repetitive-use factor", select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); }),
         "ANSI repetitive-use rule: table capacities are multiplied by 0.85 unless the data already includes it."),
@@ -5286,8 +5368,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var hd = hoistDb(hs && hs.hoistId);
       tb.appendChild(h("tr", { "class": S.sel.support === x.support ? "sel" : "", onclick: function () { sel({ truss: x.truss, support: x.support }); } },
         h("td", { text: x.trussName }), h("td", { "class": "r", text: U.n("len", x.distance, 2) }),
-        h("td", { text: hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
-        h("td", { "class": "r", text: hs ? U.n("len", hs.chainLength || 0, 1) : "-" }),
+        h("td", { text: hs && hs.dead ? supportName(hs) : hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
+        h("td", { "class": "r", text: hs ? U.n("len", (hs.dead ? hs.ropeLength : hs.chainLength) || 0, 1) : "-" }),
         h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: U.n("w", x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0), 1) }),
         modelCell(x, "hinged"), semiCell(x), modelCell(x, "rigid"),
         h("td", { "class": "r", title: (x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" : "Load-path method (whole-rig analysis not available)") + (x.hoist.added ? "; includes " + U.f("w", x.hoist.added, 1) + " added (" + S.rig.settings.addPercent + "%)" : "") }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) })),
@@ -5331,7 +5413,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
     loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
-    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
+    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, supportName: supportName, setDead: setDead, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
       var rows = [["Truss", "At " + L, "Low hook " + W, "Hoist & Chain " + W, "Added % " + W, "Hinged joints high hook " + W, "Semi-rigid min high hook " + W, "Semi-rigid max high hook " + W, "Rigid joints high hook " + W, "High hook static " + W, "Governing", "Dynamic factor", "High hook dynamic " + W, "Capacity " + W, "Status"]];
@@ -5402,8 +5484,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function hoistLabel(q) { return P.hoistName(q) + " · " + U.f("speed", q.speed_fpm, 0); }
   function hoistSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
-    return S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
-      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; });
+    // 1.22.0: "dead hang" (wire rope, no hoist) is picked here too
+    var dead = /^(d|de|dea|dead|dead ?h.*|dh|rope|wire.*|gac)$/i.test(String(q).trim()) ? [{ value: { dead: true }, html: "Dead hang (wire rope, no hoist)", right: "set the rope in the inspector" }] : [];
+    return dead.concat(S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
+      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; }));
   }
   function trussTypeSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
@@ -5593,9 +5677,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       roCell(function (s, row) { return row.truss.name; }, { cls: "mut" }),
       Object.assign({ key: "at" }, lenCell(function (s, row) { return S.measureDisplay(s, row.truss.length); }, function (s, v, row) { S.measureSet(s, v, row.truss.length); })),
       Object.assign({ key: "from", label: "From" }, fromCell(len)),
-      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
-        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { s.hoistId = x.id; } },
-      Object.assign({ key: "chain", label: "Chain (" + U.unit("len") + ")" }, lenCell(function (s) { return s.chainLength || 0; }, function (s, v) { s.chainLength = Math.max(0, v); })),
+      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { if (s.dead) return P.supportName(s); var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
+        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { if (x.dead) { P.setDead(s, true); return; } P.setDead(s, false); s.hoistId = x.id; } },
+      Object.assign({ key: "chain", label: "Chain / rope (" + U.unit("len") + ")" }, lenCell(function (s) { return (s.dead ? s.ropeLength : s.chainLength) || 0; }, function (s, v) { if (s.dead) s.ropeLength = Math.max(0, v); else s.chainLength = Math.max(0, v); })),
       Object.assign({ key: "dlf", label: "DLF" }, numCell(function (s) { return s.dlf; }, function (s, v) { s.dlf = v > 0 ? v : undefined; }, { blank: 0, ph: function (s) { var x = X(s); return "auto " + (x ? P.fmt(x.hoist.dynamicFactor, 3) : ""); } })),
       Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1)),
       hangCell()
@@ -6471,7 +6555,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function calcs(title, lines, note) { return h("div", { "class": "calcs" }, title ? h("div", { "class": "calcs-h", text: title }) : null, lines, note ? h("div", { "class": "calcs-n", text: note }) : null); }
 
   /* ---- what the sheet needs from the results ---- */
-  function hoistEntry(s) { var list = S.db().hoists; return list.filter(function (q) { return q.id === s.hoistId; })[0] || list[0] || null; }
+  function hoistEntry(s) { return TLA.limits.supportEntry(s, S.db(), S.rig.settings); }
   function supportOf(t, id) { return (t.supports || []).filter(function (s) { return s.id === id; })[0]; }
   function trussEntry(t) { return t.custom || S.db().trusses.filter(function (x) { return x.id === t.trussId; })[0] || null; }
   function whereLoad(beam, x) {
@@ -6508,7 +6592,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
     // hoist ids used throughout
     var hid = {};
-    r.hoists.forEach(function (x, i) { hid[x.truss + ":" + x.support] = "H" + (i + 1); });
+    var nH = 0, nD = 0;                                   // hoists H1, H2...; dead hangs DH1, DH2... (1.22.0)
+    r.hoists.forEach(function (x) { hid[x.truss + ":" + x.support] = x.hoist.dead ? "DH" + (++nD) : "H" + (++nH); });
     var byId = {}; rig.trusses.forEach(function (t) { byId[t.id] = t; });
     var lines = r.order.map(function (id) { return byId[id]; }).filter(function (t) { return t && !t.isBlock; });
     rig.trusses.forEach(function (t) { if (!t.isBlock && lines.indexOf(t) < 0) lines.push(t); });   // unsolved ones last
@@ -6606,7 +6691,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model"].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
       s4.appendChild(table("small", headA.map(function (c) { return typeof c === "string" ? c : c; }), r.hoists.map(function (x) {
         var e0 = hoistEntry(supportOf(byId[x.truss], x.support) || {}) || {};
-        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName + (x.hung && byId[x.hung] ? " (below " + byId[x.hung].name + ")" : "")), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
+        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName + (x.hung && byId[x.hung] ? " (below " + byId[x.hung].name + ")" : "")), tdr(Ln(x.distance)), td(e0.dead ? "Dead hang, " + (e0.rope ? e0.rope.name : "WLL typed") : e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
         MODELS.forEach(function (m) { var c = x.byModel && x.byModel[m]; cells.push(tdr(c ? Wn(c.reaction) + (c.slack ? " slack" : "") : "-", x.model === m ? "b" : "")); });
         cells.push(tdr(Wn(x.reaction), "b"), td(x.model ? shortModel(x.model) : "load path", "nw"));
         return h("tr", null, cells);
@@ -6615,20 +6700,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var sum = { r: 0, a: 0, hw: 0, ch: 0, hd: 0, s: 0, d: 0 };
       var rowsB = r.hoists.map(function (x) {
         var t = byId[x.truss], s = supportOf(t, x.support) || {}, e = hoistEntry(s) || {}, hx = x.hoist;
-        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, chain = perFt * (Number(s.chainLength) || 0), hw = Number(s.hardwareWeight) || 0;
-        var dlfSrc = Number(s.dlf) > 0 ? "typed" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
+        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, cl = Number(e.dead ? s.ropeLength : s.chainLength) || 0, chain = perFt * cl, hw = Number(s.hardwareWeight) || 0;
+        var dlfSrc = Number(s.dlf) > 0 ? "typed" : e.dead ? "dead hang, static" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
         if (!x.hung) { sum.r += hx.reaction; sum.a += hx.added || 0; sum.hw += body; sum.ch += chain; sum.hd += hw; sum.s += hx.staticLoad; sum.d += hx.dynamicLoad; }
         var cap = hx.capacity >= 999999 ? null : hx.capacity, bad = hx.status !== "Good";
         return h("tr", null, td(hid[x.truss + ":" + x.support], "b"),
           tdr(Wn(hx.reaction)), tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
-          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(s.chainLength || 0, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
+          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(cl, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
           tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
       s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"], rowsB,
         h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
     }
 
     /* ---- 5. equilibrium ---- */
@@ -7001,6 +7086,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Cross-check</b>: <i>Export whole-rig model</i> (Export menu) saves the rig's whole-rig model with this app's results; <code>python tools/pynite_check.py file</code> rebuilds it in PyNite, the 3D frame engine behind CalcForge, and compares hoist reactions and member forces (without shear deformation, which PyNite doesn't model). If the whole-rig analysis can't run (a load-path loop, or a very large rig) the app says so and falls back to the load-path method.</li>",
     "<li><b>Moment and shear check</b>: the span and cantilever checks compare each span on its own with the tables. A continuous truss also bends over its supports (hogging) from loads in the next span, and a heavy load right beside a support puts most of its weight into shear. So the bending moment and shear are also worked out all along the truss (shown under its diagram) and compared with an allowable moment and shear <b>estimated from the manufacturer's tables</b>: every table entry is a load the maker says the truss carries, so it demonstrates a moment (point load x span / 4, or uniform load x span / 8) and a shear (half the load). The allowable moment is the largest the tables demonstrate - the smaller of the point-load and uniform-load figures - and the allowable shear the largest shear any entry demonstrates (a safe-side estimate), both with the repetitive-use factor. The tables are loads on top of the truss's own weight, so by default (as Delbert Hall's Stress Table Creator does) each entry's moment and shear also include the self weight (+ w x span^2 / 8 and + w x span / 2), and the moments and shears checked include it too; the option in Rig settings leaves self weight out of both. These are estimates, not published values; use the maker's published moment and shear where you have them.</li>",
     "<li><b>Hoists hung below a truss (since 1.22.0)</b>: set a hoist's <i>Hangs from</i> to another truss when it hangs from that truss instead of the structure (a truss flown under a truss). The hoist hooks on where the plan puts it; its chain joins the two trusses, so the upper truss (the carrier) sags with the load and the lower truss shares load with its other hoists. The carrier carries the hung hoist's high hook load (low hook + Add % + hoist, chain and hardware weight) and is checked with its high hook <i>dynamic</i> load; so are the hoists holding the carrier up, unless Rig settings turn that off. The plan draws a hung hoist with a dashed ring; the rig's total high hook load counts only hoists to the structure.</li>" +
+    "<li><b>Dead hangs (since 1.22.0)</b>: a support that is just wire rope (and shackles) from the truss to the hang point, no hoist - set a hoist's <i>Support</i> to Dead hang (or type \"dead\" in the grid's Hoist cell). Pick the rope (7x19 galvanized aircraft cable or 6x19 IWRC, typical catalogue breaking strengths) and its length; its WLL is the breaking strength / the design factor in Rig settings (7, 8 or 10:1, default 10:1), capped by the assembly WLL you type (the weakest shackle or fitting). No hoist body, no chain: the high hook load is the low hook + Add % + rope and hardware weight, and it is static (dynamic factor 1.0 unless typed). It is rigid like the hoists; when the rig's hoists are springs, the rope is a spring EA/L (much stiffer than a chain hoist, so it draws load). Shown as a filled dot on the plan and DH1, DH2... on the calc sheet.</li>" +
     "<li><b>Slack hoists</b>: a chain can only pull. If the loads would push a hoist up (a negative reaction - typically a hoist next to a heavily loaded span or cantilever), its chain goes slack: the hoist is shown as <b>Slack</b>, carries only its own weight, and the truss is solved again without it, so the other hoists and the span checks see the real, longer spans. If that leaves a truss with a single support point, it would tip: it is flagged <b>UNSTABLE</b> and its numbers must not be used.</li>",
     "<li><b>Units</b>: the Units setting in Rig settings shows and takes everything in feet and pounds or in metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm). Only the display changes: the rig is stored and solved the same way, so every result and every truss or hoist choice stays exactly as it was. Trusses whose manufacturer data is metric are checked against their own metric table in either mode.</li>",
     "<li>Loads are based on ANSI repetitive-use rules: capacities are multiplied by 0.85 unless the truss data is marked as already including the repetitive-use factor (the generic <i>Universal</i> trusses from EOT 2.4 use 0.75).</li>",
@@ -7033,7 +7119,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
     items = mode === "status" ? [["ok", "OK"], ["fail", "Overloaded or unstable"]] : [["ok", (mode === "hoist" ? "Hoist workload" : "Workload") + " low (under 80%)"], ["warn", "High (80-100%)"], ["fail", "Overloaded (over 100%)"]];
     $("legend").innerHTML = items.map(function (i) { return '<div><i style="background:var(--' + i[0] + ')"></i>' + i[1] + "</div>"; }).join("") +
-      '<div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><path d="M0 7H14M7 0V14" stroke="var(--hoist)" stroke-width="1.6"/><circle cx="7" cy="7" r="4" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8"/><circle cx="7" cy="7" r="1.3" fill="var(--hoist)"/></svg>Hoist: high hook static, <em>dynamic</em> (amber = high, red = overloaded)</div><div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><circle cx="7" cy="7" r="4.5" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8" stroke-dasharray="3 2"/></svg>Dashed: hoist hung below a truss</div><div><i style="background:var(--ink);transform:rotate(45deg) scale(.8)"></i>Bolted connection</div>';
+      '<div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><path d="M0 7H14M7 0V14" stroke="var(--hoist)" stroke-width="1.6"/><circle cx="7" cy="7" r="4" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8"/><circle cx="7" cy="7" r="1.3" fill="var(--hoist)"/></svg>Hoist: high hook static, <em>dynamic</em> (amber = high, red = overloaded)</div><div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><circle cx="7" cy="7" r="4.5" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8" stroke-dasharray="3 2"/></svg>Dashed: hoist hung below a truss</div><div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><circle cx="7" cy="7" r="4.5" fill="var(--hoist)"/></svg>Dead hang (wire rope, no hoist)</div><div><i style="background:var(--ink);transform:rotate(45deg) scale(.8)"></i>Bolted connection</div>';
   }
 
   function counts() {

@@ -51,8 +51,10 @@
   function hoistLabel(q) { return P.hoistName(q) + " · " + U.f("speed", q.speed_fpm, 0); }
   function hoistSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
-    return S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
-      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; });
+    // 1.22.0: "dead hang" (wire rope, no hoist) is picked here too
+    var dead = /^(d|de|dea|dead|dead ?h.*|dh|rope|wire.*|gac)$/i.test(String(q).trim()) ? [{ value: { dead: true }, html: "Dead hang (wire rope, no hoist)", right: "set the rope in the inspector" }] : [];
+    return dead.concat(S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
+      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; }));
   }
   function trussTypeSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
@@ -242,9 +244,9 @@
       roCell(function (s, row) { return row.truss.name; }, { cls: "mut" }),
       Object.assign({ key: "at" }, lenCell(function (s, row) { return S.measureDisplay(s, row.truss.length); }, function (s, v, row) { S.measureSet(s, v, row.truss.length); })),
       Object.assign({ key: "from", label: "From" }, fromCell(len)),
-      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
-        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { s.hoistId = x.id; } },
-      Object.assign({ key: "chain", label: "Chain (" + U.unit("len") + ")" }, lenCell(function (s) { return s.chainLength || 0; }, function (s, v) { s.chainLength = Math.max(0, v); })),
+      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { if (s.dead) return P.supportName(s); var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
+        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { if (x.dead) { P.setDead(s, true); return; } P.setDead(s, false); s.hoistId = x.id; } },
+      Object.assign({ key: "chain", label: "Chain / rope (" + U.unit("len") + ")" }, lenCell(function (s) { return (s.dead ? s.ropeLength : s.chainLength) || 0; }, function (s, v) { if (s.dead) s.ropeLength = Math.max(0, v); else s.chainLength = Math.max(0, v); })),
       Object.assign({ key: "dlf", label: "DLF" }, numCell(function (s) { return s.dlf; }, function (s, v) { s.dlf = v > 0 ? v : undefined; }, { blank: 0, ph: function (s) { var x = X(s); return "auto " + (x ? P.fmt(x.hoist.dynamicFactor, 3) : ""); } })),
       Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1)),
       hangCell()

@@ -84,7 +84,7 @@
   function calcs(title, lines, note) { return h("div", { "class": "calcs" }, title ? h("div", { "class": "calcs-h", text: title }) : null, lines, note ? h("div", { "class": "calcs-n", text: note }) : null); }
 
   /* ---- what the sheet needs from the results ---- */
-  function hoistEntry(s) { var list = S.db().hoists; return list.filter(function (q) { return q.id === s.hoistId; })[0] || list[0] || null; }
+  function hoistEntry(s) { return TLA.limits.supportEntry(s, S.db(), S.rig.settings); }
   function supportOf(t, id) { return (t.supports || []).filter(function (s) { return s.id === id; })[0]; }
   function trussEntry(t) { return t.custom || S.db().trusses.filter(function (x) { return x.id === t.trussId; })[0] || null; }
   function whereLoad(beam, x) {
@@ -121,7 +121,8 @@
 
     // hoist ids used throughout
     var hid = {};
-    r.hoists.forEach(function (x, i) { hid[x.truss + ":" + x.support] = "H" + (i + 1); });
+    var nH = 0, nD = 0;                                   // hoists H1, H2...; dead hangs DH1, DH2... (1.22.0)
+    r.hoists.forEach(function (x) { hid[x.truss + ":" + x.support] = x.hoist.dead ? "DH" + (++nD) : "H" + (++nH); });
     var byId = {}; rig.trusses.forEach(function (t) { byId[t.id] = t; });
     var lines = r.order.map(function (id) { return byId[id]; }).filter(function (t) { return t && !t.isBlock; });
     rig.trusses.forEach(function (t) { if (!t.isBlock && lines.indexOf(t) < 0) lines.push(t); });   // unsolved ones last
@@ -219,7 +220,7 @@
       var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model"].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
       s4.appendChild(table("small", headA.map(function (c) { return typeof c === "string" ? c : c; }), r.hoists.map(function (x) {
         var e0 = hoistEntry(supportOf(byId[x.truss], x.support) || {}) || {};
-        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName + (x.hung && byId[x.hung] ? " (below " + byId[x.hung].name + ")" : "")), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
+        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName + (x.hung && byId[x.hung] ? " (below " + byId[x.hung].name + ")" : "")), tdr(Ln(x.distance)), td(e0.dead ? "Dead hang, " + (e0.rope ? e0.rope.name : "WLL typed") : e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
         MODELS.forEach(function (m) { var c = x.byModel && x.byModel[m]; cells.push(tdr(c ? Wn(c.reaction) + (c.slack ? " slack" : "") : "-", x.model === m ? "b" : "")); });
         cells.push(tdr(Wn(x.reaction), "b"), td(x.model ? shortModel(x.model) : "load path", "nw"));
         return h("tr", null, cells);
@@ -228,20 +229,20 @@
       var sum = { r: 0, a: 0, hw: 0, ch: 0, hd: 0, s: 0, d: 0 };
       var rowsB = r.hoists.map(function (x) {
         var t = byId[x.truss], s = supportOf(t, x.support) || {}, e = hoistEntry(s) || {}, hx = x.hoist;
-        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, chain = perFt * (Number(s.chainLength) || 0), hw = Number(s.hardwareWeight) || 0;
-        var dlfSrc = Number(s.dlf) > 0 ? "typed" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
+        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, cl = Number(e.dead ? s.ropeLength : s.chainLength) || 0, chain = perFt * cl, hw = Number(s.hardwareWeight) || 0;
+        var dlfSrc = Number(s.dlf) > 0 ? "typed" : e.dead ? "dead hang, static" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
         if (!x.hung) { sum.r += hx.reaction; sum.a += hx.added || 0; sum.hw += body; sum.ch += chain; sum.hd += hw; sum.s += hx.staticLoad; sum.d += hx.dynamicLoad; }
         var cap = hx.capacity >= 999999 ? null : hx.capacity, bad = hx.status !== "Good";
         return h("tr", null, td(hid[x.truss + ":" + x.support], "b"),
           tdr(Wn(hx.reaction)), tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
-          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(s.chainLength || 0, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
+          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(cl, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
           tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
       s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"], rowsB,
         h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
     }
 
     /* ---- 5. equilibrium ---- */

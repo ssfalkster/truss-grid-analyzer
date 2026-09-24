@@ -104,4 +104,54 @@
     Array.prototype.forEach.call(el.querySelectorAll(".work"), function (w) { if (/^Balance:/.test(w.textContent)) { n++; eq(/\(balances\)/.test(w.textContent), true, w.textContent); } });
     eq(n, 2, "a balance line per truss");
   });
+
+  /** A 30 ft truss on three supports at 0, 15, 30 ft, 400 lb at 7.5 and 22.5 ft; the middle one a dead hang (3/8" GAC, 20 ft). */
+  function deadRig(setup) {
+    S.newRig();
+    var t = S.addTruss({ name: "T", x: 0, y: 0, angle: 0, length: 30, hoists: [0, 15, 30] });
+    var d = t.supports[1];
+    TLA.panels.setDead(d, true); d.ropeLength = 20;
+    t.loads.push({ id: S.newId("l"), distance: 7.5, weight: 400 }, { id: S.newId("l"), distance: 22.5, weight: 400 });
+    if (setup) setup(t, d);
+    S.commit();
+    return { t: t, d: d };
+  }
+
+  add("dead hang: WLL = breaking strength / design factor (7, 8 or 10:1, default 10), capped by the assembly WLL; static; rope weight", function () {
+    var x = deadRig(), h = hoistOf("T", 15).hoist, rope = TLA.limits.rope("gac-3/8");
+    eq(h.dead, true, "a dead hang");
+    near(h.capacity, 14400 / 10, 1e-9, "3/8 GAC at 10:1");
+    near(h.dynamicFactor, 1, 0, "static");
+    near(h.dynamicLoad, h.staticLoad, 1e-9, "no dynamic increase");
+    near(h.hoistChain, rope.weight_per_ft_lb * 20, 1e-9, "rope weight, no hoist body");
+    [7, 8].forEach(function (f) { S.rig.settings.ropeDesignFactor = f; S.commit(); near(hoistOf("T", 15).hoist.capacity, 14400 / f, 1e-9, f + ":1"); });
+    x.d.wll = 1000; S.commit();
+    near(hoistOf("T", 15).hoist.capacity, 1000, 1e-9, "the weaker assembly WLL governs");
+    x.d.dlf = 1.2; S.commit();
+    near(hoistOf("T", 15).hoist.dynamicFactor, 1.2, 1e-9, "a typed factor is used");
+    x.d.rope = undefined; x.d.wll = undefined; S.commit();
+    eq(hoistOf("T", 15).hoist.status, "Overloaded", "no rope and no WLL: Overloaded until entered");
+  });
+
+  add("dead hang: rigid with rigid hoists; on a rig of spring hoists its rope is a stiffer spring (EA/L) and draws load", function () {
+    deadRig();
+    var withDead = hoistOf("T", 15).reaction;
+    S.newRig(); var t = S.addTruss({ name: "T", x: 0, y: 0, angle: 0, length: 30, hoists: [0, 15, 30] }); t.loads.push({ id: S.newId("l"), distance: 7.5, weight: 400 }, { id: S.newId("l"), distance: 22.5, weight: 400 }); S.commit();
+    near(withDead, hoistOf("T", 15).reaction, 1e-6, "rigid rig: same as a hoist");
+    var soft = 1500;
+    S.rig.settings.hoistStiffness = soft; S.commit();
+    var hoistMid = hoistOf("T", 15).reaction;
+    deadRig(function () { S.rig.settings.hoistStiffness = soft; });
+    var k = TLA.limits.ropeStiffness(S.rig.trusses[0].supports[1]) / 12;
+    eq(k > soft, true, "3/8 GAC over 20 ft is stiffer than the hoists (" + Math.round(k) + " lb/in)");
+    eq(hoistOf("T", 15).reaction > hoistMid + 0.5, true, "the dead hang draws load (" + hoistOf("T", 15).reaction + " > " + hoistMid + ")");
+  });
+
+  add("dead hang: calc sheet numbers it DH1 and explains its WLL", function () {
+    deadRig(); TLA.panels.mount(S); TLA.report.mount(S);
+    var text = TLA.report.build().textContent;
+    eq(text.indexOf("DH1") >= 0, true, "DH1"); eq(text.indexOf("H2") >= 0, true, "hoists H1, H2");
+    eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
+    eq(/Dead hangs \(DH\)/.test(text), true, "explained");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

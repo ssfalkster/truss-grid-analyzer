@@ -183,9 +183,9 @@
           var selected = S.sel.support === s.id;
           if (s.kind === "hoist") {
             var ok = sr.hoist.status === "Good" && !sr.hoist.dynamicOver;
-            var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") + (sr.hung ? " hung" : "") }, grp);
+            var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") + (sr.hung ? " hung" : "") + (s.dead ? " dead" : "") }, grp);
             var tt = el("title", null, hg), carrier = sr.hung && S.truss(sr.hung.truss);
-            tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + TLA.limits.statusText(sr.hoist.status) + ")" +
+            tt.textContent = (s.name || (s.dead ? "Dead hang" : "Hoist")) + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + (s.dead ? " WLL (" : " capacity (") + TLA.limits.statusText(sr.hoist.status) + ")" +
               (carrier ? " - hung below " + carrier.name : "");
             hoistSymbol(hg, X(p.x), Y(p.y), Math.max(6, sc * 0.5));
             if (dragHoist && dragHoist.s === s) {

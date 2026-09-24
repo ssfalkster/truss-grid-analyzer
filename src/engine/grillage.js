@@ -344,7 +344,7 @@
         }
         if (!c || index[c.id] === undefined || c.id === t.id) return;
         var cb = beams[index[c.id]], dc = pt(cb, Number(d) || 0), lb = beams[index[t.id]], dl = pt(lb, s.distance);
-        var w = hoistWeight(db, s) + (Number(s.hardwareWeight) || 0);
+        var w = TLA.limits.supportWeight(s, db, rig.settings) + (Number(s.hardwareWeight) || 0);
         if (w) addP(cb, dc, w, t.id);
         hangPending.push({ a: t.id, da: dl, b: c.id, db: dc, id: t.id + ":" + s.id, s: s });
       });
@@ -413,15 +413,22 @@
     });
     // hoist springs (lb/in -> lb/ft): the hoist's own stiffness, else the rig's; none = rigid
     var kRig = Number(rig.settings && rig.settings.hoistStiffness) || 0;
+    // lb/in: the support's own stiffness, else - when the rig's hoists are springs - a dead hang's rope (EA / L), else
+    // the rig's hoist stiffness; none = rigid (a dead hang on a rig of rigid hoists is rigid too)
+    function supportK(s) {
+      if (s && Number(s.stiffness) > 0) return Number(s.stiffness);
+      var kr = s && s.dead && kRig > 0 ? TLA.limits.ropeStiffness(s) / 12 : 0;
+      return kr > 0 ? kr : kRig;
+    }
     function nodeOf(bm, d) { return bm.nodes.findIndex(function (nd) { return Math.abs(nd.d - d) < 1e-6; }); }
     var hangs = hangPending.map(function (p) {
-      var k = Number(p.s.stiffness) > 0 ? Number(p.s.stiffness) : kRig, A = beams[index[p.a]], B = beams[index[p.b]];
+      var k = supportK(p.s), A = beams[index[p.a]], B = beams[index[p.b]];
       return { a: index[p.a], na: nodeOf(A, p.da), b: index[p.b], nb: nodeOf(B, p.db), id: p.id, k: k > 0 ? k * 12 : 0, truss: p.a, carrier: p.b };
     });
     beams.forEach(function (bm, bi) {
       bm.nodes.forEach(function (nd, ni) {
         (nd.hoist || []).forEach(function (id) {
-          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = Number(s && s.stiffness) > 0 ? Number(s.stiffness) : kRig;
+          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = supportK(s);
           supports.push(k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id });
         });
       });
@@ -429,11 +436,7 @@
     return { beams: beams, links: links, supports: supports, hangs: hangs };
   }
 
-  /** Hoist + chain weight of one hoist support (lb). */
-  function hoistWeight(db, s) {
-    var h = hoistEntry(db, s.hoistId);
-    return h ? (Number(h.weight_lb) || 0) + (Number(h.chain_weight_per_ft_lb) || 0) * (Number(s.chainLength) || 0) : 0;
-  }
+
 
   var last = { sig: null, out: null };
   function signature(rig, results) {
@@ -543,7 +546,7 @@
     rig.trusses.forEach(function (t) { byId[t.id] = t; });
     model.hangs.forEach(function (hg) {
       var p = hg.id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")); if (!s) return;
-      var T = sol.reactions[hg.id] || 0, c = TLA.limits.checkHoist(hoistEntry(db, s.hoistId), s.chainLength, T, s.hardwareWeight, s.dlf, st.defaultDlf, st.addPercent);
+      var T = sol.reactions[hg.id] || 0, c = TLA.limits.checkSupport(s, db, T, st);
       out[hg.id] = dynamic ? c.dynamicLoad : T + c.hoistChain + (Number(s.hardwareWeight) || 0);
     });
     return out;
@@ -749,11 +752,11 @@
     results.hoists.forEach(function (h) {
       var id = h.truss + ":" + h.support, s = supportOf(byId[h.truss], h.support);
       if (!s || MODELS.some(function (mm) { return out[mm].reactions[id] === undefined; })) return;
-      var entry = hoistEntry(db, s.hoistId), by = {};
+      var by = {};
       // hoists of a carrier take a hung hoist's dynamic load too, unless Rig settings turn it off (owner, 2026-09-24)
       var HL = !h.hung && DYN.length && out.dynGroup[h.truss] && st.hungDynamic !== false ? MODELS.concat(DYN) : MODELS;
       HL.forEach(function (mm) {
-        by[mm] = TLA.limits.checkHoist(entry, s.chainLength, out[mm].reactions[id], s.hardwareWeight, s.dlf, st.defaultDlf, st.addPercent);
+        by[mm] = TLA.limits.checkSupport(s, db, out[mm].reactions[id], st);
         by[mm].model = mm;
         if (out[mm].slack.indexOf(id) >= 0) { by[mm].slack = true; by[mm].status = "Slack"; }
       });

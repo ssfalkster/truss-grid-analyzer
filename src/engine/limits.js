@@ -168,6 +168,54 @@
     };
   }
 
+  /* ---- dead hangs (1.22.0): a support that is just wire rope (and its shackles) from the truss to the hang point ----
+   * Typical catalogue values - minimum breaking strength (lb) and weight (lb/ft). 7x19 galvanized aircraft cable per
+   * MIL-DTL-83420; 6x19 IWRC, extra improved plow steel, bright (Wire Rope Users Manual). EA (lb) per d^2 (in^2) for a
+   * rope spring, from the metallic area (about 0.44 d^2 for 7x19, 0.40 d^2 for 6x19 IWRC) and a rope modulus of about
+   * 11e6 and 13.5e6 psi - estimates, used only when the rig's hoists are springs. Check your own rope's certificate. */
+  var ROPES = [
+    ["gac-1/8", "1/8\" 7x19 GAC", 0.125, 2000, 0.029], ["gac-5/32", "5/32\" 7x19 GAC", 0.15625, 2800, 0.045], ["gac-3/16", "3/16\" 7x19 GAC", 0.1875, 4200, 0.065],
+    ["gac-7/32", "7/32\" 7x19 GAC", 0.21875, 5600, 0.086], ["gac-1/4", "1/4\" 7x19 GAC", 0.25, 7000, 0.11], ["gac-5/16", "5/16\" 7x19 GAC", 0.3125, 9800, 0.173],
+    ["gac-3/8", "3/8\" 7x19 GAC", 0.375, 14400, 0.243],
+    ["iwrc-1/4", "1/4\" 6x19 IWRC EIPS", 0.25, 6800, 0.12], ["iwrc-5/16", "5/16\" 6x19 IWRC EIPS", 0.3125, 10540, 0.18], ["iwrc-3/8", "3/8\" 6x19 IWRC EIPS", 0.375, 15100, 0.26],
+    ["iwrc-7/16", "7/16\" 6x19 IWRC EIPS", 0.4375, 20400, 0.35], ["iwrc-1/2", "1/2\" 6x19 IWRC EIPS", 0.5, 26600, 0.46]
+  ].map(function (r) { return { id: r[0], name: r[1], d_in: r[2], mbs_lb: r[3], weight_per_ft_lb: r[4], ea_per_d2: /^gac/.test(r[0]) ? 11e6 * 0.44 : 13.5e6 * 0.40 }; });
+  var ROPE_DF = 10;      // owner, 2026-09-24: 10:1 unless Rig settings say otherwise
+  function rope(id) { return ROPES.filter(function (r) { return r.id === id; })[0] || null; }
+  function ropeFactor(settings) { return settings && Number(settings.ropeDesignFactor) > 0 ? Number(settings.ropeDesignFactor) : ROPE_DF; }
+  /** A dead hang's working load limit: the rope's breaking strength / design factor, capped by a typed assembly WLL
+   * (the weakest shackle or fitting). No rope and no WLL: 0 (always Overloaded - it must be entered). */
+  function deadHangWll(s, settings) {
+    var r = rope(s.rope), a = r ? r.mbs_lb / ropeFactor(settings) : Infinity, b = Number(s.wll) > 0 ? Number(s.wll) : Infinity, w = Math.min(a, b);
+    return isFinite(w) ? w : 0;
+  }
+  /** The hoist-like entry a support is checked with: its hoist from the database, or (dead hang) the rope as the
+   * "chain" (its weight per ft x the rope length), no hoist body, capacity = the dead hang's WLL. */
+  function supportEntry(s, db, settings) {
+    if (s && s.dead) { var r = rope(s.rope); return { dead: true, rope: r, weight_lb: 0, chain_weight_per_ft_lb: r ? r.weight_per_ft_lb : 0, speed_fpm: 0, capacity_lb: deadHangWll(s, settings) }; }
+    var list = (db && db.hoists) || [];
+    return list.filter(function (h) { return h.id === (s && s.hoistId); })[0] || list[0] || null;
+  }
+  /** Check one hoist or dead hang support (low hook reaction in, high hook loads out). A dead hang is static: factor
+   * 1.0 unless one is typed (owner, 2026-09-24). */
+  function checkSupport(s, db, reaction, settings) {
+    settings = settings || {};
+    var e = supportEntry(s, db, settings), dead = !!(s && s.dead);
+    var c = checkHoist(e, dead ? s.ropeLength : s.chainLength, reaction, s.hardwareWeight, dead ? (Number(s.dlf) > 0 ? Number(s.dlf) : 1) : s.dlf, settings.defaultDlf, settings.addPercent);
+    if (dead) c.dead = true;
+    return c;
+  }
+  /** Weight hanging with a support (hoist + chain, or rope), lb - without its hardware. */
+  function supportWeight(s, db, settings) {
+    var e = supportEntry(s, db, settings);
+    return e ? (Number(e.weight_lb) || 0) + (Number(e.chain_weight_per_ft_lb) || 0) * (Number(s.dead ? s.ropeLength : s.chainLength) || 0) : 0;
+  }
+  /** A dead hang's rope as a spring, lb/ft (EA / L), or 0 when unknown. */
+  function ropeStiffness(s) {
+    var r = s && s.dead ? rope(s.rope) : null, L = Number(s && s.ropeLength) || 0;
+    return r && L > 0 ? r.ea_per_d2 * r.d_in * r.d_in / L : 0;
+  }
+
   /** Status as shown to the user. The status values stay the workbook's words (Good, OVERLOADED...), which the code
    * compares against; what people read is OK / Overloaded / Too long / Slack / Unstable, for trusses and hoists alike. */
   function statusText(status) {
@@ -189,5 +237,5 @@
    * (1.18.0; saved rigs keep an explicit choice). */
   function countSelfWeight(settings) { return !settings || settings.cantileverSelfWeight !== false; }
 
-  TLA.limits = { countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
+  TLA.limits = { ROPES: ROPES, ROPE_DF: ROPE_DF, rope: rope, ropeFactor: ropeFactor, deadHangWll: deadHangWll, supportEntry: supportEntry, checkSupport: checkSupport, supportWeight: supportWeight, ropeStiffness: ropeStiffness, countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
 })(typeof globalThis !== "undefined" ? globalThis : window);

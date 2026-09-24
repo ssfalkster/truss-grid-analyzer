@@ -146,6 +146,7 @@ main.focus .ctool > :not(.stages):not(#b-add) { display: none; }
 .lbl.hoist-dyn { font-size: 10px; font-style: italic; font-weight: 400; fill: var(--muted); }
 .hoist .hsym { fill: var(--panel); stroke: var(--hc); stroke-width: 2.5; cursor: grab; }
 .hoist.hung .hsym { stroke-dasharray: 4 2.5; }
+.hoist.dead .hline, .hoist.dead .hhalo { display: none; } .hoist.dead .hsym { fill: var(--hc); } .hoist.dead .hdot { fill: var(--panel); }
 .hoist .hhalo { stroke: var(--plan-bg); stroke-width: 6; fill: none; stroke-linecap: round; }
 .hoist .hline { stroke: var(--hc); stroke-width: 2.2; fill: none; stroke-linecap: round; }
 .hoist .hdot { fill: var(--hc); stroke: none; }
