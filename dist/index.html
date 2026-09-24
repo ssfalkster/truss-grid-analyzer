@@ -490,6 +490,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .sheet .rplan text { font: 15px system-ui, sans-serif; fill: #111; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
 .sheet .rplan .hn { font-weight: 700; fill: #1f5fd1; } .sheet .rplan .hn.fail { fill: #c62828; } .sheet .rplan .tn { font-weight: 600; font-size: 16px; }
 .sheet .rplan .sb { stroke: #111; stroke-width: 2; } .sheet .rplan .sbt { font-size: 13px; fill: #444; }
+.lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
 
 </style>
 </head>
@@ -1322,8 +1323,38 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
   var SLACK_TOL = 0.01;   // lb - a hoist reaction below -SLACK_TOL is a pushing (slack) chain
 
+  /* ------------------------------------------------------------------ allowances (1.22.0, competitor list item 4)
+   * Cable weight per foot of truss (settings.cablePerFt, or the truss's own cablePerFt) is added to its UDL, and each
+   * load is multiplied by its category's factor (settings.loadFactors[category]; load.cat, blank = "other"). The solve
+   * and the whole-rig analysis work on this effective rig; a rig without allowances is used as it is. */
+  var LOAD_CATS = [["lighting", "Lighting"], ["audio", "Audio"], ["video", "Video"], ["scenic", "Scenic"], ["rigging", "Rigging hardware"], ["other", "Other / not set"]];
+  function cableOf(t, settings) {
+    if (t.isBlock) return 0;
+    var c = t.cablePerFt != null && t.cablePerFt !== "" ? Number(t.cablePerFt) : Number(settings && settings.cablePerFt);
+    return c > 0 ? c : 0;
+  }
+  function loadFactor(l, settings) {
+    var f = settings && settings.loadFactors && Number(settings.loadFactors[l.cat || "other"]);
+    return f > 0 ? f : 1;
+  }
+  function effective(rig) {
+    if (!rig || rig.__effective) return rig;
+    var st = rig.settings || {};
+    var any = rig.trusses.some(function (t) { return cableOf(t, st) > 0 || (t.loads || []).some(function (l) { return loadFactor(l, st) !== 1; }); });
+    if (!any) return rig;
+    var e = JSON.parse(JSON.stringify(rig));
+    Object.defineProperty(e, "__effective", { value: true });
+    e.trusses.forEach(function (t) {
+      var c = cableOf(t, st);
+      if (c > 0) { t.udlTyped = Number(t.wallWeight) || 0; t.cable = c * (Number(t.length) || 0); t.wallWeight = t.udlTyped + t.cable; }
+      (t.loads || []).forEach(function (l) { var f = loadFactor(l, st); if (f !== 1) { l.typed = Number(l.weight) || 0; l.factor = f; l.weight = l.typed * f; } });
+    });
+    return e;
+  }
+
   function solve(rig, dbIn, opts) {
     opts = opts || {};
+    rig = effective(rig);
     var db = dbIn || TLA.data || {};
     var settings = rig.settings || {};
     var warnings = [], slackSet = {}, unstable = [];
@@ -1584,9 +1615,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     rig.trusses.forEach(function (t) {
       (t.supports || []).forEach(function (s) {
         if (s.kind !== "truss" || t.isBlock) return;
-        var o = byId[s.onTruss]; if (!o) return;
+        var o = byId[s.onTruss]; if (!o || o.isBlock) return;          // blocks: the store checks that the loop closes
         var p = endPoint(t, Number(s.distance) || 0), q = endPoint(o, Number(s.onDistance) || 0), off = Math.hypot(p.x - q.x, p.y - q.y);
-        if (off > (o.isBlock ? 1.6 : 0.25)) add("check", t, t.name + ": bolted to " + o.name + " at a point " + (Math.round(off * 12)) + " in away from it on the plan - check the positions (the solve joins them anyway).", { support: s.id });
+        if (off > 0.25) add("check", t, t.name + ": bolted to " + o.name + " at a point " + (Math.round(off * 12)) + " in away from it on the plan - check the positions (the solve joins them anyway).", { support: s.id });
       });
     });
     // hoists with no hoist model (the "None" entry: no weight, no capacity)
@@ -1902,7 +1933,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var clone = JSON.parse(JSON.stringify(rig));
       clone.trusses.forEach(function (c) {
         if (c.id === t.id) return;
-        c.loads = []; c.weightless = true; c.wallWeight = 0;
+        c.loads = []; c.weightless = true; c.wallWeight = 0; c.cablePerFt = 0;
         c.supports.forEach(function (s) { s.hardwareWeight = 0; });
       });
       var h = pick(solve(clone, db, { slack: base.slack }));   // same slack hoists as the full rig, so the parts add up
@@ -1912,7 +1943,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { effective: effective, cableOf: cableOf, loadFactor: loadFactor, LOAD_CATS: LOAD_CATS, assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -2794,7 +2825,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
   /** Solve every joint model, then make them the primary result (see applyPrimary). */
   function annotate(rig, results, db, opts) {
-    opts = opts || {}; db = db || TLA.data || {};
+    opts = opts || {}; db = db || TLA.data || {}; rig = TLA.rig.effective(rig);     // cable and load factors (1.22.0)
     var sig = signature(rig, results), out;
     if (last.sig === sig && last.out) out = last.out;
     else { out = compute(rig, results, db, opts); last = { sig: sig, out: out }; }
@@ -2851,7 +2882,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * rigid joints, hoist springs, with this tool's own reactions and member forces for the same model. Lengths ft,
    * forces lb, EI/GJ lb-ft2, k lb/ft. */
   function exportModel(rig, results, db) {
-    db = db || TLA.data || {};
+    db = db || TLA.data || {}; rig = TLA.rig.effective(rig);
     if (results.unsolved && results.unsolved.length) return null;
     var model = build(rig, results, db);
     if (!model.supports.length || unheldGroups(model).length) return null;
@@ -4939,6 +4970,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function applyFixture(l, f) {
     l.note = f.manufacturer + " " + f.fixture; l.fixtureLb = f.weight_lb; l.clampLb = f.clamp_lb || 0;
     setLoadParts(l, { each: f.weight_lb, clamp: f.clamp_lb || 0 });
+    if (!l.cat) l.cat = "lighting";                     // the fixture library is lighting (1.22.0 load categories)
   }
   /** Where the mirrored twin of a load sits (null when it has none). */
   function mirrorAt(l, t) {
@@ -5002,6 +5034,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       field("Truss pieces (" + U.unit("len") + ")", (t.layout && t.layout.manual) || Array.isArray(t.pieces) ? h("input", { type: "text", "class": "num", value: lenText(t.pieceLength), disabled: true, title: "Set by the pieces / segments below" }) : numInput(t.pieceLength != null ? t.pieceLength : t.length, function (v) { t.pieceLength = Math.max(0.5, v); S.commit(); }, { ft: true, title: "Total length of the truss sections in this line, before corner blocks" })),
       field("UDL (" + U.unit("w") + ")", numInput(t.wallWeight, function (v) { t.wallWeight = v; S.commit(); }, { q: "w", title: "UDL (uniformly distributed load): total weight spread evenly over the full length, e.g. a drape or LED wall" })),
       field("Measure from", select([{ value: "start", label: "start" }, { value: "center", label: "centerline" }, { value: "end", label: "end" }], t.measure || "start", function (v) { t.measure = v; S.commit(); }), "")));
+    var rigCable = Number(S.rig.settings && S.rig.settings.cablePerFt) || 0, cab = TLA.rig.cableOf(t, S.rig.settings);
+    c.appendChild(h("div", { "class": "grid3" },
+      field("Cable (" + U.unit("wpl") + ")", cableInput(t, rigCable))));
+    if (cab > 0) c.appendChild(h("div", { "class": "sub", text: "Cable allowance " + U.f("wpl", cab, 2) + " x " + U.f("len", t.length, 2) + " = " + U.f("w", cab * t.length, 1) + ", added to the UDL" + (Number(t.wallWeight) ? " (" + U.f("w", t.wallWeight, 1) + " typed)" : "") + "." }));
     c.appendChild(h("div", { "class": "linelen" },
       h("span", null, U.f("len", t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss"),
       h("span", null, " + " + U.f("len", t.blocksAdded || 0, 3) + " corner blocks = "), h("b", { text: U.f("len", t.length, 3) + " whole line" }),
@@ -5224,6 +5260,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       (hp.off ? " - but the hoist is not under it on the plan; move the hoist or the truss." : ". " + hp.name + " carries this hoist's high hook load, and is checked with the high hook dynamic load.")));
   }
 
+  /** A truss's own cable allowance (1.22.0): blank = the rig's, 0 = none (so not numInput, which reads blank as 0). */
+  function cableInput(t, rigCable) {
+    var own = t.cablePerFt != null && t.cablePerFt !== "";
+    var i = h("input", { type: "number", step: "any", min: 0, "class": "num", value: own ? Math.round(U.v("wpl", t.cablePerFt) * 10000) / 10000 : "", placeholder: rigCable ? "rig " + U.n("wpl", rigCable, 2) : "none",
+      title: "Cable weight per length of this truss, added to its UDL. Blank = the rig's cable allowance (Rig settings); 0 = no cable on this truss." });
+    i.addEventListener("change", function () { var v = parseFloat(i.value); t.cablePerFt = i.value.trim() === "" || !(v >= 0) ? undefined : U.back("wpl", v); S.commit(); });
+    return i;
+  }
   /** Turn a hoist into a dead hang (a 3/8" GAC rope as long as its chain) or back. */
   function setDead(s, on) {
     if (on) { s.dead = true; if (!s.rope && !(Number(s.wll) > 0)) s.rope = "gac-3/8"; if (s.ropeLength == null) s.ropeLength = s.chainLength || 0; s.dlf = undefined; }
@@ -5261,6 +5305,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       field("Weight (" + U.unit("w") + ")", numInput(p.each, part("each"), { q: "w" })),
       field("Clamp (" + U.unit("w") + ")", numInput(p.clamp, part("clamp"), { q: "w" }))));
     c.appendChild(h("div", { "class": "sub" }, "Total ", h("b", { text: U.f("w", l.weight, 1) }), mt ? " - plus the same again mirrored at " + mt : ""));
+    var lfac = TLA.rig.loadFactor(l, S.rig.settings);
+    c.appendChild(h("div", { "class": "grid3" }, field("Category", select(TLA.rig.LOAD_CATS.map(function (x) { return { value: x[0], label: x[1] }; }), l.cat || "other", function (v) { l.cat = v === "other" ? undefined : v; S.commit(); }))));
+    if (lfac !== 1) c.appendChild(h("div", { "class": "sub", text: "Load factor " + lfac + " for this category (Rig settings): the trusses and hoists carry " + U.f("w", l.weight * lfac, 1) + (mt ? " at each position" : "") + "." }));
     c.appendChild(field("Note", textInput(l.comment, function (v) { l.comment = v || undefined; S.commit(); }, "", "e.g. SR 1/2, cable pick"), "span3"));
     c = group(root, "lpos", "Position", true, "on " + t.name);
     c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(l, t.length))));
@@ -5472,6 +5519,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies)."),
       row("Dead hang rope design factor", select([7, 8, 10].map(function (f) { return { value: String(f), label: f + ":1" + (f === TLA.limits.ROPE_DF ? " (default)" : "") }; }), String(TLA.limits.ropeFactor(st)), function (v) { st.ropeDesignFactor = +v === TLA.limits.ROPE_DF ? undefined : +v; S.commit(); }),
         "A dead hang's WLL is its rope's minimum breaking strength divided by this, capped by the assembly WLL typed on the dead hang. Dead hangs are static (dynamic factor 1.0 unless typed).")]));
+    var lf = st.loadFactors || {};
+    body.appendChild(card("Allowances", "Weight the drawing doesn't show: cable along the trusses, and a factor on each kind of load (e.g. 1.1 on lighting for clamps, safeties and gel frames not listed). They load the trusses and hoists like any other weight.", [
+      row("Cable allowance (" + U.unit("wpl") + ")", numInput(Number(st.cablePerFt) > 0 ? st.cablePerFt : "", function (v) { st.cablePerFt = v > 0 ? v : undefined; S.commit(); }, { q: "wpl", placeholder: "none" }),
+        "Cable weight per length on every truss (added to its UDL). A truss can set its own in its panel (0 = none)."),
+      h("div", { "class": "setrow" }, h("label", { "class": "setl" }, h("b", { text: "Load factors" }), h("span", { text: "Each load's weight is multiplied by its category's factor (set the category on the load). 1 = as typed." })),
+        h("div", { "class": "setc lfgrid" }, TLA.rig.LOAD_CATS.map(function (c) {
+          return h("label", { "class": "field" }, h("span", { text: c[1] }), numInput(Number(lf[c[0]]) > 0 ? lf[c[0]] : "", function (v) { var o = st.loadFactors || (st.loadFactors = {}); if (v > 0 && v !== 1) o[c[0]] = v; else delete o[c[0]]; if (!Object.keys(o).length) delete st.loadFactors; S.commit(); }, { placeholder: "1", cls: "w50" }));
+        })))]));
     body.appendChild(card("Truss checks", "The span, cantilever, moment and shear checks against the manufacturers' tables.", [
       row("Repetitive-use factor", select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); }),
         "ANSI repetitive-use rule: table capacities are multiplied by 0.85 unless the data already includes it."),
@@ -5806,7 +5861,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")" }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
       roCell(function (l, row) { return U.n("w", l.weight, 1) + (P.mirrorAt(l, row.truss) ? ' <span class="pill">×2</span>' : ""); }, { r: true, html: true }),
       { key: "mirror", label: "Mirror about CL", type: "check", get: function (l, row) { var m = P.mirrorAt(l, row.truss); return m ? "at " + m : ""; }, val: function (l) { return !!l.mirror; }, set: function (l, v) { l.mirror = !!v; } },
-      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; }))
+      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; })),
+      { key: "cat", label: "Category", type: "select", options: TLA.rig.LOAD_CATS.map(function (c) { return [c[0], c[1]]; }), get: function (l) { var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === (l.cat || "other"); })[0]; var f = TLA.rig.loadFactor(l, S.rig.settings); return (c ? c[1] : "Other") + (f !== 1 ? " ×" + f : ""); }, raw: function (l) { return l.cat || "other"; },
+        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } }
     ];
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[6].label = "Total (" + U.unit("w") + ")";
     var rows = [];
@@ -5818,7 +5875,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       t.loads.forEach(function (l) { rows.push({ key: "L:" + l.id, obj: l, truss: t, sel: { truss: t.id, load: l.id }, del: function () { t.loads.splice(t.loads.indexOf(l), 1); } }); });
       rows.push({ key: "NL:" + t.id, kind: "new", truss: t, label: "+ load on " + t.name + " (start typing)", sel: { truss: t.id }, create: function () { var l = P.newLoad(t); return { key: "L:" + l.id, obj: l, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note." };
+    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category." };
   }
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
@@ -6826,10 +6883,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
       levelNote() ? h("li", { text: levelNote() }) : null,
+      allowNote() ? h("li", { text: allowNote() }) : null,
       tot.hung ? h("li", { text: "Hoists hung below a truss (marked 'below' in section 4): the hoist's chain joins the two trusses, so the truss above (the carrier) sags with the load and the truss below shares load with its other hoists. The carrier carries the hung hoist's high hook load; the carrier - and every truss bolted to it - is also checked with the hung hoist's high hook DYNAMIC load as a point load (columns marked 'hung dyn.'), and the worse result is used. " +
         (st.hungDynamic === false ? "Rig setting: the carrier's own hoists take the hung hoist's static load." : "The carrier's own hoists take the dynamic load too (rig setting, on by default).") + " Hung hoists are not added into the totals: their load reaches the structure through the carrier's hoists." }) : null,
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
+    /** Allowances (1.22.0): cable per length and load factors by category. */
+    function allowNote() {
+      var parts = [], cabT = rig.trusses.filter(function (t) { return TLA.rig.cableOf(t, st) > 0; });
+      if (cabT.length) parts.push("Cable allowance added to the UDL of " + (cabT.length === rig.trusses.filter(function (t) { return !t.isBlock; }).length ? "every truss" : cabT.map(function (t) { return t.name; }).join(", ")) +
+        (Number(st.cablePerFt) > 0 ? " (rig: " + U.f("wpl", st.cablePerFt, 2) + ")" : "") + ".");
+      var lf = st.loadFactors || {}, fs = TLA.rig.LOAD_CATS.filter(function (c) { return Number(lf[c[0]]) > 0 && Number(lf[c[0]]) !== 1; });
+      if (fs.length) parts.push("Load factors by category: " + fs.map(function (c) { return c[1] + " x " + lf[c[0]]; }).join(", ") + " - each load's weight is multiplied by its category's factor before any calculation (the weights in sections 6 and 7 include it).");
+      return parts.join(" ");
+    }
     /** Hoist levels (1.22.0): designed offsets and the out-of-level tolerance. */
     function levelNote() {
       var offs = [];
@@ -7002,7 +7069,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       ["Truss", (e.manufacturer || "Custom") + " " + String(e.description || "").trim() + (e.source ? " (" + (e.source === "MFG" ? "manufacturer data" : e.source === "TLA" ? "Truss Load Analyzer workbook" : e.source === "User" ? "custom entry" : e.source) + ")" : "")],
       ["Data source", src.replace(/^Source: /, "") || "-"],
       ["Self weight", t.weightless ? "not counted (weightless)" : U.f("wpl", e.weight_per_ft_lb, 2) + " x " + Lf(beam.length, 3) + " = " + W(beam.wSelf * beam.length, 1)],
-      ["UDL", Number(t.wallWeight) ? W(t.wallWeight, 1) + " over the whole line = " + U.f("wpl", beam.wDist, 2) : "none"],
+      ["UDL", (function () {
+        var cab = TLA.rig.cableOf(t, S.rig.settings), typed = Number(t.wallWeight) || 0, tot = typed + cab * t.length;
+        if (!tot) return "none";
+        return (cab ? (typed ? W(typed, 1) + " typed + " : "") + "cable " + U.f("wpl", cab, 2) + " x " + Ln(t.length, 2) + " = " + W(tot, 1) : W(typed, 1)) + " over the whole line = " + U.f("wpl", beam.wDist, 2);
+      })()],
       ["Line length", Lf(t.length, 3) + (t.blocksAdded ? " (" + Lf(t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss + " + Lf(t.blocksAdded, 3) + " corner blocks)" : "")],
       ["Maximum span / cantilever", Lf(lim.maxSpan, 2) + " / " + Lf(lim.maxCantilever, 2) + " (= max span / 4)"],
       ["Repetitive-use factor k", fmt(k, 3) + " (" + derateWhy(e, k) + ")"]
@@ -7278,6 +7349,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Dead hangs (since 1.22.0)</b>: a support that is just wire rope (and shackles) from the truss to the hang point, no hoist - set a hoist's <i>Support</i> to Dead hang (or type \"dead\" in the grid's Hoist cell). Pick the rope (7x19 galvanized aircraft cable or 6x19 IWRC, typical catalogue breaking strengths) and its length; its WLL is the breaking strength / the design factor in Rig settings (7, 8 or 10:1, default 10:1), capped by the assembly WLL you type (the weakest shackle or fitting). No hoist body, no chain: the high hook load is the low hook + Add % + rope and hardware weight, and it is static (dynamic factor 1.0 unless typed). It is rigid like the hoists; when the rig's hoists are springs, the rope is a spring EA/L (much stiffer than a chain hoist, so it draws load). Shown as a filled dot on the plan and DH1, DH2... on the calc sheet.</li>" +
     "<li><b>Hoist levels (since 1.22.0)</b>: two separate things. A <i>Level offset</i> on a hoist (inches, + higher) is a designed trim - a truss hung raked or at a different height on purpose, or a dead hang whose length is fixed: the whole-rig analysis solves the rig with that point moved, and the loads shift accordingly. The <i>out-of-level tolerance</i> in Rig settings (e.g. ±1/4\") is unintended error: any hoist may end up that far off, each on its own, and every hoist's check carries the worst it could see (the sum of what each hoist alone does to it); the low side is reported, and a hoist that could unload completely is warned about. Both need the whole-rig analysis.</li>" +
     "<li><b>Check rig (since 1.22.0)</b>: on every change the app looks for input mistakes that the calculation would otherwise take at face value - a load with no weight, two hoists at the same point, a bolted assembly with fewer than 3 hoists or all of them in one line, bolted ends that don't meet on the plan, trusses that cross with no joint (a note: they may run one above the other), a hoist with no model. They are listed in the rig's panel (Check rig) and with the warnings; click one to select it. The truss panel's <i>Connected</i> button dims everything not joined to that truss, to spot a part that is not connected. Nothing here changes a result.</li>" +
+    "<li><b>Allowances (since 1.22.0)</b>: weight the drawing doesn't show. A <i>cable allowance</i> per length (Rig settings, or a truss's own in its panel; 0 = none) is added to each truss's UDL. <i>Load factors</i> by category (lighting, audio, video, scenic, rigging hardware, other) multiply each load's weight - set a load's category in its panel or the Loads grid; fixtures from the library are lighting. Everything is calculated with the factored weights; the loads keep the weights you typed. (Eurocode partial factors are not used: the manufacturers' tables are allowable loads.)</li>" +
     "<li><b>Slack hoists</b>: a chain can only pull. If the loads would push a hoist up (a negative reaction - typically a hoist next to a heavily loaded span or cantilever), its chain goes slack: the hoist is shown as <b>Slack</b>, carries only its own weight, and the truss is solved again without it, so the other hoists and the span checks see the real, longer spans. If that leaves a truss with a single support point, it would tip: it is flagged <b>UNSTABLE</b> and its numbers must not be used.</li>",
     "<li><b>Units</b>: the Units setting in Rig settings shows and takes everything in feet and pounds or in metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm). Only the display changes: the rig is stored and solved the same way, so every result and every truss or hoist choice stays exactly as it was. Trusses whose manufacturer data is metric are checked against their own metric table in either mode.</li>",
     "<li>Loads are based on ANSI repetitive-use rules: capacities are multiplied by 0.85 unless the truss data is marked as already including the repetitive-use factor (the generic <i>Universal</i> trusses from EOT 2.4 use 0.75).</li>",

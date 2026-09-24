@@ -875,7 +875,7 @@
 
   /** Solve every joint model, then make them the primary result (see applyPrimary). */
   function annotate(rig, results, db, opts) {
-    opts = opts || {}; db = db || TLA.data || {};
+    opts = opts || {}; db = db || TLA.data || {}; rig = TLA.rig.effective(rig);     // cable and load factors (1.22.0)
     var sig = signature(rig, results), out;
     if (last.sig === sig && last.out) out = last.out;
     else { out = compute(rig, results, db, opts); last = { sig: sig, out: out }; }
@@ -932,7 +932,7 @@
    * rigid joints, hoist springs, with this tool's own reactions and member forces for the same model. Lengths ft,
    * forces lb, EI/GJ lb-ft2, k lb/ft. */
   function exportModel(rig, results, db) {
-    db = db || TLA.data || {};
+    db = db || TLA.data || {}; rig = TLA.rig.effective(rig);
     if (results.unsolved && results.unsolved.length) return null;
     var model = build(rig, results, db);
     if (!model.supports.length || unheldGroups(model).length) return null;

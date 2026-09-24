@@ -176,10 +176,20 @@
       grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
       levelNote() ? h("li", { text: levelNote() }) : null,
+      allowNote() ? h("li", { text: allowNote() }) : null,
       tot.hung ? h("li", { text: "Hoists hung below a truss (marked 'below' in section 4): the hoist's chain joins the two trusses, so the truss above (the carrier) sags with the load and the truss below shares load with its other hoists. The carrier carries the hung hoist's high hook load; the carrier - and every truss bolted to it - is also checked with the hung hoist's high hook DYNAMIC load as a point load (columns marked 'hung dyn.'), and the worse result is used. " +
         (st.hungDynamic === false ? "Rig setting: the carrier's own hoists take the hung hoist's static load." : "The carrier's own hoists take the dynamic load too (rig setting, on by default).") + " Hung hoists are not added into the totals: their load reaches the structure through the carrier's hoists." }) : null,
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
+    /** Allowances (1.22.0): cable per length and load factors by category. */
+    function allowNote() {
+      var parts = [], cabT = rig.trusses.filter(function (t) { return TLA.rig.cableOf(t, st) > 0; });
+      if (cabT.length) parts.push("Cable allowance added to the UDL of " + (cabT.length === rig.trusses.filter(function (t) { return !t.isBlock; }).length ? "every truss" : cabT.map(function (t) { return t.name; }).join(", ")) +
+        (Number(st.cablePerFt) > 0 ? " (rig: " + U.f("wpl", st.cablePerFt, 2) + ")" : "") + ".");
+      var lf = st.loadFactors || {}, fs = TLA.rig.LOAD_CATS.filter(function (c) { return Number(lf[c[0]]) > 0 && Number(lf[c[0]]) !== 1; });
+      if (fs.length) parts.push("Load factors by category: " + fs.map(function (c) { return c[1] + " x " + lf[c[0]]; }).join(", ") + " - each load's weight is multiplied by its category's factor before any calculation (the weights in sections 6 and 7 include it).");
+      return parts.join(" ");
+    }
     /** Hoist levels (1.22.0): designed offsets and the out-of-level tolerance. */
     function levelNote() {
       var offs = [];
@@ -352,7 +362,11 @@
       ["Truss", (e.manufacturer || "Custom") + " " + String(e.description || "").trim() + (e.source ? " (" + (e.source === "MFG" ? "manufacturer data" : e.source === "TLA" ? "Truss Load Analyzer workbook" : e.source === "User" ? "custom entry" : e.source) + ")" : "")],
       ["Data source", src.replace(/^Source: /, "") || "-"],
       ["Self weight", t.weightless ? "not counted (weightless)" : U.f("wpl", e.weight_per_ft_lb, 2) + " x " + Lf(beam.length, 3) + " = " + W(beam.wSelf * beam.length, 1)],
-      ["UDL", Number(t.wallWeight) ? W(t.wallWeight, 1) + " over the whole line = " + U.f("wpl", beam.wDist, 2) : "none"],
+      ["UDL", (function () {
+        var cab = TLA.rig.cableOf(t, S.rig.settings), typed = Number(t.wallWeight) || 0, tot = typed + cab * t.length;
+        if (!tot) return "none";
+        return (cab ? (typed ? W(typed, 1) + " typed + " : "") + "cable " + U.f("wpl", cab, 2) + " x " + Ln(t.length, 2) + " = " + W(tot, 1) : W(typed, 1)) + " over the whole line = " + U.f("wpl", beam.wDist, 2);
+      })()],
       ["Line length", Lf(t.length, 3) + (t.blocksAdded ? " (" + Lf(t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss + " + Lf(t.blocksAdded, 3) + " corner blocks)" : "")],
       ["Maximum span / cantilever", Lf(lim.maxSpan, 2) + " / " + Lf(lim.maxCantilever, 2) + " (= max span / 4)"],
       ["Repetitive-use factor k", fmt(k, 3) + " (" + derateWhy(e, k) + ")"]

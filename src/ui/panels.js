@@ -576,6 +576,7 @@
   function applyFixture(l, f) {
     l.note = f.manufacturer + " " + f.fixture; l.fixtureLb = f.weight_lb; l.clampLb = f.clamp_lb || 0;
     setLoadParts(l, { each: f.weight_lb, clamp: f.clamp_lb || 0 });
+    if (!l.cat) l.cat = "lighting";                     // the fixture library is lighting (1.22.0 load categories)
   }
   /** Where the mirrored twin of a load sits (null when it has none). */
   function mirrorAt(l, t) {
@@ -639,6 +640,10 @@
       field("Truss pieces (" + U.unit("len") + ")", (t.layout && t.layout.manual) || Array.isArray(t.pieces) ? h("input", { type: "text", "class": "num", value: lenText(t.pieceLength), disabled: true, title: "Set by the pieces / segments below" }) : numInput(t.pieceLength != null ? t.pieceLength : t.length, function (v) { t.pieceLength = Math.max(0.5, v); S.commit(); }, { ft: true, title: "Total length of the truss sections in this line, before corner blocks" })),
       field("UDL (" + U.unit("w") + ")", numInput(t.wallWeight, function (v) { t.wallWeight = v; S.commit(); }, { q: "w", title: "UDL (uniformly distributed load): total weight spread evenly over the full length, e.g. a drape or LED wall" })),
       field("Measure from", select([{ value: "start", label: "start" }, { value: "center", label: "centerline" }, { value: "end", label: "end" }], t.measure || "start", function (v) { t.measure = v; S.commit(); }), "")));
+    var rigCable = Number(S.rig.settings && S.rig.settings.cablePerFt) || 0, cab = TLA.rig.cableOf(t, S.rig.settings);
+    c.appendChild(h("div", { "class": "grid3" },
+      field("Cable (" + U.unit("wpl") + ")", cableInput(t, rigCable))));
+    if (cab > 0) c.appendChild(h("div", { "class": "sub", text: "Cable allowance " + U.f("wpl", cab, 2) + " x " + U.f("len", t.length, 2) + " = " + U.f("w", cab * t.length, 1) + ", added to the UDL" + (Number(t.wallWeight) ? " (" + U.f("w", t.wallWeight, 1) + " typed)" : "") + "." }));
     c.appendChild(h("div", { "class": "linelen" },
       h("span", null, U.f("len", t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss"),
       h("span", null, " + " + U.f("len", t.blocksAdded || 0, 3) + " corner blocks = "), h("b", { text: U.f("len", t.length, 3) + " whole line" }),
@@ -861,6 +866,14 @@
       (hp.off ? " - but the hoist is not under it on the plan; move the hoist or the truss." : ". " + hp.name + " carries this hoist's high hook load, and is checked with the high hook dynamic load.")));
   }
 
+  /** A truss's own cable allowance (1.22.0): blank = the rig's, 0 = none (so not numInput, which reads blank as 0). */
+  function cableInput(t, rigCable) {
+    var own = t.cablePerFt != null && t.cablePerFt !== "";
+    var i = h("input", { type: "number", step: "any", min: 0, "class": "num", value: own ? Math.round(U.v("wpl", t.cablePerFt) * 10000) / 10000 : "", placeholder: rigCable ? "rig " + U.n("wpl", rigCable, 2) : "none",
+      title: "Cable weight per length of this truss, added to its UDL. Blank = the rig's cable allowance (Rig settings); 0 = no cable on this truss." });
+    i.addEventListener("change", function () { var v = parseFloat(i.value); t.cablePerFt = i.value.trim() === "" || !(v >= 0) ? undefined : U.back("wpl", v); S.commit(); });
+    return i;
+  }
   /** Turn a hoist into a dead hang (a 3/8" GAC rope as long as its chain) or back. */
   function setDead(s, on) {
     if (on) { s.dead = true; if (!s.rope && !(Number(s.wll) > 0)) s.rope = "gac-3/8"; if (s.ropeLength == null) s.ropeLength = s.chainLength || 0; s.dlf = undefined; }
@@ -898,6 +911,9 @@
       field("Weight (" + U.unit("w") + ")", numInput(p.each, part("each"), { q: "w" })),
       field("Clamp (" + U.unit("w") + ")", numInput(p.clamp, part("clamp"), { q: "w" }))));
     c.appendChild(h("div", { "class": "sub" }, "Total ", h("b", { text: U.f("w", l.weight, 1) }), mt ? " - plus the same again mirrored at " + mt : ""));
+    var lfac = TLA.rig.loadFactor(l, S.rig.settings);
+    c.appendChild(h("div", { "class": "grid3" }, field("Category", select(TLA.rig.LOAD_CATS.map(function (x) { return { value: x[0], label: x[1] }; }), l.cat || "other", function (v) { l.cat = v === "other" ? undefined : v; S.commit(); }))));
+    if (lfac !== 1) c.appendChild(h("div", { "class": "sub", text: "Load factor " + lfac + " for this category (Rig settings): the trusses and hoists carry " + U.f("w", l.weight * lfac, 1) + (mt ? " at each position" : "") + "." }));
     c.appendChild(field("Note", textInput(l.comment, function (v) { l.comment = v || undefined; S.commit(); }, "", "e.g. SR 1/2, cable pick"), "span3"));
     c = group(root, "lpos", "Position", true, "on " + t.name);
     c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(l, t.length))));
@@ -1109,6 +1125,14 @@
         "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies)."),
       row("Dead hang rope design factor", select([7, 8, 10].map(function (f) { return { value: String(f), label: f + ":1" + (f === TLA.limits.ROPE_DF ? " (default)" : "") }; }), String(TLA.limits.ropeFactor(st)), function (v) { st.ropeDesignFactor = +v === TLA.limits.ROPE_DF ? undefined : +v; S.commit(); }),
         "A dead hang's WLL is its rope's minimum breaking strength divided by this, capped by the assembly WLL typed on the dead hang. Dead hangs are static (dynamic factor 1.0 unless typed).")]));
+    var lf = st.loadFactors || {};
+    body.appendChild(card("Allowances", "Weight the drawing doesn't show: cable along the trusses, and a factor on each kind of load (e.g. 1.1 on lighting for clamps, safeties and gel frames not listed). They load the trusses and hoists like any other weight.", [
+      row("Cable allowance (" + U.unit("wpl") + ")", numInput(Number(st.cablePerFt) > 0 ? st.cablePerFt : "", function (v) { st.cablePerFt = v > 0 ? v : undefined; S.commit(); }, { q: "wpl", placeholder: "none" }),
+        "Cable weight per length on every truss (added to its UDL). A truss can set its own in its panel (0 = none)."),
+      h("div", { "class": "setrow" }, h("label", { "class": "setl" }, h("b", { text: "Load factors" }), h("span", { text: "Each load's weight is multiplied by its category's factor (set the category on the load). 1 = as typed." })),
+        h("div", { "class": "setc lfgrid" }, TLA.rig.LOAD_CATS.map(function (c) {
+          return h("label", { "class": "field" }, h("span", { text: c[1] }), numInput(Number(lf[c[0]]) > 0 ? lf[c[0]] : "", function (v) { var o = st.loadFactors || (st.loadFactors = {}); if (v > 0 && v !== 1) o[c[0]] = v; else delete o[c[0]]; if (!Object.keys(o).length) delete st.loadFactors; S.commit(); }, { placeholder: "1", cls: "w50" }));
+        })))]));
     body.appendChild(card("Truss checks", "The span, cantilever, moment and shear checks against the manufacturers' tables.", [
       row("Repetitive-use factor", select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); }),
         "ANSI repetitive-use rule: table capacities are multiplied by 0.85 unless the data already includes it."),

@@ -65,8 +65,38 @@
 
   var SLACK_TOL = 0.01;   // lb - a hoist reaction below -SLACK_TOL is a pushing (slack) chain
 
+  /* ------------------------------------------------------------------ allowances (1.22.0, competitor list item 4)
+   * Cable weight per foot of truss (settings.cablePerFt, or the truss's own cablePerFt) is added to its UDL, and each
+   * load is multiplied by its category's factor (settings.loadFactors[category]; load.cat, blank = "other"). The solve
+   * and the whole-rig analysis work on this effective rig; a rig without allowances is used as it is. */
+  var LOAD_CATS = [["lighting", "Lighting"], ["audio", "Audio"], ["video", "Video"], ["scenic", "Scenic"], ["rigging", "Rigging hardware"], ["other", "Other / not set"]];
+  function cableOf(t, settings) {
+    if (t.isBlock) return 0;
+    var c = t.cablePerFt != null && t.cablePerFt !== "" ? Number(t.cablePerFt) : Number(settings && settings.cablePerFt);
+    return c > 0 ? c : 0;
+  }
+  function loadFactor(l, settings) {
+    var f = settings && settings.loadFactors && Number(settings.loadFactors[l.cat || "other"]);
+    return f > 0 ? f : 1;
+  }
+  function effective(rig) {
+    if (!rig || rig.__effective) return rig;
+    var st = rig.settings || {};
+    var any = rig.trusses.some(function (t) { return cableOf(t, st) > 0 || (t.loads || []).some(function (l) { return loadFactor(l, st) !== 1; }); });
+    if (!any) return rig;
+    var e = JSON.parse(JSON.stringify(rig));
+    Object.defineProperty(e, "__effective", { value: true });
+    e.trusses.forEach(function (t) {
+      var c = cableOf(t, st);
+      if (c > 0) { t.udlTyped = Number(t.wallWeight) || 0; t.cable = c * (Number(t.length) || 0); t.wallWeight = t.udlTyped + t.cable; }
+      (t.loads || []).forEach(function (l) { var f = loadFactor(l, st); if (f !== 1) { l.typed = Number(l.weight) || 0; l.factor = f; l.weight = l.typed * f; } });
+    });
+    return e;
+  }
+
   function solve(rig, dbIn, opts) {
     opts = opts || {};
+    rig = effective(rig);
     var db = dbIn || TLA.data || {};
     var settings = rig.settings || {};
     var warnings = [], slackSet = {}, unstable = [];
@@ -327,9 +357,9 @@
     rig.trusses.forEach(function (t) {
       (t.supports || []).forEach(function (s) {
         if (s.kind !== "truss" || t.isBlock) return;
-        var o = byId[s.onTruss]; if (!o) return;
+        var o = byId[s.onTruss]; if (!o || o.isBlock) return;          // blocks: the store checks that the loop closes
         var p = endPoint(t, Number(s.distance) || 0), q = endPoint(o, Number(s.onDistance) || 0), off = Math.hypot(p.x - q.x, p.y - q.y);
-        if (off > (o.isBlock ? 1.6 : 0.25)) add("check", t, t.name + ": bolted to " + o.name + " at a point " + (Math.round(off * 12)) + " in away from it on the plan - check the positions (the solve joins them anyway).", { support: s.id });
+        if (off > 0.25) add("check", t, t.name + ": bolted to " + o.name + " at a point " + (Math.round(off * 12)) + " in away from it on the plan - check the positions (the solve joins them anyway).", { support: s.id });
       });
     });
     // hoists with no hoist model (the "None" entry: no weight, no capacity)
@@ -645,7 +675,7 @@
       var clone = JSON.parse(JSON.stringify(rig));
       clone.trusses.forEach(function (c) {
         if (c.id === t.id) return;
-        c.loads = []; c.weightless = true; c.wallWeight = 0;
+        c.loads = []; c.weightless = true; c.wallWeight = 0; c.cablePerFt = 0;
         c.supports.forEach(function (s) { s.hardwareWeight = 0; });
       });
       var h = pick(solve(clone, db, { slack: base.slack }));   // same slack hoists as the full rig, so the parts add up
@@ -655,5 +685,5 @@
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { effective: effective, cableOf: cableOf, loadFactor: loadFactor, LOAD_CATS: LOAD_CATS, assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);

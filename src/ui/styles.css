@@ -482,3 +482,4 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .sheet .rplan text { font: 15px system-ui, sans-serif; fill: #111; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
 .sheet .rplan .hn { font-weight: 700; fill: #1f5fd1; } .sheet .rplan .hn.fail { fill: #c62828; } .sheet .rplan .tn { font-weight: 600; font-size: 16px; }
 .sheet .rplan .sb { stroke: #111; stroke-width: 2; } .sheet .rplan .sbt { font-size: 13px; fill: #444; }
+.lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }

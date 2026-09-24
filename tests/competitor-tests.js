@@ -236,4 +236,28 @@
     eq(checks().some(function (w) { return /in away from it on the plan/.test(w.message); }), true, "bolted ends don't meet");
     eq(TLA.rig.assembly(S.rig, b.id)[a.id], true, "assembly: B is joined to A");
   });
+
+  add("allowances: cable per foot joins the UDL; load factors by category; the rig as typed is not changed", function () {
+    S.newRig();
+    var t = S.addTruss({ name: "T", x: 0, y: 0, angle: 0, length: 20, hoists: [0, 20] });
+    t.loads.push({ id: S.newId("l"), distance: 10, weight: 100, cat: "lighting" }, { id: S.newId("l"), distance: 10, weight: 50 });
+    S.commit();
+    var r0 = hoistOf("T", 0).reaction;
+    S.rig.settings.cablePerFt = 2; S.commit();
+    near(hoistOf("T", 0).reaction, r0 + 20, 1e-6, "2 lb/ft x 20 ft, half each");
+    near(S.results.trusses[t.id].limits.segments.filter(function (sg) { return sg.type === "span"; })[0].udlUsed, 40, 1e-9, "the span check sees it as UDL");
+    t.cablePerFt = 0; S.commit();
+    near(hoistOf("T", 0).reaction, r0, 1e-6, "the truss's own 0 = no cable");
+    t.cablePerFt = undefined; S.rig.settings.cablePerFt = undefined;
+    S.rig.settings.loadFactors = { lighting: 1.1, other: 1.2 }; S.commit();
+    near(hoistOf("T", 0).reaction, r0 + (10 + 10) / 2, 1e-6, "100 x 1.1 and 50 x 1.2 (no category = other)");
+    eq(t.loads[0].weight, 100, "typed weight kept"); eq(t.wallWeight || 0, 0, "typed UDL kept");
+    var a = TLA.grillage.attribution(S.rig, S.results, S.db(), t.id, t.supports[0].id);
+    near(a.parts.reduce(function (x, p) { return x + p.weight; }, 0), hoistOf("T", 0).reaction, 1e-6, "breakdown adds up");
+    TLA.panels.mount(S); TLA.report.mount(S);
+    var el = TLA.report.build(), text = el.textContent;
+    eq(/Load factors by category: Lighting x 1.1/.test(text), true, "calc sheet lists the factors");
+    eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
+    Array.prototype.forEach.call(el.querySelectorAll(".work"), function (w) { if (/^Balance:/.test(w.textContent)) eq(/\(balances\)/.test(w.textContent), true, w.textContent); });
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

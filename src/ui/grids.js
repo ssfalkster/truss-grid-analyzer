@@ -197,7 +197,9 @@
       Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")" }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
       roCell(function (l, row) { return U.n("w", l.weight, 1) + (P.mirrorAt(l, row.truss) ? ' <span class="pill">×2</span>' : ""); }, { r: true, html: true }),
       { key: "mirror", label: "Mirror about CL", type: "check", get: function (l, row) { var m = P.mirrorAt(l, row.truss); return m ? "at " + m : ""; }, val: function (l) { return !!l.mirror; }, set: function (l, v) { l.mirror = !!v; } },
-      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; }))
+      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; })),
+      { key: "cat", label: "Category", type: "select", options: TLA.rig.LOAD_CATS.map(function (c) { return [c[0], c[1]]; }), get: function (l) { var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === (l.cat || "other"); })[0]; var f = TLA.rig.loadFactor(l, S.rig.settings); return (c ? c[1] : "Other") + (f !== 1 ? " ×" + f : ""); }, raw: function (l) { return l.cat || "other"; },
+        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } }
     ];
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[6].label = "Total (" + U.unit("w") + ")";
     var rows = [];
@@ -209,7 +211,7 @@
       t.loads.forEach(function (l) { rows.push({ key: "L:" + l.id, obj: l, truss: t, sel: { truss: t.id, load: l.id }, del: function () { t.loads.splice(t.loads.indexOf(l), 1); } }); });
       rows.push({ key: "NL:" + t.id, kind: "new", truss: t, label: "+ load on " + t.name + " (start typing)", sel: { truss: t.id }, create: function () { var l = P.newLoad(t); return { key: "L:" + l.id, obj: l, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note." };
+    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category." };
   }
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
