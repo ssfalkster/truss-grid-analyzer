@@ -157,10 +157,22 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
 .sheet .ok { color: var(--ok); } .sheet .fail { color: var(--fail); font-weight: 700; } .sheet .warn { color: var(--warn); } .sheet .b { font-weight: 700; }
 .sheet table.rt { width: 100%; border-collapse: collapse; margin: 3px 0; font-variant-numeric: tabular-nums; }
 .sheet .rt th, .sheet .rt td { border: 1px solid #bbb; padding: 1.5px 4px; text-align: left; vertical-align: top; } .sheet .rt th { background: #eef0f3; font-weight: 600; }
-.sheet .rt th.r, .sheet .rt td.r { text-align: right; white-space: nowrap; } .sheet .rt tfoot td { font-weight: 600; background: #f6f7f9; }
+.sheet .rt th.r, .sheet .rt td.r { text-align: right; } .sheet .rt td.r { white-space: nowrap; } .sheet .rt th { hyphens: manual; }
+.sheet .rt td .sub2 { display: block; font-size: 7pt; color: #666; white-space: nowrap; } .sheet .rt tfoot td { font-weight: 600; background: #f6f7f9; }
 .sheet .rt.small { font-size: 8pt; } .sheet .rt.kv td:first-child { width: 34%; color: #333; } .sheet .rt.fx td:first-child { width: 3em; } .sheet .rt.fx td:nth-child(2) { width: 9em; }
 .sheet .rt td.st, .sheet .rt td.nw { font-weight: 700; white-space: nowrap; } .sheet .rt td.nw { font-weight: 400; } .sheet .rt.kv.wide td:first-child { width: 48%; }
 .sheet .work { font: 8pt/1.35 ui-monospace, Consolas, monospace; margin: 2px 0 2px 8px; padding-left: 6px; border-left: 2px solid #ccc; }
+@media screen { .sheet.paper-letter { width: 8.5in; } .sheet.paper-a4 { width: 210mm; } }   /* paper preview; print uses @page size */
+/* typeset working (1.17.0): formula = numbers = result */
+.sheet .calcs { margin: 3px 0 5px 8px; padding: 2px 0 2px 8px; border-left: 2px solid #ccc; font-size: 8.5pt; break-inside: avoid; }
+.sheet .fxm .ml { grid-template-columns: 3.5em 1fr; } .sheet .ml.nl { grid-template-columns: 1fr; } .sheet .fr { white-space: nowrap; } .sheet .fxn { color: #555; font-size: 7.5pt; margin-top: 2px; }
+.sheet .calcs-h { font-weight: 700; margin-bottom: 1px; } .sheet .calcs-n { color: #555; font-size: 7.5pt; margin-top: 1px; }
+.sheet .ml { display: grid; grid-template-columns: 8.5em 1fr; align-items: center; min-height: 1.6em; }
+.sheet .ml-l { color: #555; } .sheet .ml-e { line-height: 1.25; } .sheet .ml .eq { color: #333; }
+.sheet .ml.fail b, .sheet .ml.fail .ml-t { color: #b00020; } .sheet .ml.ok .ml-t { color: #1a7f37; }
+.sheet .mv { font-style: italic; font-family: "Times New Roman", Georgia, serif; font-size: 1.1em; } .sheet .mv sub { font-size: 0.7em; font-style: italic; }
+.sheet .fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 2px; font-size: 0.95em; }
+.sheet .fr > .nu { border-bottom: 1px solid currentColor; padding: 0 3px 1px; } .sheet .fr > .de { padding: 1px 3px 0; }
 .sheet ul.basis, .sheet ol.basis { margin: 3px 0; padding-left: 18px; } .sheet .warns { margin: 3px 0; padding-left: 20px; color: var(--fail); } .sheet .warns.notes { color: #555; }
 .sheet .tblock { margin: 8px 0 12px; } .sheet .tstat { float: right; font-size: 8.5pt; } .sheet .tstat.ok { color: var(--ok); } .sheet .tstat.fail { color: var(--fail); }
 .sheet .rfig { border: 1px solid #ccc; margin: 4px 0; padding: 2px; } .sheet .rfig svg { display: block; width: 100%; height: auto; } .sheet .rfig .elev { max-width: 125mm; margin: 0 auto; overflow: visible; }
@@ -338,8 +350,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.16.0";
+  TLA.VERSION = "1.17.0";
   TLA.CHANGES = [
+    ["1.17.0", "2026-09-24", "G.E. Simmons Falk", "Calculation sheet: every check is now written out the way you would check it by hand - formula, then the numbers put into it, then the result - with real fractions and subscripts: the span and cantilever checks (length, UDL share f, capacity C = CPL x k x f, load against C with its workload) and the moment and shear check (allowed moment and shear from the tables, then the largest moment and shear against them), plus the formula list F1-F5 in section 2. Which table rows were read is noted under each check. The hoist load table (4b) and the other wide tables now fit the page. New Calc sheet paper option in the rig setup: Letter (8.5 x 11 in) or A4 (210 x 297 mm), whichever units you use (Letter for imperial and A4 for metric until you pick); the sheet is laid out and printed on that size. No result changes."],
     ["1.16.0", "2026-09-23", "G.E. Simmons Falk", "Databases tab: trusses and corner blocks are now one searchable table, filtered by type (trusses, corner blocks or both) and maker. Click a family to see a truss together with the corner blocks that fit it. Every manufacturer truss links to the maker's own load table or cut sheet on their website (Christie Lites, James Thomas Engineering, Tomcat, Tyler Truss), and corner blocks link to the product page; workbook trusses are marked \"workbook\", and hovering a row shows where its numbers come from. Your own trusses and corner blocks appear in the same table and are added below it. Fix: 22 James Thomas corner-block links no longer opened (JTE's addresses use the x and degree signs). No calculation changes."],
     ["1.15.1", "2026-09-23", "G.E. Simmons Falk", "Calculation sheet: the boxed sign-off blocks (with Signature and Date lines) are gone; the end of the sheet just leaves a space for the Prepared by and Checked by names (filled in from the sheet's fields when given), and its last line now names G.E. Simmons Falk as the author of Truss Grid Analyzer alongside Hall and Sogoian as the originators, as the license asks. No result changes."],
     ["1.15.0", "2026-09-23", "G.E. Simmons Falk", "Wording and display, no result changes. The grillage / stiffness solve is now called the whole-rig analysis (Export whole-rig model); the load-path method stays as the reference. Load against capacity is workload everywhere (was utilization / % cap), and the plan key reads Low / High (80%+) / Overloaded. Statuses read the same for trusses and hoists: OK, Overloaded, Too long, Slack, Unstable (was Good, OVERLOADED, TOO LONG!, FAILURE, SLACK, UNSTABLE; FAILURE = too long and overloaded) - the pass/fail rules are unchanged. Load-path layer numbers are gone from the tables, truss chips and plan tooltip: each truss now shows what it hangs from (the trusses and corner blocks it is bolted to, and its hoists). The plan is coloured by workload by default; the old layer colouring is kept as Hang order. Fix: typed lengths written with words (12 ft, 6 in, 12 ft 6 in) were rejected - they are read now."],
@@ -4365,6 +4378,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         h("input", { type: "checkbox", checked: st.cantileverSelfWeight === true, onchange: function (e) { st.cantileverSelfWeight = e.target.checked; S.commit(); } }), "Count truss weight against cantilever and moment/shear limits (stricter than the textbook)"),
       h("label", { "class": "mini", title: "Show and type everything in feet and pounds, or metres and kilograms. Only the display changes: the rig, its trusses and hoists, and every result stay exactly the same." }, "Units ",
         select([{ value: "imperial", label: "imperial (ft, lb)" }, { value: "metric", label: "metric (m, kg)" }], U.metric() ? "metric" : "imperial", function (v) { st.units = v === "metric" ? "metric" : undefined; S.commit(); })),
+      h("label", { "class": "mini", title: "Paper size the calculation sheet is laid out and printed on. Saved with the rig; it changes no result." }, "Calc sheet paper ",
+        select(["letter", "a4"].map(function (p) { return { value: p, label: TLA.report.PAPER[p].label }; }), TLA.report.paper(), function (v) { (S.rig.report || (S.rig.report = {})).paper = v; S.commit(); })),
       U.metric() ? null : h("label", { "class": "mini", title: "How length boxes are shown. You can type either way in any length box." }, "Show lengths as ",
         select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); })),
       h("label", { "class": "mini", title: "Used when a hoist has no speed listed (a custom hoist). Hoists with a speed use speed in fpm / 60 + 1 (16 fpm = 4.9 m/min = 1.267). You can also type a factor on any hoist." }, "Default dynamic factor ",
@@ -4947,6 +4962,24 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function para(text, cls) { return h("p", { "class": cls || "", text: text }); }
   function work(text) { return h("div", { "class": "work", text: text }); }
 
+  /* ---- typeset maths (1.17.0): each check written as formula = numbers = result, with real fractions and
+   * subscripts, so a checker can follow it line by line. Plain spans and CSS - no library, works offline and prints. */
+  var X = " × ", MINUS = " − ", LE = " ≤ ", GT = " > ";
+  function mv(base, sub) { return h("span", { "class": "mv" }, base, sub ? h("sub", { text: sub }) : null); }
+  function fr(num, den) { return h("span", { "class": "fr" }, h("span", { "class": "nu" }, num), h("span", { "class": "de" }, den)); }
+  /** One line of working: label, then the parts joined by " = " (the last part is the result, in bold). */
+  function ml(label, parts, cls) {
+    var out = [];
+    parts.forEach(function (p, i) { if (i) out.push(h("span", { "class": "eq", text: " = " })); out.push(i && i === parts.length - 1 ? h("b", null, p) : p); });
+    return h("div", { "class": "ml " + (label ? "" : "nl ") + (cls || "") }, label ? h("span", { "class": "ml-l", text: label }) : null, h("span", { "class": "ml-e" }, out));
+  }
+  /** A comparison line: value <= limit -> workload / status. */
+  function mcmp(label, lhs, value, limit, ok, tail) {
+    return h("div", { "class": "ml " + (ok ? "ok" : "fail") }, label ? h("span", { "class": "ml-l", text: label }) : null,
+      h("span", { "class": "ml-e" }, lhs, h("span", { "class": "eq", text: " = " }), h("b", { text: value }), ok ? LE : GT, limit, tail ? h("span", { "class": "ml-t", text: "  → " + tail }) : null));
+  }
+  function calcs(title, lines, note) { return h("div", { "class": "calcs" }, title ? h("div", { "class": "calcs-h", text: title }) : null, lines, note ? h("div", { "class": "calcs-n", text: note }) : null); }
+
   /* ---- what the sheet needs from the results ---- */
   function hoistEntry(s) { var list = S.db().hoists; return list.filter(function (q) { return q.id === s.hoistId; })[0] || list[0] || null; }
   function supportOf(t, id) { return (t.supports || []).filter(function (s) { return s.id === id; })[0]; }
@@ -5047,7 +5080,17 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       ["F5", "High hook dynamic", "Dynamic = high hook x DLF,  DLF = hoist speed (fpm) / 60 + 1 unless typed on the hoist; " + fmt(typeof st.defaultDlf === "number" ? st.defaultDlf : 1.25, 3) + " if the speed is unknown. Flagged if dynamic > capacity."],
       ["F6", "Factor k", typeof st.derate === "number" ? "k = " + st.derate + " for every truss (rig setting)." : "k = 0.85 (ANSI repetitive use) unless the table already includes it (k = 1); generic Universal trusses 0.75."]
     ];
-    s2.appendChild(table("fx", ["", "Check", "Formula"], fx.map(function (f) { return h("tr", null, td(f[0], "mono b"), td(f[1]), td(f[2])); })));
+    // the same formulas typeset (1.17.0); the sentence under each keeps the conditions and notes
+    var sw = st.cantileverSelfWeight === true, ap = Number(st.addPercent) > 0;
+    var fxMath = {
+      F1: [ml(null, [[mv("C"), " = CPL", X, mv("k"), X, mv("f")]]), ml(null, [[mv("f"), " = ", fr(["UDL", X, mv("k"), MINUS, mv("w", "udl"), X, mv("L")], ["UDL", X, mv("k")])]]), h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("ΣP"), LE, mv("C"), "  and  ", mv("L"), LE, mv("L", "max")))],
+      F2: [ml(null, [[mv("C"), " = CPL(4", mv("L", "c"), ")", X, mv("k")]]), h("div", { "class": "ml" }, h("span", { "class": "ml-l", text: "pass if" }), h("span", { "class": "ml-e" }, mv("ΣP"), " + ", mv("w", "udl"), X, mv("L", "c"), sw ? [" + ", mv("w", "self"), X, mv("L", "c")] : null, LE, mv("C"), "  and  ", mv("L", "c"), LE, fr(mv("L", "max"), "4")))],
+      F3: [ml(null, [[mv("M", "allow"), " = ", mv("k"), X, "min( max ", fr(["CPL", X, mv("L")], "4"), ", max ", fr(["UDL", X, mv("L")], "8"), " )"]]), ml(null, [[mv("V", "allow"), " = ", mv("k"), X, "max( ", fr("CPL", "2"), ", ", fr("UDL", "2"), " )"]])],
+      F4: [ml(null, [["High hook = ", mv("R"), ap ? [X, "(1 + " + st.addPercent + "/100)"] : null, " + ", mv("W", "hoist"), " + ", mv("w", "chain"), X, mv("L", "chain"), " + ", mv("W", "hardware")]])],
+      F5: [ml(null, [["Dynamic = High hook", X, "DLF"]]), ml(null, [["DLF = ", fr(mv("v"), "60"), " + 1"]])],
+      F6: []
+    };
+    s2.appendChild(table("fx", ["", "Check", "Formula"], fx.map(function (f) { return h("tr", null, td(f[0], "mono b"), td(f[1]), h("td", null, fxMath[f[0]] && fxMath[f[0]].length ? h("div", { "class": "fxm" }, fxMath[f[0]]) : null, h("div", { "class": fxMath[f[0]] && fxMath[f[0]].length ? "fxn" : "", text: f[2] }))); })));
     s2.appendChild(table("kv small", null, [
       h("tr", null, td("Truss self weight in cantilever / moment-shear checks"), td(st.cantileverSelfWeight === true ? "counted (stricter than the textbook)" : "not counted (manufacturers' tables already allow for it)")),
       h("tr", null, td("Repetitive-use factor"), td(typeof st.derate === "number" ? String(st.derate) + " (whole rig)" : "per truss data")),
@@ -5085,7 +5128,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         return h("tr", null, td(hid[x.truss + ":" + x.support], "b"),
           tdr(Wn(hx.reaction)), tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
           tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(s.chainLength || 0, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
-          tdr(Wn(hx.staticLoad), "b"), tdr(fmt(hx.dynamicFactor, 3) + " (" + dlfSrc + ")"), tdr(Wn(hx.dynamicLoad)),
+          tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"), tdr(x.trim ? "±" + Wn(Math.abs(x.trim.self), 0) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
@@ -5260,22 +5303,34 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var rg = segRange(beam, s), onIt = [];
       beam.loads.forEach(function (l, i) { if (whereLoad(beam, l.distance) === segKey(s)) onIt.push(tag[i]); });
       onIt.sort(function (a, b) { return a.slice(1) - b.slice(1); });
-      var txt, bad = !!s.code;
+      var bad = !!s.code, kk = fmt(k, 3), lines = [], rows;
+      var title = segName(s) + " (" + Ln(rg[0], 3) + " - " + Lf(rg[1], 3) + ")";
+      var loadSum = onIt.length ? onIt.join(" + ") : "no point loads";
       if (s.type === "span") {
         var cp = lookup(e, "cpl", s.length), ud = lookup(e, "udl", s.length);
-        txt = segName(s) + " (" + Ln(rg[0], 3) + " - " + Ln(rg[1], 3) + "), L = " + Lf(s.length, 3) + " <= " + Lf(s.maxLength, 1) + (s.lengthFail ? " FAILS" : "") + ". " +
-          "CPL at the " + rowText(cp) + " = " + W(cp.value, 0) + ", UDL = " + W(ud.value, 0) + ". " +
-          (!(s.udlMax > 0) ? "The UDL row is 0, so f = 0 (no capacity is taken from this row). Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3) + " x 0" :
-            s.udlUsed > 0 ? "f = (" + Wn(s.udlMax) + " - " + U.n("wpl", beam.wDist, 2) + " x " + Ln(s.length, 3) + ") / " + Wn(s.udlMax) + " = " + fmt(s.freeFraction, 4) + ". Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3) + " x " + fmt(s.freeFraction, 4) : "No UDL, f = 1. Capacity = " + Wn(cp.value, 0) + " x " + fmt(k, 3)) +
-          " = " + W(s.capacity, 1) + ". Load = " + (onIt.length ? onIt.join(" + ") : "no point loads") + " = " + W(s.load, 1) + " -> " + pct(s.utilization) + ".";
+        rows = "Table rows read (span rounded up): CPL at the " + rowText(cp) + " = " + W(cp.value, 0) + ", UDL at the " + rowText(ud) + " = " + W(ud.value, 0) + ".";
+        lines.push(mcmp("Length", mv("L"), Lf(s.length, 3), [mv("L", "max"), " = " + Lf(s.maxLength, 1)], !s.lengthFail));
+        if (!(s.udlMax > 0)) lines.push(ml("UDL share", [mv("f"), "0 (the UDL row is 0, so no capacity is taken from this row)"]));
+        else if (s.udlUsed > 0) lines.push(ml("UDL share", [
+          [mv("f"), " = ", fr(["UDL", X, mv("k"), MINUS, mv("w", "udl"), X, mv("L")], ["UDL", X, mv("k")])],
+          fr([Wn(ud.value, 0) + X + kk + MINUS + U.n("wpl", beam.wDist, 2) + X + Ln(s.length, 3)], [Wn(ud.value, 0) + X + kk]), fmt(s.freeFraction, 4)]));
+        else lines.push(ml("UDL share", [mv("f"), "1 (no UDL on this truss)"]));
+        lines.push(ml("Capacity", [[mv("C"), " = CPL", X, mv("k"), X, mv("f")], Wn(cp.value, 0) + X + kk + X + fmt(s.udlMax > 0 ? s.freeFraction : 0, 4), W(s.capacity, 1)]));
+        lines.push(mcmp("Load", [mv("ΣP"), " = " + loadSum], W(s.load, 1), [mv("C"), " = " + W(s.capacity, 1)], !s.loadFail, pct(s.utilization) + " workload"));
       } else {
         var cc = lookup(e, "cpl", s.length * 4), selfPart = st.cantileverSelfWeight === true ? beam.wSelf * s.length : 0, sumP = s.load - beam.wDist * s.length - selfPart;
-        txt = segName(s) + " (" + Ln(rg[0], 3) + " - " + Ln(rg[1], 3) + "), L_c = " + Lf(s.length, 3) + " <= " + Lf(s.maxLength, 2) + (s.lengthFail ? " FAILS" : "") + ". " +
-          "4 x L_c = " + Lf(s.length * 4, 3) + ": CPL at the " + rowText(cc) + " = " + W(cc.value, 0) + ". Capacity = " + Wn(cc.value, 0) + " x " + fmt(k, 3) + " = " + W(s.capacity, 1) + ". " +
-          "Load = " + (onIt.length ? onIt.join(" + ") + (beam.wDist || selfPart ? " (" + W(sumP, 1) + ")" : "") : "no point loads") + (beam.wDist ? " + " + U.n("wpl", beam.wDist, 2) + " x " + Ln(s.length, 3) + " UDL" : "") + (selfPart ? " + " + U.n("wpl", beam.wSelf, 2) + " x " + Ln(s.length, 3) + " self weight" : "") + " = " + W(s.load, 1) + " -> " + pct(s.utilization) + ".";
+        rows = "Table row read: a cantilever is checked as a span of 4 x its length, 4 x " + Lf(s.length, 3) + " = " + Lf(s.length * 4, 3) + " - CPL at the " + rowText(cc) + " = " + W(cc.value, 0) + ".";
+        lines.push(mcmp("Length", mv("L", "c"), Lf(s.length, 3), [fr(mv("L", "max"), "4"), " = " + Lf(s.maxLength, 2)], !s.lengthFail));
+        lines.push(ml("Capacity", [[mv("C"), " = CPL(4", mv("L", "c"), ")", X, mv("k")], Wn(cc.value, 0) + X + kk, W(s.capacity, 1)]));
+        var lhs = [mv("ΣP")];
+        var nums = onIt.length ? (onIt.join(" + ") + (beam.wDist || selfPart ? " (" + Wn(sumP, 1) + ")" : "")) : "0";
+        if (beam.wDist) { lhs.push(" + ", mv("w", "udl"), X, mv("L", "c")); nums += " + " + U.n("wpl", beam.wDist, 2) + X + Ln(s.length, 3); }
+        if (selfPart) { lhs.push(" + ", mv("w", "self"), X, mv("L", "c")); nums += " + " + U.n("wpl", beam.wSelf, 2) + X + Ln(s.length, 3); }
+        lines.push(mcmp("Load", [lhs, " = " + nums], W(s.load, 1), [mv("C"), " = " + W(s.capacity, 1)], !s.loadFail, pct(s.utilization) + " workload"));
       }
+      var txt = calcs(title, lines, rows);
       crows.push(h("tr", null, td(segName(s)), tdr(Ln(s.length, 3)), tdr(Ln(s.maxLength, 2)), tdr(Wn(s.capacity)), tdr(Wn(s.load)), tdr(pct(s.utilization)), statusCell(s.status, bad)));
-      works.push(work(txt));
+      works.push(txt);
     });
     box.appendChild(para("Span and cantilever checks (F1, F2)", "sub"));
     if (crows.length) {
@@ -5294,8 +5349,17 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         h("tr", null, td("Bending moment"), tdr(Mf(mb.moment)), td(mSide), tdr(Mf(mb.momentAllowed)), tdr(pct(mb.momentUtil)), statusCell(mb.momentOver ? "Over" : "Good", mb.momentOver)),
         h("tr", null, td("Shear"), tdr(W(mb.shear, 1)), td("at " + Lf(d.atShear, 2)), tdr(W(mb.shearAllowed, 1)), tdr(pct(mb.shearUtil)), statusCell(mb.shearOver ? "Over" : "Good", mb.shearOver))
       ]));
-      box.appendChild(work("M_allow = " + fmt(k, 3) + " x min(" + rowOf(at.point, 4) + " = " + Mf(c.momentFromPoint) + ";  " + rowOf(at.uniform, 8) + " = " + Mf(c.momentFromUniform) + ") = " + fmt(k, 3) + " x " + Mf(c.moment) + " = " + Mf(mb.momentAllowed) + "."));
-      box.appendChild(work("V_allow = " + fmt(k, 3) + " x " + (at.shear ? kindName(at.shear.kind) + " " + Wn(at.shear.load, 0) + " at the " + at.shear.row + " " + at.shear.unit + " row / 2 = " + fmt(k, 3) + " x " + W(c.shear, 1) : W(c.shear, 1)) + " = " + W(mb.shearAllowed, 1) + "."));
+      var kk3 = fmt(k, 3);
+      function qterm(q, div) { return q ? fr(Wn(q.load, 0) + X + Ln(q.length, 3), String(div)) : "-"; }
+      var mLines = [
+        ml("Allowed moment", [[mv("M", "allow"), " = ", mv("k"), X, "min(", fr(["CPL", X, mv("L")], "4"), ", ", fr(["UDL", X, mv("L")], "8"), ")"],
+          [kk3 + X + "min(", qterm(at.point, 4), ", ", qterm(at.uniform, 8), ")"], [kk3 + X + Mf(c.moment)], Mf(mb.momentAllowed)]),
+        mcmp("Moment", [mv("M", "max"), " (" + mSide + ")"], Mf(mb.moment), [mv("M", "allow"), " = " + Mf(mb.momentAllowed)], !mb.momentOver, pct(mb.momentUtil) + " workload"),
+        ml("Allowed shear", [[mv("V", "allow"), " = ", mv("k"), X, fr(at.shear ? kindName(at.shear.kind) : "P", "2")],
+          at.shear ? [kk3 + X, fr(Wn(at.shear.load, 0), "2")] : [W(c.shear, 1)], W(mb.shearAllowed, 1)]),
+        mcmp("Shear", [mv("V", "max"), " (at " + Lf(d.atShear, 2) + ")"], W(mb.shear, 1), [mv("V", "allow"), " = " + W(mb.shearAllowed, 1)], !mb.shearOver, pct(mb.shearUtil) + " workload")
+      ];
+      box.appendChild(calcs(null, mLines, "Rows used: moment from " + rowOf(at.point, 4) + " and " + rowOf(at.uniform, 8) + "; shear from " + (at.shear ? kindName(at.shear.kind) + " " + Wn(at.shear.load, 0) + " at the " + at.shear.row + " " + at.shear.unit + " row" : "-") + ". Allowables are estimates from the tables, not published values."));
     }
     return box;
   }
@@ -5361,6 +5425,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
   /* ---------------------------------------------------------------- overlay */
   var FIELDS = [["project", "Project / event"], ["location", "Venue / location"], ["preparedBy", "Prepared by"], ["checkedBy", "Checked by"], ["notes", "Notes"]];
+  /** Paper for the printed sheet (1.17.0): US Letter or A4, set in the rig setup and saved with the rig (in rig.report,
+   * so it never changes the input fingerprint). Unset: Letter for imperial units, A4 for metric. */
+  var PAPER = { letter: { page: "letter", label: "Letter (8.5 x 11 in)" }, a4: { page: "A4", label: "A4 (210 x 297 mm)" } };
+  function paper() { var p = (S.rig.report || {}).paper; return PAPER[p] ? p : U.metric() ? "a4" : "letter"; }
+
   function open() {
     var host = $("report");
     if (!host) return;
@@ -5384,10 +5453,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     host.appendChild(bar);
     var sheet;
     try { sheet = build(); } catch (err) { sheet = h("div", { "class": "sheet" }, para("Could not build the calculation sheet: " + err.message, "fail")); }
+    sheet.classList.add("paper-" + paper());
     host.appendChild(sheet);
     var css = $("report-page") || document.head.appendChild(h("style", { id: "report-page" }));
     var foot = (S.rig.name || "rig") + " - Truss Grid Analyzer v" + TLA.VERSION + " - " + fingerprint(S.rig);
-    css.textContent = "@page { @bottom-left { content: " + JSON.stringify(foot) + "; font: 8pt system-ui, sans-serif; color: #555; } @bottom-right { content: \"Page \" counter(page) \" of \" counter(pages); font: 8pt system-ui, sans-serif; color: #555; } }";
+    css.textContent = "@page { size: " + PAPER[paper()].page + " portrait; @bottom-left { content: " + JSON.stringify(foot) + "; font: 8pt system-ui, sans-serif; color: #555; } @bottom-right { content: \"Page \" counter(page) \" of \" counter(pages); font: 8pt system-ui, sans-serif; color: #555; } }";
     host.hidden = false;
     document.body.classList.add("report-open");
     host.scrollTop = 0;
@@ -5405,7 +5475,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       S = store;
       document.addEventListener("keydown", function (e) { if (e.key === "Escape" && document.body.classList.contains("report-open")) close(); });
     },
-    open: open, close: close, build: build, isOpen: function () { return document.body.classList.contains("report-open"); }, fingerprint: fingerprint, lookup: lookup
+    open: open, close: close, build: build, paper: paper, PAPER: PAPER, isOpen: function () { return document.body.classList.contains("report-open"); }, fingerprint: fingerprint, lookup: lookup
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
