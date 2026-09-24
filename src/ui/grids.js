@@ -51,8 +51,10 @@
   function hoistLabel(q) { return P.hoistName(q) + " · " + U.f("speed", q.speed_fpm, 0); }
   function hoistSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
-    return S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
-      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; });
+    // 1.22.0: "dead hang" (wire rope, no hoist) is picked here too
+    var dead = /^(d|de|dea|dead|dead ?h.*|dh|rope|wire.*|gac)$/i.test(String(q).trim()) ? [{ value: { dead: true }, html: "Dead hang (wire rope, no hoist)", right: "set the rope in the inspector" }] : [];
+    return dead.concat(S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
+      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; }));
   }
   function trussTypeSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
@@ -195,7 +197,9 @@
       Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")" }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
       roCell(function (l, row) { return U.n("w", l.weight, 1) + (P.mirrorAt(l, row.truss) ? ' <span class="pill">×2</span>' : ""); }, { r: true, html: true }),
       { key: "mirror", label: "Mirror about CL", type: "check", get: function (l, row) { var m = P.mirrorAt(l, row.truss); return m ? "at " + m : ""; }, val: function (l) { return !!l.mirror; }, set: function (l, v) { l.mirror = !!v; } },
-      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; }))
+      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; })),
+      { key: "cat", label: "Category", type: "select", options: TLA.rig.LOAD_CATS.map(function (c) { return [c[0], c[1]]; }), get: function (l) { var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === (l.cat || "other"); })[0]; var f = TLA.rig.loadFactor(l, S.rig.settings); return (c ? c[1] : "Other") + (f !== 1 ? " ×" + f : ""); }, raw: function (l) { return l.cat || "other"; },
+        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } }
     ];
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[6].label = "Total (" + U.unit("w") + ")";
     var rows = [];
@@ -207,7 +211,7 @@
       t.loads.forEach(function (l) { rows.push({ key: "L:" + l.id, obj: l, truss: t, sel: { truss: t.id, load: l.id }, del: function () { t.loads.splice(t.loads.indexOf(l), 1); } }); });
       rows.push({ key: "NL:" + t.id, kind: "new", truss: t, label: "+ load on " + t.name + " (start typing)", sel: { truss: t.id }, create: function () { var l = P.newLoad(t); return { key: "L:" + l.id, obj: l, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note." };
+    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category." };
   }
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
@@ -220,6 +224,20 @@
     if (r && r.clamped) alert(r.clamped + " load(s) were past the end of " + dst.name + " and were placed at its end.");
   }
 
+  /** Where a hoist hangs (1.22.0): the structure, or below another truss (type its name). */
+  function hangCell() {
+    var opts = [["", "structure"]].concat(S.rig.trusses.filter(function (t) { return !t.isBlock; }).map(function (t) { return [t.id, "below " + t.name]; }));
+    function label(v) { var o = opts.filter(function (x) { return x[0] === (v || ""); })[0]; return o ? o[1] : "structure"; }
+    return { key: "hang", label: "Hangs from", type: "select", options: opts, get: function (s) { return label(s.hangFrom); }, raw: function (s) { return s.hangFrom || ""; },
+      parse: function (q) {
+        q = String(q).trim().toLowerCase().replace(/^below\s+/, "");
+        if (!q || q === "structure" || q === "roof" || q === "grid") return "";
+        var o = opts.filter(function (x) { return x[0] === q || x[1].toLowerCase().replace(/^below\s+/, "") === q; })[0];
+        return o ? o[0] : undefined;
+      },
+      set: function (s, v, row) { s.hangFrom = v && v !== row.truss.id ? v : undefined; } };
+  }
+
   /* ---------------- step 3: hoists ---------------- */
   function hoists() {
     var len = function (row) { return row.truss.length; };
@@ -228,11 +246,15 @@
       roCell(function (s, row) { return row.truss.name; }, { cls: "mut" }),
       Object.assign({ key: "at" }, lenCell(function (s, row) { return S.measureDisplay(s, row.truss.length); }, function (s, v, row) { S.measureSet(s, v, row.truss.length); })),
       Object.assign({ key: "from", label: "From" }, fromCell(len)),
-      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
-        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { s.hoistId = x.id; } },
-      Object.assign({ key: "chain", label: "Chain (" + U.unit("len") + ")" }, lenCell(function (s) { return s.chainLength || 0; }, function (s, v) { s.chainLength = Math.max(0, v); })),
+      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { if (s.dead) return P.supportName(s); var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
+        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { if (x.dead) { P.setDead(s, true); return; } P.setDead(s, false); s.hoistId = x.id; } },
+      Object.assign({ key: "chain", label: "Chain / rope (" + U.unit("len") + ")" }, lenCell(function (s) { return (s.dead ? s.ropeLength : s.chainLength) || 0; }, function (s, v) { if (s.dead) s.ropeLength = Math.max(0, v); else s.chainLength = Math.max(0, v); })),
       Object.assign({ key: "dlf", label: "DLF" }, numCell(function (s) { return s.dlf; }, function (s, v) { s.dlf = v > 0 ? v : undefined; }, { blank: 0, ph: function (s) { var x = X(s); return "auto " + (x ? P.fmt(x.hoist.dynamicFactor, 3) : ""); } })),
-      Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1))
+      Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1)),
+      hangCell(),
+      // 1.22.0: designed level offset, inches (mm)
+      { key: "lvl", label: "Level (" + U.unit("inch") + ")", type: "num", r: true, get: function (s) { return Number(s.level) ? U.n("inch", s.level, 2) : ""; }, raw: function (s) { return Number(s.level) ? String(Math.round(U.v("inch", s.level) * 1000) / 1000) : ""; },
+        parse: function (q) { if (String(q).trim() === "") return 0; var v = parseFloat(q); return isFinite(v) ? U.back("inch", v) : undefined; }, set: function (s, v) { s.level = v ? v : undefined; } }
     ];
     if (st.cmp) {
       [["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
@@ -245,6 +267,10 @@
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.dynamicLoad, 1) : "-"; }, { r: true }), { key: "hhd", label: "High hook dyn. (" + U.unit("w") + ")" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.hoist.capacity < 999999 ? P.wlCell(x.hoist.staticLoad / x.hoist.capacity).outerHTML : "-"; }, { html: true }), { key: "wl", label: "Workload" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? P.badge(x.hoist.status).outerHTML : "-"; }, { html: true }), { key: "st", label: "Status" }));
+    // 1.22.0: load-cell reading (blank = none) and how far it is from the calculation
+    cols.push({ key: "meas", label: "Measured (" + U.unit("w") + ")", type: "w", r: true, get: function (s) { return s.measured != null && s.measured !== "" ? U.n("w", s.measured, 0) : ""; }, raw: function (s) { return s.measured != null && s.measured !== "" ? String(Math.round(U.v("w", s.measured) * 10) / 10) : ""; },
+      parse: function (q) { if (String(q).trim() === "") return null; var v = parseFloat(String(q).replace(/,/g, "")); return isFinite(v) && v >= 0 ? U.back("w", v) : undefined; }, set: function (s, v) { if (v === null) delete s.measured; else s.measured = v; } });
+    cols.push(Object.assign(roCell(function (s, row) { var m = S.results.measured && S.results.measured.hoists[row.truss.id + ":" + s.id]; return m && m.diff !== null ? '<span class="' + (Math.abs(m.diff) > TLA.rig.MEAS_TOL ? "st w" : "mut") + '">' + TLA.rig.pctText(m.diff) + "</span>" : ""; }, { r: true, html: true }), { key: "mdiff", label: "vs calc." }));
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")";
     var rows = [];
     S.rig.trusses.forEach(function (t) {

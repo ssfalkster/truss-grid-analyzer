@@ -145,6 +145,8 @@ main.focus .ctool > :not(.stages):not(#b-add) { display: none; }
 .hoist { --hc: var(--hoist); } .hoist.c-warn { --hc: var(--warn); } .hoist.c-fail { --hc: var(--fail); } .hoist.selected { --hc: var(--accent); }
 .lbl.hoist-dyn { font-size: 10px; font-style: italic; font-weight: 400; fill: var(--muted); }
 .hoist .hsym { fill: var(--panel); stroke: var(--hc); stroke-width: 2.5; cursor: grab; }
+.hoist.hung .hsym { stroke-dasharray: 4 2.5; }
+.hoist.dead .hline, .hoist.dead .hhalo { display: none; } .hoist.dead .hsym { fill: var(--hc); } .hoist.dead .hdot { fill: var(--panel); }
 .hoist .hhalo { stroke: var(--plan-bg); stroke-width: 6; fill: none; stroke-linecap: round; }
 .hoist .hline { stroke: var(--hc); stroke-width: 2.2; fill: none; stroke-linecap: round; }
 .hoist .hdot { fill: var(--hc); stroke: none; }
@@ -172,6 +174,7 @@ main.focus .ctool > :not(.stages):not(#b-add) { display: none; }
 .ins-head .meta { color: var(--muted); display: flex; gap: 4px 10px; flex-wrap: wrap; padding-left: 4px; }
 .ins-head .meta b { color: var(--ink-2); font-weight: 600; }
 .ins-head .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ins-head .acts button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .st { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; font-size: 11px; letter-spacing: .03em; white-space: nowrap; }
 .st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .st.ok { color: var(--ok); } .st.warn { color: var(--warn); } .st.fail { color: var(--fail); } .st.mut { color: var(--muted); }
@@ -261,6 +264,7 @@ input.note { width: 100%; }
 .warnings li { cursor: pointer; border: 1px solid var(--line); border-left: 3px solid var(--fail); border-radius: 4px; padding: 6px 10px; }
 .warnings li:hover { background: var(--accent-soft); }
 .warnings.notes li { border-left-color: var(--neutral); color: var(--ink-2); }
+.warnings.checklist { margin: 4px 0; } .warnings.checklist li { border-left-color: var(--warn); font-size: 12px; } .warnings.checklist li.note { border-left-color: var(--neutral); color: var(--ink-2); }
 dialog { max-width: 760px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
 dialog::backdrop { background: rgba(0,0,0,.45); }
 
@@ -478,3 +482,5 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .sheet .rplan text { font: 15px system-ui, sans-serif; fill: #111; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
 .sheet .rplan .hn { font-weight: 700; fill: #1f5fd1; } .sheet .rplan .hn.fail { fill: #c62828; } .sheet .rplan .tn { font-weight: 600; font-size: 16px; }
 .sheet .rplan .sb { stroke: #111; stroke-width: 2; } .sheet .rplan .sbt { font-size: 13px; fill: #444; }
+.lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+.deflg .defl, .iso .defl { fill: none; stroke: var(--tc, var(--accent)); stroke-width: 2; stroke-linejoin: round; } .deflg { --tc: var(--ok); pointer-events: visibleStroke; } .deflg.c-warn { --tc: var(--warn); } .deflg.c-fail { --tc: var(--fail); } .deflg.c-neutral { --tc: var(--neutral); } .deflg.dim { opacity: .25; }

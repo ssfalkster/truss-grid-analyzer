@@ -21,7 +21,10 @@
   function Mf(x) { return U.f("mom", x, 0); }
   function pct(x) { return isFinite(x) ? fmt(x * 100, 1) + "%" : "over (no capacity)"; }
   function modelName(m) { return m === "load-path" ? "load-path method" : TLA.grillage.MODEL_LABEL[m] || m; }
-  function shortModel(m) { return m === "hinged" ? "Hinged" : m === "rigid" ? "Rigid" : /^semi/.test(m) ? "Semi " + m.slice(4) + " EI/L" : m; }
+  function shortModel(m) {
+    var d = /\+dyn$/.test(m); if (d) m = m.slice(0, -4);
+    return (m === "hinged" ? "Hinged" : m === "rigid" ? "Rigid" : /^semi/.test(m) ? "Semi " + m.slice(4) + " EI/L" : m) + (d ? ", hung dyn." : "");
+  }
 
   /** Which table row a span is read from, as limits.tableAt reads it: rounded up to the next whole foot, or whole
    * metre for a truss whose data is native metric. */
@@ -81,7 +84,7 @@
   function calcs(title, lines, note) { return h("div", { "class": "calcs" }, title ? h("div", { "class": "calcs-h", text: title }) : null, lines, note ? h("div", { "class": "calcs-n", text: note }) : null); }
 
   /* ---- what the sheet needs from the results ---- */
-  function hoistEntry(s) { var list = S.db().hoists; return list.filter(function (q) { return q.id === s.hoistId; })[0] || list[0] || null; }
+  function hoistEntry(s) { return TLA.limits.supportEntry(s, S.db(), S.rig.settings); }
   function supportOf(t, id) { return (t.supports || []).filter(function (s) { return s.id === id; })[0]; }
   function trussEntry(t) { return t.custom || S.db().trusses.filter(function (x) { return x.id === t.trussId; })[0] || null; }
   function whereLoad(beam, x) {
@@ -118,7 +121,8 @@
 
     // hoist ids used throughout
     var hid = {};
-    r.hoists.forEach(function (x, i) { hid[x.truss + ":" + x.support] = "H" + (i + 1); });
+    var nH = 0, nD = 0;                                   // hoists H1, H2...; dead hangs DH1, DH2... (1.22.0)
+    r.hoists.forEach(function (x) { hid[x.truss + ":" + x.support] = x.hoist.dead ? "DH" + (++nD) : "H" + (++nH); });
     var byId = {}; rig.trusses.forEach(function (t) { byId[t.id] = t; });
     var lines = r.order.map(function (id) { return byId[id]; }).filter(function (t) { return t && !t.isBlock; });
     rig.trusses.forEach(function (t) { if (!t.isBlock && lines.indexOf(t) < 0) lines.push(t); });   // unsolved ones last
@@ -171,8 +175,30 @@
       grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a whole-rig analysis: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
       grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
+      levelNote() ? h("li", { text: levelNote() }) : null,
+      allowNote() ? h("li", { text: allowNote() }) : null,
+      tot.hung ? h("li", { text: "Hoists hung below a truss (marked 'below' in section 4): the hoist's chain joins the two trusses, so the truss above (the carrier) sags with the load and the truss below shares load with its other hoists. The carrier carries the hung hoist's high hook load; the carrier - and every truss bolted to it - is also checked with the hung hoist's high hook DYNAMIC load as a point load (columns marked 'hung dyn.'), and the worse result is used. " +
+        (st.hungDynamic === false ? "Rig setting: the carrier's own hoists take the hung hoist's static load." : "The carrier's own hoists take the dynamic load too (rig setting, on by default).") + " Hung hoists are not added into the totals: their load reaches the structure through the carrier's hoists." }) : null,
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
+    /** Allowances (1.22.0): cable per length and load factors by category. */
+    function allowNote() {
+      var parts = [], cabT = rig.trusses.filter(function (t) { return TLA.rig.cableOf(t, st) > 0; });
+      if (cabT.length) parts.push("Cable allowance added to the UDL of " + (cabT.length === rig.trusses.filter(function (t) { return !t.isBlock; }).length ? "every truss" : cabT.map(function (t) { return t.name; }).join(", ")) +
+        (Number(st.cablePerFt) > 0 ? " (rig: " + U.f("wpl", st.cablePerFt, 2) + ")" : "") + ".");
+      var lf = st.loadFactors || {}, fs = TLA.rig.LOAD_CATS.filter(function (c) { return Number(lf[c[0]]) > 0 && Number(lf[c[0]]) !== 1; });
+      if (fs.length) parts.push("Load factors by category: " + fs.map(function (c) { return c[1] + " x " + lf[c[0]]; }).join(", ") + " - each load's weight is multiplied by its category's factor before any calculation (the weights in sections 6 and 7 include it).");
+      return parts.join(" ");
+    }
+    /** Hoist levels (1.22.0): designed offsets and the out-of-level tolerance. */
+    function levelNote() {
+      var offs = [];
+      r.hoists.forEach(function (x) { var s0 = supportOf(byId[x.truss], x.support); if (s0 && Number(s0.level)) offs.push(hid[x.truss + ":" + x.support] + " " + (s0.level > 0 ? "+" : "") + U.f("inch", s0.level, 2)); });
+      var tl = Number(st.levelTolerance) > 0 ? Number(st.levelTolerance) : 0;
+      if (!offs.length && !tl) return "";
+      return (offs.length ? "Designed hoist levels: every hoist at one level except " + offs.join(", ") + " (higher +, lower -); the whole-rig analysis solves the rig with those points moved. " : "") +
+        (tl ? "Out-of-level tolerance ±" + U.f("inch", tl, 2) + ": any hoist may be that far off its level, each on its own. Each hoist's check adds the worst it could see - the sum of what every hoist alone running " + U.f("inch", tl, 2) + " high or low does to it (4b, + Level)." : "");
+    }
     var fx = [
       ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
       ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
@@ -214,29 +240,38 @@
       var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model"].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
       s4.appendChild(table("small", headA.map(function (c) { return typeof c === "string" ? c : c; }), r.hoists.map(function (x) {
         var e0 = hoistEntry(supportOf(byId[x.truss], x.support) || {}) || {};
-        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
+        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName + (x.hung && byId[x.hung] ? " (below " + byId[x.hung].name + ")" : "")), tdr(Ln(x.distance)), td(e0.dead ? "Dead hang, " + (e0.rope ? e0.rope.name : "WLL typed") : e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
         MODELS.forEach(function (m) { var c = x.byModel && x.byModel[m]; cells.push(tdr(c ? Wn(c.reaction) + (c.slack ? " slack" : "") : "-", x.model === m ? "b" : "")); });
         cells.push(tdr(Wn(x.reaction), "b"), td(x.model ? shortModel(x.model) : "load path", "nw"));
         return h("tr", null, cells);
       })));
       s4.appendChild(para("4b. Hoist load (F4, F5). Chain = chain weight per " + U.unit("len") + " x chain length.", "cap"));
-      var sum = { r: 0, a: 0, hw: 0, ch: 0, hd: 0, s: 0, d: 0 };
+      var sum = { r: 0, a: 0, hw: 0, ch: 0, hd: 0, s: 0, d: 0 }, tl4 = r.hoists.some(function (x) { return x.level; });
       var rowsB = r.hoists.map(function (x) {
         var t = byId[x.truss], s = supportOf(t, x.support) || {}, e = hoistEntry(s) || {}, hx = x.hoist;
-        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, chain = perFt * (Number(s.chainLength) || 0), hw = Number(s.hardwareWeight) || 0;
-        var dlfSrc = Number(s.dlf) > 0 ? "typed" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
-        sum.r += hx.reaction; sum.a += hx.added || 0; sum.hw += body; sum.ch += chain; sum.hd += hw; sum.s += hx.staticLoad; sum.d += hx.dynamicLoad;
+        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, cl = Number(e.dead ? s.ropeLength : s.chainLength) || 0, chain = perFt * cl, hw = Number(s.hardwareWeight) || 0;
+        var dlfSrc = Number(s.dlf) > 0 ? "typed" : e.dead ? "dead hang, static" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
+        if (!x.hung) { sum.r += hx.reaction; sum.a += hx.added || 0; sum.l = (sum.l || 0) + (x.level ? x.level.add : 0); sum.hw += body; sum.ch += chain; sum.hd += hw; sum.s += hx.staticLoad; sum.d += hx.dynamicLoad; }
         var cap = hx.capacity >= 999999 ? null : hx.capacity, bad = hx.status !== "Good";
         return h("tr", null, td(hid[x.truss + ":" + x.support], "b"),
-          tdr(Wn(hx.reaction)), tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
-          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(s.chainLength || 0, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
+          tdr(Wn(hx.reaction)), tl4 ? tdr(x.level ? Wn(x.level.add) : "-") : null, tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
+          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(cl, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
           tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
-      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"], rowsB,
-        h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware.", "cap"));
+      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"]].concat(tl4 ? [["+ Level", "r"]] : []).concat([["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"]), rowsB,
+        h("tr", null, td("Total"), tdr(Wn(sum.r)), tl4 ? tdr(sum.l ? Wn(sum.l) : "-") : null, tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
+    }
+
+    // 1.22.0: load-cell readings against the calculation
+    var mss = r.measured;
+    if (mss && mss.any && r.hoists.length) {
+      s4.appendChild(para("4c. Measured loads (load cells reading the " + (mss.reads === "low" ? "low hook load" : "high hook static load") + ") against the calculation, per assembly; flagged past " + Math.round(mss.tol * 100) + "% of the total.", "cap"));
+      s4.appendChild(table("small", ["Assembly", ["Cells", "r"], ["Measured", "r"], ["Calculated", "r"], ["Difference", "r"]], mss.assemblies.map(function (a) {
+        return h("tr", null, td(a.names.join(", ")), tdr(a.n + " of " + a.of), tdr(Wn(a.measured)), tdr(Wn(a.calc)), td(a.diff === null ? "-" : TLA.rig.pctText(a.diff), a.over ? "fail" : "ok"));
+      })));
     }
 
     /* ---- 5. equilibrium ---- */
@@ -245,11 +280,11 @@
     if (grill && r.compat && r.compat.ok) {
       eqRows.push(h("tr", null, td("Weight in the whole-rig model"), tdr(W(r.compat.load, 1)), td(Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "agrees" : "DIFFERS", Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       MODELS.forEach(function (m) {
-        var sumR = r.hoists.reduce(function (a, x) { return a + (x.byModel && x.byModel[m] ? x.byModel[m].reaction : 0); }, 0), err = r.compat[m] ? r.compat[m].equilibriumError : NaN;
+        var sumR = r.hoists.reduce(function (a, x) { return a + (!x.hung && x.byModel && x.byModel[m] ? x.byModel[m].reaction : 0); }, 0), err = r.compat[m] ? r.compat[m].equilibriumError : NaN;
         eqRows.push(h("tr", null, td("Sum of hoist reactions, " + modelName(m)), tdr(W(sumR, 1)), td("out of balance by " + W(err, 3), Math.abs(err) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       });
     }
-    var lpSum = r.hoists.reduce(function (a, x) { return a + x.reaction; }, 0);
+    var lpSum = r.hoists.reduce(function (a, x) { return a + (x.hung ? 0 : x.reaction); }, 0);
     if (!grill) eqRows.push(h("tr", null, td("Sum of hoist reactions, load-path method"), tdr(W(lpSum, 1)), td("difference " + W(lpSum - tot.applied, 3), Math.abs(lpSum - tot.applied) <= 0.5 ? "ok" : "warn")));
     s5.appendChild(table("kv wide", null, eqRows));
     s5.appendChild(para("Every model must carry the whole weight: the hoist reactions of each joint model add up to the weight carried. Each truss below also shows its own balance (loads = reactions).", "cap"));
@@ -336,7 +371,11 @@
       ["Truss", (e.manufacturer || "Custom") + " " + String(e.description || "").trim() + (e.source ? " (" + (e.source === "MFG" ? "manufacturer data" : e.source === "TLA" ? "Truss Load Analyzer workbook" : e.source === "User" ? "custom entry" : e.source) + ")" : "")],
       ["Data source", src.replace(/^Source: /, "") || "-"],
       ["Self weight", t.weightless ? "not counted (weightless)" : U.f("wpl", e.weight_per_ft_lb, 2) + " x " + Lf(beam.length, 3) + " = " + W(beam.wSelf * beam.length, 1)],
-      ["UDL", Number(t.wallWeight) ? W(t.wallWeight, 1) + " over the whole line = " + U.f("wpl", beam.wDist, 2) : "none"],
+      ["UDL", (function () {
+        var cab = TLA.rig.cableOf(t, S.rig.settings), typed = Number(t.wallWeight) || 0, tot = typed + cab * t.length;
+        if (!tot) return "none";
+        return (cab ? (typed ? W(typed, 1) + " typed + " : "") + "cable " + U.f("wpl", cab, 2) + " x " + Ln(t.length, 2) + " = " + W(tot, 1) : W(typed, 1)) + " over the whole line = " + U.f("wpl", beam.wDist, 2);
+      })()],
       ["Line length", Lf(t.length, 3) + (t.blocksAdded ? " (" + Lf(t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss + " + Lf(t.blocksAdded, 3) + " corner blocks)" : "")],
       ["Maximum span / cantilever", Lf(lim.maxSpan, 2) + " / " + Lf(lim.maxCantilever, 2) + " (= max span / 4)"],
       ["Repetitive-use factor k", fmt(k, 3) + " (" + derateWhy(e, k) + ")"]

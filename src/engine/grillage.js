@@ -21,7 +21,9 @@
  *                (alpha = 1, 4, 16: the range between "nominally pinned" and "rigid" in steel-joint classification),
  *                because a load share can peak between the two extremes
  *   rigid      - the textbook grillage assumption: bending and torsion also pass through the corner block
- * Every check uses the worst of all of them. Stiffness can be scaled per truss (truss.eiScale, applied to EI, GA, GJ). */
+ * Every check uses the worst of all of them. Stiffness can be scaled per truss (truss.eiScale, applied to EI, GA, GJ).
+ * A hoist hung below a truss (1.22.0, support.hangFrom) is a tension-only chain between its truss and the carrier; the
+ * carrier (and what is bolted to it) is also checked in a "carrier case" with the hung hoist's high hook dynamic load. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
 
@@ -65,7 +67,7 @@
    * lift(id, ft) - the reactions when one hoist is raised by ft with no other load. A support with k (lb/ft) is a
    * spring (a hoist and its chain stretch); without, it is rigid. */
   function solveModel(model, joints) {
-    var beams = model.beams, links = model.links, jm = jointsOf(joints), rigid = jm.rigid;
+    var beams = model.beams, links = model.links, hangs = model.hangs || [], jm = jointsOf(joints), rigid = jm.rigid;
     var parent = [];
     function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
     function union(a, b) { a = find(a); b = find(b); if (a !== b) parent[b] = a; }
@@ -81,6 +83,10 @@
     var map = {}, n = 0;
     function dof(id) { var r = find(id); if (map[r] === undefined) map[r] = n++; return map[r]; }
     var dofs = ids.map(function (bn) { return bn.map(function (x) { return [dof(x[0]), dof(x[1]), dof(x[2])]; }); });
+    // a hoist hung below a truss (1.22.0) is a chain between two trusses: one more unknown per hoist, its tension
+    // (a Lagrange multiplier, scaled to the trusses' stiffness): u_lower - u_carrier = the chain shortened (0), or
+    // stretched by T / k when the hoist has a stiffness
+    var nw = n; n += hangs.length;
     var K = []; for (i = 0; i < n; i++) K.push(new Float64Array(n));
     beams.forEach(function (bm, bi) {
       bm.els = bm.els || [];
@@ -102,9 +108,19 @@
     var fixed = {}, springs = [];
     model.supports.forEach(function (sp) { if (!(sp.k > 0)) fixed[dofs[sp.b][sp.n][0]] = true; });
     model.supports.forEach(function (sp) { var d = dofs[sp.b][sp.n][0]; if (sp.k > 0 && !fixed[d]) { K[d][d] += sp.k; springs.push({ sp: sp, d: d }); } });
+    var maxW = 0; for (i = 0; i < nw; i++) if (diagEl[i] > maxW) maxW = diagEl[i];
+    var hangAt = hangs.map(function (hg, j) {
+      var da = dofs[hg.a][hg.na][0], db = dofs[hg.b][hg.nb][0], x = nw + j, sc = Math.max(diagEl[da], diagEl[db]) || maxW || 1;
+      // the two ends already move together (bolted there too), or both are held: the chain carries nothing
+      if (da === db || (fixed[da] && fixed[db])) { K[x][x] = 1; return { hg: hg, x: x, s: 0 }; }
+      K[da][x] -= sc; K[x][da] -= sc; K[db][x] += sc; K[x][db] += sc;
+      if (hg.k > 0) K[x][x] -= sc * sc / hg.k;
+      return { hg: hg, x: x, s: sc };
+    });
     /** Load vector for everything (origin undefined) or only the loads that belong to one truss (attribution). */
     function loadVector(origin) {
       var F = new Float64Array(n);
+      (model.extra || []).forEach(function (ex) { if (origin === undefined || ex.origin === origin) F[dofs[ex.b][ex.n][0]] -= ex.P; });
       beams.forEach(function (bm, bi) {
         if (origin === undefined || bm.t.id === origin) for (var e = 0; e < bm.nodes.length - 1; e++) {
           var el = bm.els[e]; if (!el) continue;
@@ -153,9 +169,11 @@
     }
     var byDof = {};
     model.supports.forEach(function (sp) { var d = dofs[sp.b][sp.n][0]; if (fixed[d] && !(sp.k > 0)) (byDof[d] = byDof[d] || []).push(sp); });
-    /** set: optional imposed displacements (ft, up) - of fixed dofs ({dof: ft}) and of spring hoists' tops ({id: ft}). */
+    /** set: optional imposed displacements (ft, up) - of fixed dofs ({dof: ft}), of spring hoists' tops ({id: ft}) and
+     * of hoists hung below a truss (chain shortened, {id: ft}). */
     function solveF(F, set) {
-      var y = new Float64Array(m), ii, jj, fd = (set && set.dofs) || {}, sd = (set && set.springs) || {};
+      var y = new Float64Array(m), ii, jj, fd = (set && set.dofs) || {}, sd = (set && set.springs) || {}, hd = (set && set.hangs) || {};
+      if (Object.keys(hd).length) { F = F.slice(); hangAt.forEach(function (h) { if (hd[h.hg.id]) F[h.x] -= h.s * hd[h.hg.id]; }); }
       for (ii = 0; ii < m; ii++) { var s = F[free[perm[ii]]], Ai = A[ii]; for (jj = 0; jj < ii; jj++) s -= Ai[jj] * y[jj]; y[ii] = s; }
       for (ii = m - 1; ii >= 0; ii--) { var s2 = y[ii], Ai2 = A[ii]; for (jj = ii + 1; jj < m; jj++) s2 -= Ai2[jj] * y[jj]; y[ii] = s2 / Ai2[ii]; }
       var U = new Float64Array(n); free.forEach(function (gi, k) { U[gi] = y[k]; });
@@ -167,24 +185,41 @@
       });
       springs.forEach(function (x) { var r = x.sp.k * ((sd[x.sp.id] || 0) - U[x.d]); reactions[x.sp.id] = r; total += r; });
       model.supports.forEach(function (sp) { if (reactions[sp.id] === undefined) reactions[sp.id] = 0; });
+      // a hung hoist's tension is its low hook load; it stays inside the rig, so it is not part of the total
+      hangAt.forEach(function (h) { reactions[h.hg.id] = h.s * U[h.x]; });
       return { U: U, u: y, reactions: reactions, total: total };
+    }
+    /** The load vector and imposed displacements for the supports' designed levels (dz ft, up): a rigid hoist's point is
+     * moved, a spring hoist's top, a hung hoist's chain shortened. Two rigid hoists at one point share the first's. */
+    function levelSet(F0) {
+      var F2 = F0.slice(), set = { dofs: {}, springs: {}, hangs: {} }, any = false;
+      model.supports.forEach(function (sp) {
+        if (!sp.dz) return;
+        var d = dofs[sp.b][sp.n][0]; any = true;
+        if (fixed[d]) { if (set.dofs[d] === undefined) { set.dofs[d] = sp.dz; free.forEach(function (q) { F2[q] -= K[q][d] * sp.dz; }); } }
+        else { set.springs[sp.id] = sp.dz; F2[d] += sp.k * sp.dz; }
+      });
+      hangs.forEach(function (hg) { if (hg.dz) { set.hangs[hg.id] = hg.dz; any = true; } });
+      return { F: F2, set: set, any: any };
     }
     /** Reactions when hoist `id` alone is raised by `ft` (a trim error), everything else as solved. */
     function lift(id, ft) {
+      var hs = {}; if (hangAt.some(function (h) { return h.hg.id === id && h.s; })) { hs[id] = ft; return solveF(new Float64Array(n), { hangs: hs }); }
       var sp = model.supports.filter(function (x) { return x.id === id; })[0]; if (!sp) return null;
       var d = dofs[sp.b][sp.n][0], F = new Float64Array(n), set = { dofs: {}, springs: {} };
       if (fixed[d]) { free.forEach(function (q) { F[q] = -K[q][d] * ft; }); set.dofs[d] = ft; }
       else { F[d] = sp.k * ft; set.springs[id] = ft; }
       return solveF(F, set);
     }
-    var F = loadVector(), sol = solveF(F);
+    // 1.22.0: hoists hung at a designed level (support dz, ft up): imposed displacements of the supports' tops
+    var lv = levelSet(loadVector()), F = lv.F, sol = solveF(F, lv.set);
     // The eps above only exists to pin down twist that nothing loads. If it ends up carrying real moment, a truss is
     // free to rotate (tip) - a mechanism, not a structure.
     var fsum = 0; for (i = 0; i < n; i++) fsum += Math.abs(F[i]);
     var leak = 0, leakDof = -1;
     for (i = 0; i < m; i++) if (eps[i] && Math.abs(eps[i] * sol.u[i]) > leak) { leak = Math.abs(eps[i] * sol.u[i]); leakDof = free[i]; }
     if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof, dofs: dofs };
-    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
+    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, set: lv.set, leveled: lv.any, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
   }
 
   var JUMP_TOL = 1e-5;   // of the truss's largest moment: smaller steps are the solver's tiny twist stiffness, not a joint
@@ -254,6 +289,9 @@
     // what is left at a node after the hoists there comes through its bolted connections: peel the link tree from
     // its leaves (a leaf node's residual is the force in its only link)
     sol.supports.forEach(function (sp) { ext[sp.b + ":" + sp.n] -= sol.reactions[sp.id]; });
+    // a hung hoist pulls its truss up and its carrier down; extra loads (the carrier case) sit on their node
+    (model.hangs || []).forEach(function (hg) { var T = sol.reactions[hg.id] || 0; ext[hg.a + ":" + hg.na] -= T; ext[hg.b + ":" + hg.nb] += T; });
+    (model.extra || []).forEach(function (ex) { ext[ex.b + ":" + ex.n] += ex.P; });
     var edges = {}, adj = {}, linkForce = [];
     model.links.forEach(function (lk, li) {
       var A = lk.a + ":" + lk.na, B = lk.b + ":" + lk.nb; if (A === B) return;
@@ -305,11 +343,31 @@
       var res = results.trusses[bm.t.id];
       res.beam.loads.forEach(function (l) { if (l.injected) return; addP(bm, pt(bm, l.distance), l.weight, bm.t.id); });
     });
+    // hoists hung below a truss (1.22.0): a chain between the hoist's point on its truss and the carrier; the hoist,
+    // chain and hardware weight hang on the carrier
+    var hangPending = [];
+    rig.trusses.forEach(function (t) {
+      if (t.isBlock || index[t.id] === undefined) return;
+      t.supports.forEach(function (s) {
+        var hp = s.kind === "hoist" && s.hangFrom ? TLA.rig.hangPoint(byId, t, s) : null;
+        if (!hp) return;
+        var c = byId[hp.truss], d = hp.distance;
+        if (c.isBlock) {
+          var hh = byId[c.host || (c.attach && c.attach.b)], sb = hh && c.supports.filter(function (x) { return x.kind === "truss" && x.onTruss === hh.id; })[0];
+          c = hh; d = sb ? sb.onDistance : 0;
+        }
+        if (!c || index[c.id] === undefined || c.id === t.id) return;
+        var cb = beams[index[c.id]], dc = pt(cb, Number(d) || 0), lb = beams[index[t.id]], dl = pt(lb, s.distance);
+        var w = TLA.limits.supportWeight(s, db, rig.settings) + (Number(s.hardwareWeight) || 0);
+        if (w) addP(cb, dc, w, t.id);
+        hangPending.push({ a: t.id, da: dl, b: c.id, db: dc, id: t.id + ":" + s.id, s: s });
+      });
+    });
     rig.trusses.forEach(function (t) {
       var host = t.isBlock ? byId[t.host || (t.attach && t.attach.b)] : null;
       // hoists on trusses and on blocks
       t.supports.forEach(function (s) {
-        if (s.kind === "hoist") {
+        if (s.kind === "hoist" && !(s.hangFrom && hangPending.some(function (p) { return p.s === s; }))) {
           var owner = t.isBlock ? host : t, d = t.isBlock ? blockCentre(t) : s.distance;
           if (!owner || index[owner.id] === undefined) return;
           var bm = beams[index[owner.id]], dd = pt(bm, d);
@@ -369,21 +427,41 @@
     });
     // hoist springs (lb/in -> lb/ft): the hoist's own stiffness, else the rig's; none = rigid
     var kRig = Number(rig.settings && rig.settings.hoistStiffness) || 0;
+    // lb/in: the support's own stiffness, else - when the rig's hoists are springs - a dead hang's rope (EA / L), else
+    // the rig's hoist stiffness; none = rigid (a dead hang on a rig of rigid hoists is rigid too)
+    function supportK(s) {
+      if (s && Number(s.stiffness) > 0) return Number(s.stiffness);
+      var kr = s && s.dead && kRig > 0 ? TLA.limits.ropeStiffness(s) / 12 : 0;
+      return kr > 0 ? kr : kRig;
+    }
+    // a designed level offset (1.22.0): support.level, inches, + = hung higher than the rest; ft here
+    function levelOf(s) { var v = Number(s && s.level) || 0; return v / 12; }
+    function nodeOf(bm, d) { return bm.nodes.findIndex(function (nd) { return Math.abs(nd.d - d) < 1e-6; }); }
+    var hangs = hangPending.map(function (p) {
+      var k = supportK(p.s), A = beams[index[p.a]], B = beams[index[p.b]];
+      return { a: index[p.a], na: nodeOf(A, p.da), b: index[p.b], nb: nodeOf(B, p.db), id: p.id, k: k > 0 ? k * 12 : 0, truss: p.a, carrier: p.b, dz: levelOf(p.s) };
+    });
     beams.forEach(function (bm, bi) {
       bm.nodes.forEach(function (nd, ni) {
         (nd.hoist || []).forEach(function (id) {
-          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = Number(s && s.stiffness) > 0 ? Number(s.stiffness) : kRig;
-          supports.push(k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id });
+          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = supportK(s);
+          var sp = k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id }, dz = levelOf(s);
+          if (dz) sp.dz = dz;
+          supports.push(sp);
         });
       });
     });
-    return { beams: beams, links: links, supports: supports };
+    return { beams: beams, links: links, supports: supports, hangs: hangs };
   }
+
+
 
   var last = { sig: null, out: null };
   function signature(rig, results) {
     // plan position does not change the stiffness solution (only distances and angles do), so dragging reuses the last solve
-    return JSON.stringify(rig, function (k, v) { return k === "x" || k === "y" ? undefined : v; }) + "|" + (results.totals ? results.totals.applied : "");
+    // (a hoist hung below a truss hooks on where the plan puts it, so then position counts)
+    var hung = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return s.kind === "hoist" && s.hangFrom; }); });
+    return JSON.stringify(rig, function (k, v) { return !hung && (k === "x" || k === "y") ? undefined : v; }) + "|" + (results.totals ? results.totals.applied : "");
   }
 
   var SLACK_TOL = 0.01;   // lb, as in rig.js
@@ -402,6 +480,7 @@
     var parent = model.beams.map(function (_, i) { return i; });
     function find(a) { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; }
     model.links.forEach(function (lk) { parent[find(lk.b)] = find(lk.a); });
+    (model.hangs || []).forEach(function (hg) { parent[find(hg.a)] = find(hg.b); });
     var held = {}; model.supports.forEach(function (sp) { held[find(sp.b)] = true; });
     var groups = {};
     model.beams.forEach(function (bm, i) { var r = find(i); if (!held[r]) (groups[r] = groups[r] || []).push(bm.t.name); });
@@ -411,19 +490,20 @@
   /** Solve one joint model with tension-only hoists: a hoist that comes out pushing has a slack chain, so it is taken
    * out and the rig solved again, most negative first. Slack hoists report 0. */
   function solveSlack(model, joints) {
-    var sup = model.supports.slice(), slack = [];
+    var sup = model.supports.slice(), hg = (model.hangs || []).slice(), slack = [];
     for (;;) {
-      var r = solveModel({ beams: model.beams, links: model.links, supports: sup }, joints);
+      var r = solveModel({ beams: model.beams, links: model.links, supports: sup, hangs: hg, extra: model.extra }, joints);
       if (!r.ok) { r.slack = slack; r.names = ownersOf(model, r.dofs, r.dof); return r; }
       var worst = null, least = -SLACK_TOL;
-      sup.forEach(function (sp) { var v = r.reactions[sp.id]; if (v < least) { least = v; worst = sp; } });
-      if (!worst || sup.length <= 1) {
+      sup.concat(hg).forEach(function (sp) { var v = r.reactions[sp.id]; if (v < least) { least = v; worst = sp; } });
+      if (!worst || (sup.indexOf(worst) >= 0 && sup.length <= 1)) {
         slack.forEach(function (id) { r.reactions[id] = 0; });
         r.slack = slack;
         return r;
       }
       slack.push(worst.id);
       sup = sup.filter(function (sp) { return sp !== worst; });
+      hg = hg.filter(function (x) { return x !== worst; });
     }
   }
 
@@ -469,9 +549,56 @@
       if (s.forces) return;
       s.equilibriumError = s.total - out.load;
       s.forces = forces(model, s);
+      s.hangLoad = hangLoads(model, s, rig, db, false);
     });
     out.ok = true; out.model = model;
+    if (model.hangs.length) carrierCase(rig, db, model, out);
     return out;
+  }
+
+  /** What a hung hoist puts on its carrier in one solve: its high hook load (low hook + Add % + hoist, chain and
+   * hardware weight), static or dynamic. The static solve itself carries only the low hook + hoist, chain and hardware
+   * weight (Add % never loads a truss, as in the original). */
+  function hangLoads(model, sol, rig, db, dynamic) {
+    var out = {}, st = rig.settings || {}, byId = {};
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    model.hangs.forEach(function (hg) {
+      var p = hg.id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")); if (!s) return;
+      var T = sol.reactions[hg.id] || 0, c = TLA.limits.checkSupport(s, db, T, st);
+      out[hg.id] = dynamic ? c.dynamicLoad : T + c.hoistChain + (Number(s.hardwareWeight) || 0);
+    });
+    return out;
+  }
+
+  /** The carrier case (1.22.0, owner): a truss carrying a hoist hung below it is checked with that hoist's high hook
+   * DYNAMIC load - the hoist runs, its load factor acts on the carrier. For each joint model: the rig solved again with
+   * each hung hoist's chain replaced by a point load on the carrier (its high hook dynamic load from the static solve)
+   * and its truss held at the hoist. The trusses joined to a carrier (bolted, not hung) take the worse of this and the
+   * static solve; so do their hoists, unless Rig settings turn that off (settings.hungDynamic === false). */
+  function carrierCase(rig, db, model, out) {
+    var parent = model.beams.map(function (_, i) { return i; });
+    function find(a) { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; }
+    model.links.forEach(function (lk) { parent[find(lk.b)] = find(lk.a); });
+    var roots = {}, group = {};
+    model.hangs.forEach(function (hg) { roots[find(hg.b)] = true; });
+    model.beams.forEach(function (bm, i) { if (roots[find(i)]) group[bm.t.id] = true; });
+    out.dynGroup = group; out.dynOrder = [];
+    out.order.forEach(function (m) {
+      var base = out[m], dyn = hangLoads(model, base, rig, db, true), sup = model.supports.slice(), extra = [];
+      model.hangs.forEach(function (hg) {
+        if (base.slack.indexOf(hg.id) < 0) sup.push({ b: hg.a, n: hg.na, id: "hang@" + hg.id, internal: true });
+        extra.push({ b: hg.b, n: hg.nb, P: dyn[hg.id] - hangStatic(hg), origin: hg.truss });
+      });
+      function hangStatic(hg) { return base.hangLoad[hg.id] - (base.reactions[hg.id] || 0); }   // hoist, chain, hardware
+      var mc = { beams: model.beams, links: model.links, supports: sup, hangs: [], extra: extra }, sc = solveSlack(mc, base.rigid ? "rigid" : m);
+      if (!sc.ok) return;
+      var load = out.load; extra.forEach(function (ex) { load += ex.P; });
+      sc.equilibriumError = sc.total - load;
+      sc.forces = forces(mc, sc);
+      sc.hangLoad = dyn;
+      sc.model = mc; sc.base = m; sc.dynamic = true;
+      out[m + "+dyn"] = sc; out.dynOrder.push(m + "+dyn");
+    });
   }
 
   /* ---- 1.3.0: the whole-rig analysis is the primary result ----
@@ -482,6 +609,8 @@
 
   var MODEL_LABEL = { hinged: "hinged joints", rigid: "rigid joints" };
   SWEEP.forEach(function (a) { MODEL_LABEL["semi" + a] = "semi-rigid joints (" + a + " EI/L)"; });
+  // the carrier case (1.22.0): the same joint model with each hoist hung below a truss at its high hook dynamic load
+  Object.keys(MODEL_LABEL).forEach(function (k) { MODEL_LABEL[k + "+dyn"] = MODEL_LABEL[k] + ", hung hoists at their dynamic load"; });
   function isSemi(m) { return /^semi/.test(m); }
 
   function supportOf(t, id) { return ((t && t.supports) || []).filter(function (s) { return s.id === id; })[0]; }
@@ -494,6 +623,7 @@
   /** The force a load-path "injected" load stands for, from one whole-rig analysis: a bolted truss's connection force,
    * or a corner block's net force on the truss it sits on. Hardware at the connection rides along, as in rig.js. */
   function injectedForce(src, sol, rig, byId, results) {
+    if (src.hang) return (sol.hangLoad && sol.hangLoad[src.truss + ":" + src.support]) || 0;
     var t = byId[src.truss], s = supportOf(t, src.support), hw = Number(s && s.hardwareWeight) || 0;
     if (!t || !t.isBlock) return (sol.forces.connections[src.truss + ":" + src.support] || 0) + hw;
     var f = 0, r = results.trusses[t.id];
@@ -501,6 +631,7 @@
       if (u.isBlock) return;
       (u.supports || []).forEach(function (s2) {
         if (s2.kind === "truss" && s2.onTruss === t.id) f += (sol.forces.connections[u.id + ":" + s2.id] || 0) + (Number(s2.hardwareWeight) || 0);
+        if (s2.kind === "hoist" && s2.hangFrom === t.id) f += (sol.hangLoad && sol.hangLoad[u.id + ":" + s2.id]) || 0;
       });
     });
     (t.supports || []).forEach(function (s3) { if (s3.kind === "hoist") f -= sol.reactions[t.id + ":" + s3.id] || 0; });
@@ -563,7 +694,7 @@
     if (full && bi >= 0 && !TLA.limits.countSelfWeight(st) && model.beams[bi].wSelf > 0) {
       var bmT = model.beams[bi], F = sol.F.slice(), Fs = sol.udlVector(bi, bmT.wSelf);
       for (var q = 0; q < F.length; q++) F[q] -= Fs[q];
-      var r = sol.solveF(F);                            // same structure, same slack hoists
+      var r = sol.solveF(F, sol.set);                   // same structure, same slack hoists, same levels
       net = forces(model, { U: r.U, reactions: r.reactions, dofs: sol.dofs, supports: sol.supports }, function (b) { return b === bmT ? b.w - b.wSelf : b.w; }).members[t.id];
     }
     var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: TLA.limits.countSelfWeight(st), memberDiagrams: full ? { full: full, net: net } : null });
@@ -583,6 +714,18 @@
   }
 
   var TRIM_FT = 1 / 48;          // a quarter inch
+  function round2(v) { return Math.round(v * 100) / 100; }
+  /** Out-of-level influence (1.22.0): the reactions when each active hoist alone is raised by ft, cached on the solve. */
+  function influence(sol, model, ft) {
+    var c = sol.levelInf || (sol.levelInf = {});
+    if (c[ft]) return c[ft];
+    var out = {};
+    model.supports.concat(model.hangs || []).forEach(function (sp) {
+      if (sol.slack.indexOf(sp.id) >= 0 || out[sp.id]) return;
+      var r = sol.lift(sp.id, ft); if (r) out[sp.id] = r.reactions;
+    });
+    return (c[ft] = out);
+  }
   var TRIM_WARN = 0.1;           // of the hoist's capacity
 
   function applyPrimary(rig, results, db, out) {
@@ -593,18 +736,22 @@
     // the load-path hoist and span warnings are replaced by the ones below
     for (var i = W.length - 1; i >= 0; i--) if (W[i].kind === "segment" || W[i].kind === "member" || W[i].kind === "hoist") W.splice(i, 1);
 
+    var DYN = out.dynOrder || [];
     Object.keys(results.trusses).forEach(function (id) {
       var t = byId[id], res = results.trusses[id];
       if (!t || t.isBlock) return;
+      // a truss joined to a carrier of a hung hoist is also checked in the carrier case (listed first: ties go to the
+      // static solve)
+      var ML = DYN.length && out.dynGroup[id] ? DYN.concat(MODELS) : MODELS;
       var by = {}, any = false;
-      MODELS.forEach(function (mm) { by[mm] = checkWith(t, res, out[mm], rig, byId, results, out.model); if (by[mm]) any = true; });
+      ML.forEach(function (mm) { by[mm] = checkWith(t, res, out[mm], rig, byId, results, out[mm].model || out.model); if (by[mm]) any = true; });
       if (!any) return;
-      var m = worst(by, MODELS);
+      var m = worst(by, ML);
       res.loadPath = { beam: res.beam, limits: res.limits, injected: res.injected };
       res.byModel = by; res.model = m;
       res.beam = by[m].beam; res.limits = by[m].limits; res.injected = by[m].injected;
       res.memberForces = {};
-      MODELS.forEach(function (mm) { res.memberForces[mm] = out[mm].forces.members[id]; });
+      ML.forEach(function (mm) { res.memberForces[mm] = out[mm].forces.members[id]; });
       var bm = out.model.beams.filter(function (b) { return b.t.id === id; })[0];
       if (bm) res.section = bm.section;
       res.deflection = deflectionCheck(t, res, out, MODELS, st);
@@ -614,10 +761,13 @@
       // the reactions shown with this truss's diagram are from the same joint model as its checks
       res.supports.forEach(function (sr) {
         var key = id + ":" + sr.support.id;
-        function val(sol) { return sr.support.kind === "hoist" ? sol.reactions[key] || 0 : sol.forces.connections[key] || 0; }
+        function val(sol) {
+          if (sol.dynamic && sr.support.hangFrom) sol = out[sol.base];         // a hung hoist's own load: the static solve
+          return sr.support.kind === "hoist" ? sol.reactions[key] || 0 : sol.forces.connections[key] || 0;
+        }
         sr.loadPathReaction = sr.reaction;
         sr.byModel = {};
-        MODELS.forEach(function (mm) { sr.byModel[mm] = val(out[mm]); });
+        ML.forEach(function (mm) { sr.byModel[mm] = val(out[mm]); });
         sr.reaction = sr.byModel[m];
       });
       res.limits.segments.forEach(function (s) {
@@ -627,20 +777,22 @@
       if (mb && mb.code) W.push({ truss: id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) + " (" + MODEL_LABEL[m] + ")" });
     });
 
-    var names = {}, touchy = [];
+    var names = {}, touchy = [], tol = Number(st.levelTolerance) > 0 ? Number(st.levelTolerance) / 12 : 0, levelSlack = [], levelOver = [];
     results.hoists.forEach(function (h) { names[h.truss + ":" + h.support] = h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft"; });
     results.hoists.forEach(function (h) {
       var id = h.truss + ":" + h.support, s = supportOf(byId[h.truss], h.support);
       if (!s || MODELS.some(function (mm) { return out[mm].reactions[id] === undefined; })) return;
-      var entry = hoistEntry(db, s.hoistId), by = {};
-      MODELS.forEach(function (mm) {
-        by[mm] = TLA.limits.checkHoist(entry, s.chainLength, out[mm].reactions[id], s.hardwareWeight, s.dlf, st.defaultDlf, st.addPercent);
+      var by = {};
+      // hoists of a carrier take a hung hoist's dynamic load too, unless Rig settings turn it off (owner, 2026-09-24)
+      var HL = !h.hung && DYN.length && out.dynGroup[h.truss] && st.hungDynamic !== false ? MODELS.concat(DYN) : MODELS;
+      HL.forEach(function (mm) {
+        by[mm] = TLA.limits.checkSupport(s, db, out[mm].reactions[id], st);
         by[mm].model = mm;
         if (out[mm].slack.indexOf(id) >= 0) { by[mm].slack = true; by[mm].status = "Slack"; }
       });
       // governing: the largest static load (ties: rigid, then the stiffer semi-rigid models, as before 1.4.0)
       var m = "rigid";
-      MODELS.slice().reverse().forEach(function (mm) { if (by[mm].staticLoad > by[m].staticLoad + 1e-9) m = mm; });
+      HL.slice().reverse().forEach(function (mm) { if (by[mm].staticLoad > by[m].staticLoad + 1e-9) m = mm; });
       var gov = Object.assign({}, by[m]);
       if (results.unstable.indexOf(h.truss) >= 0) gov.status = "UNSTABLE";     // the load path says this truss tips
       var lp = { reaction: h.reaction, slack: h.slack, hoist: h.hoist };
@@ -659,14 +811,28 @@
         slackHinged: !!by.hinged.slack, slackRigid: !!by.rigid.slack, slackIn: slackIn,
         higher: gov.staticLoad > lps + margin(lps), lower: gov.staticLoad < lps - margin(lps)
       };
-      // trim: this hoist a quarter inch high, in the joint model that governs it (linear, same slack hoists)
-      var sol = out[m];
+      // trim: this hoist a quarter inch high, in the joint model that governs it (linear, same slack hoists; the static
+      // solve of it when the carrier case governs)
+      var tm = out[m].dynamic ? out[m].base : m, sol = out[tm];
       if (!h.slack && sol.lift) {
         var lr = sol.lift(id, TRIM_FT), other = null;
         if (lr) {
           Object.keys(lr.reactions).forEach(function (k) { if (k !== id && (!other || Math.abs(lr.reactions[k]) > Math.abs(other.lb))) other = { id: k, name: names[k] || k, lb: lr.reactions[k] }; });
-          h.trim = gov.trim = { self: lr.reactions[id], other: other, model: m };
+          h.trim = gov.trim = { self: lr.reactions[id], other: other, model: tm };
         }
+      }
+      // 1.22.0: out-of-level tolerance - every hoist may be up to +/- tol off its level, each on its own. The worst
+      // increase at this hoist is the sum of what each one alone does to it (linear, same slack hoists), added to its
+      // low hook load for the check; the low side is reported (it may go slack)
+      if (tol > 0 && !h.slack && sol.lift) {
+        var inf = influence(sol, out.model, tol), dl = 0;
+        Object.keys(inf).forEach(function (j) { dl += Math.abs(inf[j][id] || 0); });
+        var c2 = TLA.limits.checkSupport(s, db, gov.reaction + dl, st), unst = gov.status === "UNSTABLE";
+        ["added", "staticLoad", "dynamicLoad", "status", "dynamicOver"].forEach(function (k) { gov[k] = c2[k]; });
+        if (unst) gov.status = "UNSTABLE";
+        h.level = gov.level = { tol: tol, add: dl, low: gov.reaction - dl, model: tm };
+        if (gov.reaction - dl < -SLACK_TOL) levelSlack.push(names[id]);
+        if (gov.status !== "Good" && !unst && by[m].status === "Good") levelOver.push(names[id]);
       }
       var where = names[id];
       if (h.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": slack - the load would push this hoist up (with every joint model), so its chain goes slack and it carries nothing (only the hoist and chain weight). The rest of the rig carries its share; the results shown are with this hoist taken out." });
@@ -675,6 +841,8 @@
       else if (!h.slack && gov.dynamicOver) W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity (" + MODEL_LABEL[m] + ")" });
       if (h.trim && gov.capacity > 0 && gov.capacity < 999999 && Math.abs(h.trim.self) > TRIM_WARN * gov.capacity) touchy.push({ h: h, share: Math.abs(h.trim.self) / gov.capacity });
     });
+    if (levelOver.length) W.push({ kind: "hoist", level: "level", message: "Out of level by up to ±" + round2(tol * 12) + " in on every hoist (Rig settings): " + levelOver.join(", ") + (levelOver.length === 1 ? " is" : " are") + " over capacity only because of the level allowance. Level the hoists more closely, or use bigger hoists." });
+    if (levelSlack.length) W.push({ kind: "hoist", level: "level", message: "Out of level by up to ±" + round2(tol * 12) + " in: " + levelSlack.join(", ") + " could unload completely and go slack on the low side - the others then carry more. Level carefully." });
     // one warning for every trim-sensitive hoist, led by the worst
     if (touchy.length) {
       touchy.sort(function (a, b) { return b.share - a.share; });
@@ -689,6 +857,7 @@
     tot.byModel = {};
     MODELS.forEach(function (mm) { tot.byModel[mm] = 0; });
     results.hoists.forEach(function (h) {
+      if (h.hung) return;                                   // inside the rig: its load reaches the structure through the carrier
       tot.staticLoad += h.hoist.staticLoad; tot.dynamicLoad += h.hoist.dynamicLoad; tot.hoistChain += h.hoist.hoistChain; tot.hoistReaction += h.reaction;
       MODELS.forEach(function (mm) { tot.byModel[mm] += h.byModel ? h.byModel[mm].staticLoad : h.hoist.staticLoad; });
     });
@@ -698,13 +867,15 @@
     results.primary = "load-path";
     var hoists = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return s.kind === "hoist"; }); });
     if (out.unstable || !hoists) return;
+    var st = rig.settings || {}, lev = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return Number(s.level); }); });
+    if (lev || Number(st.levelTolerance) > 0) results.warnings.push({ level: "fallback", message: "Hoist level offsets and the out-of-level tolerance need the whole-rig analysis: they are left out of these load-path results." });
     results.warnings.push({ level: "fallback", message: "Whole-rig analysis not available" + (out.note ? " (" + out.note.replace(/\.$/, "") + ")" : "") +
       ": hoist loads and truss checks are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid." });
   }
 
   /** Solve every joint model, then make them the primary result (see applyPrimary). */
   function annotate(rig, results, db, opts) {
-    opts = opts || {}; db = db || TLA.data || {};
+    opts = opts || {}; db = db || TLA.data || {}; rig = TLA.rig.effective(rig);     // cable and load factors (1.22.0)
     var sig = signature(rig, results), out;
     if (last.sig === sig && last.out) out = last.out;
     else { out = compute(rig, results, db, opts); last = { sig: sig, out: out }; }
@@ -745,6 +916,11 @@
         var r = sol.solveF(sol.loadVector(o)).reactions[id];
         if (r !== undefined && Math.abs(r) > 0.005) parts.push({ truss: o, name: names[o] || o, weight: r });
       });
+      // designed level offsets (1.22.0) move load between hoists without adding any: what is left over is theirs
+      if (sol.leveled && sol.slack.indexOf(id) < 0) {
+        var rest = (sol.reactions[id] || 0) - parts.reduce(function (a2, p2) { return a2 + p2.weight; }, 0);
+        if (Math.abs(rest) > 0.005) parts.push({ truss: "", name: "Designed level offsets", weight: rest });
+      }
       parts.sort(function (a2, b2) { return Math.abs(b2.weight) - Math.abs(a2.weight); });
       cache[id] = parts;
     }
@@ -756,7 +932,7 @@
    * rigid joints, hoist springs, with this tool's own reactions and member forces for the same model. Lengths ft,
    * forces lb, EI/GJ lb-ft2, k lb/ft. */
   function exportModel(rig, results, db) {
-    db = db || TLA.data || {};
+    db = db || TLA.data || {}; rig = TLA.rig.effective(rig);
     if (results.unsolved && results.unsolved.length) return null;
     var model = build(rig, results, db);
     if (!model.supports.length || unheldGroups(model).length) return null;
@@ -770,6 +946,9 @@
       }),
       links: model.links.map(function (lk) { return { a: lk.a, na: lk.na, b: lk.b, nb: lk.nb, rigid: !!lk.rigid }; }),
       supports: model.supports.map(function (sp) { return sp.k > 0 ? { b: sp.b, n: sp.n, id: sp.id, k: sp.k } : { b: sp.b, n: sp.n, id: sp.id }; }),
+      // hoists hung below a truss (1.22.0): a vertical tension-only link from node (a, na) up to node (b, nb), spring k
+      // lb/ft or rigid - tools/pynite_check.py does not model these yet
+      hangs: (model.hangs || []).map(function (hg) { return hg.k > 0 ? { a: hg.a, na: hg.na, b: hg.b, nb: hg.nb, id: hg.id, k: hg.k } : { a: hg.a, na: hg.na, b: hg.b, nb: hg.nb, id: hg.id }; }),
       results: {}
     };
     ["hinged", "rigid"].forEach(function (m) {

@@ -153,6 +153,8 @@ main.focus .ctool > :not(.stages):not(#b-add) { display: none; }
 .hoist { --hc: var(--hoist); } .hoist.c-warn { --hc: var(--warn); } .hoist.c-fail { --hc: var(--fail); } .hoist.selected { --hc: var(--accent); }
 .lbl.hoist-dyn { font-size: 10px; font-style: italic; font-weight: 400; fill: var(--muted); }
 .hoist .hsym { fill: var(--panel); stroke: var(--hc); stroke-width: 2.5; cursor: grab; }
+.hoist.hung .hsym { stroke-dasharray: 4 2.5; }
+.hoist.dead .hline, .hoist.dead .hhalo { display: none; } .hoist.dead .hsym { fill: var(--hc); } .hoist.dead .hdot { fill: var(--panel); }
 .hoist .hhalo { stroke: var(--plan-bg); stroke-width: 6; fill: none; stroke-linecap: round; }
 .hoist .hline { stroke: var(--hc); stroke-width: 2.2; fill: none; stroke-linecap: round; }
 .hoist .hdot { fill: var(--hc); stroke: none; }
@@ -180,6 +182,7 @@ main.focus .ctool > :not(.stages):not(#b-add) { display: none; }
 .ins-head .meta { color: var(--muted); display: flex; gap: 4px 10px; flex-wrap: wrap; padding-left: 4px; }
 .ins-head .meta b { color: var(--ink-2); font-weight: 600; }
 .ins-head .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ins-head .acts button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .st { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; font-size: 11px; letter-spacing: .03em; white-space: nowrap; }
 .st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .st.ok { color: var(--ok); } .st.warn { color: var(--warn); } .st.fail { color: var(--fail); } .st.mut { color: var(--muted); }
@@ -269,6 +272,7 @@ input.note { width: 100%; }
 .warnings li { cursor: pointer; border: 1px solid var(--line); border-left: 3px solid var(--fail); border-radius: 4px; padding: 6px 10px; }
 .warnings li:hover { background: var(--accent-soft); }
 .warnings.notes li { border-left-color: var(--neutral); color: var(--ink-2); }
+.warnings.checklist { margin: 4px 0; } .warnings.checklist li { border-left-color: var(--warn); font-size: 12px; } .warnings.checklist li.note { border-left-color: var(--neutral); color: var(--ink-2); }
 dialog { max-width: 760px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
 dialog::backdrop { background: rgba(0,0,0,.45); }
 
@@ -486,6 +490,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .sheet .rplan text { font: 15px system-ui, sans-serif; fill: #111; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
 .sheet .rplan .hn { font-weight: 700; fill: #1f5fd1; } .sheet .rplan .hn.fail { fill: #c62828; } .sheet .rplan .tn { font-weight: 600; font-size: 16px; }
 .sheet .rplan .sb { stroke: #111; stroke-width: 2; } .sheet .rplan .sbt { font-size: 13px; fill: #444; }
+.lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+.deflg .defl, .iso .defl { fill: none; stroke: var(--tc, var(--accent)); stroke-width: 2; stroke-linejoin: round; } .deflg { --tc: var(--ok); pointer-events: visibleStroke; } .deflg.c-warn { --tc: var(--warn); } .deflg.c-fail { --tc: var(--fail); } .deflg.c-neutral { --tc: var(--neutral); } .deflg.dim { opacity: .25; }
 
 </style>
 </head>
@@ -557,7 +563,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       <span class="grow"></span>
       <div class="box">
         <div class="segc" id="s-color" title="What the truss colours show">
-          <button data-color="util">Workload</button><button data-color="hot" title="Shade each truss along its length by local workload, to find where it is loaded most">Hot spots</button><button data-color="hoist">Hoists</button><button data-color="status">Pass/fail</button>
+          <button data-color="util">Workload</button><button data-color="hot" title="Shade each truss along its length by local workload, to find where it is loaded most">Hot spots</button><button data-color="defl" title="Colour each truss by its sag against its deflection limit, and draw its deflected shape (exaggerated) - beside it on the plan, above it in 3D">Deflection</button><button data-color="hoist">Hoists</button><button data-color="status">Pass/fail</button>
         </div>
         <label class="chk"><input type="checkbox" id="c-loads" checked> Loads</label>
         <label class="chk"><input type="checkbox" id="c-labels" checked> Labels</label>
@@ -592,8 +598,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.21.0";
+  TLA.VERSION = "1.22.0";
   TLA.CHANGES = [
+    ["1.22.0", "2026-09-24", "G.E. Simmons Falk", "New features from comparing the app with Vectorworks Braceworks and Production Assist. Rigs that use none of them give exactly the same results as 1.21.0 (checked on the example box and four venue rigs). Hoists hung below a truss: a hoist's Hangs from can be another truss instead of the structure. Its chain joins the two trusses in the whole-rig analysis, so the upper truss (the carrier) sags with the load and the truss below shares load with its other hoists; the chain can only pull. The carrier carries the hung hoist's high hook load, and it - with everything bolted to it - is also checked with the hung hoist's high hook dynamic load; so are the hoists holding the carrier up, unless Rig settings turn that off. Rig totals count only hoists to the structure. Dead hangs: a support can be wire rope with no hoist. Pick the rope (7x19 galvanized aircraft cable or 6x19 IWRC, typical catalogue breaking strengths) and its length; WLL = breaking strength / design factor (Rig settings: 7, 8 or 10:1, default 10:1), capped by a typed assembly WLL; static (dynamic factor 1.0 unless typed); its weight is the rope and hardware; rigid, or a rope spring EA/L when the rig's hoists are springs. DH1, DH2... on the calc sheet. Hoist levels: a hoist can have a designed Level offset (inches, + higher) - a raked or trimmed truss - which the whole-rig analysis solves as that point moved; and an out-of-level tolerance in Rig settings (e.g. 1/4\") adds to every hoist's check the worst it could see if each hoist were that far off on its own, with a warning when the low side could go slack. Allowances: a cable weight per length (Rig settings, or per truss) added to each truss's UDL, and load factors by category (lighting, audio, video, scenic, rigging hardware, other; library fixtures are lighting). Check rig: on every change, a list of input mistakes - a load with no weight, two hoists at one point, a bolted assembly with fewer than 3 hoists or all in a line, bolted ends that don't meet, trusses that cross with no joint, a hoist with no model - in the rig panel and the warnings; the truss panel's Connected button dims everything not joined to it. Measured vs calculated: a load cell reading per hoist (hoist grid or panel), compared with the high hook static or low hook load (Rig settings) and totalled per assembly, flagged past 5%; readings never change a result. Deflection view: a Deflection colour mode colours each truss by its sag against its limit and draws its deflected shape, exaggerated, beside it on the plan and above it in 3D. Also: the calc sheet explains each of these; a hoist's load breakdown now lists Add %, hardware and the level allowance so it adds up; the whole-rig model export lists hung hoists (tools/pynite_check.py does not model them yet)."],
     ["1.21.0", "2026-09-24", "G.E. Simmons Falk", "Load-path method taken out of the display; hoist loads and every check are unchanged (they already came from the whole-rig analysis). Gone: the Load path column in the hoist grid (Compare analysis methods now shows the three joint models only), the Results hoist table, the hoist CSV and the calc sheet (hoist loads, bolted connections, truss reactions, the equilibrium row and the basis note), the load-path figure in a hoist's panel, and the warning that a hoist is well above the load-path result. The load-path method is still used, with its warning, when the whole-rig analysis can't run (a very large rig). Level sensitivity is no longer a column in the hoist grid, the Results hoist table, the hoist CSV or the calc sheet: it stays in each hoist's panel, and the level-sensitivity warning stays (in the app and the calc sheet)."],
     ["1.20.0", "2026-09-24", "G.E. Simmons Falk", "Truss checks now count the truss's own weight by default (the Rig settings switch is on unless a rig turns it off; saved rigs that turned it off keep it off). Cantilever check: the self weight is added to the cantilever's load, as the original workbook does. Moment and shear check: the moments and shears include the self weight, and so do the allowables estimated from the tables - each table row also demonstrates its own truss weight, w L^2/8 and w L/2 (Hall, Stress Table Creator 2): allowable moment = k x min(max CPL L/4 + w L^2/8, max UDL L/8 + w L^2/8), shear = k x max(CPL/2 + w L/2, UDL/2 + w L/2). With the switch off the check is net against net, as before. Results change: cantilever, moment and shear workloads go up a little (e.g. a 32 ft box side's cantilever 27% -> 33%); hoist loads do not change. The help and calc sheet no longer say the tables already subtract the truss weight; formula F3 shows the self-weight terms."],
     ["1.19.0", "2026-09-24", "G.E. Simmons Falk", "Interface redesign, plus new deflection results (see the end); hoist loads and the table, moment and shear checks are unchanged. Work in four steps shown above the plan - 1 Structure, 2 Loads, 3 Hoists, 4 Results - and jump between them at any time. Each step has a spreadsheet-style grid under the plan: every truss (type, pieces, position, UDL), every load grouped by truss, and every hoist with its results updating as you type. Tab / Enter / arrows move, typing edits, Ctrl+D fills down, Ctrl+V pastes rows from Excel, Delete removes a row; each edit is one Undo step. Loads: the item cell searches the fixture library (fixtures already on the rig first) and fills in the weight and clamp; type a weight (45 lb) for a custom load; one row per load position (weight + clamp = total); Mirror shows where the mirrored load lands and Mirror all works per truss; while you type, the plan shrinks to a strip of the truss being edited. The side panel now shows whatever you click: the rig (with an outline of every truss, corner block, hoist and load), a truss (sections in working order: truss, corner blocks, placement, loads, hoists, checks, advanced), a hoist (its result and where the load comes from, model, chain, dynamic factor, position), a corner block (a diagram of its faces and what is bolted to each) or a load. Bolt to... then click a corner block on the plan (or click a free face of a block, then the truss). Quick add a load: MAC Aura @ 4, 120 lb @ -6. The plan marks the origin with hard X 0 and Y 0 lines. The Hang order colouring is gone (the load-path order is still used inside the load-path method). Settings that apply to the whole rig (dynamic factor, Add %, hoist stiffness, repetitive-use, self weight, units, length format, calc sheet paper) moved to one Rig settings panel; units are set only there. Menus: File (new, open, save, example, theme, about), Calculators (circular truss, simple UDL, fixture weights, databases), Export (hoist table, PNG, whole-rig model, print). Dark theme by default, light or follow-system under File. Number keys 1-4 switch step, F fits the plan. New results (nothing existing changes): the deflected shape of every truss from the whole-rig analysis, each span's sag against the maker's published limit (Tomcat L/100; JTE L/160 where the sheet states it) or the rig default L/160 (Rig settings): past a maker's limit the truss is Overloaded (their allowable loads are set by it), past the rig default it is a warning; a Hot spots colour mode that shades each truss along its length by local workload; and in a truss's Checks a local-workload strip with the peak, a reaction diagram and a deflection diagram. Rig settings is now a full page. Hot spots: each span's table check follows the shape of its bending moment, so the colour peaks under the loads that work the truss hardest, with a glow at the peak of any truss at 80% or more. Hoists on the plan are drawn as a ring with cross-hairs in their own colour (white in the dark theme, dark in the light one; amber when high, red when overloaded), labelled with the high hook static load and, in italics under it, the high hook dynamic load. A hoist's panel shows its low hook, high hook static and high hook dynamic loads at the top, with the level sensitivity on its own line. A new truss starts with no hoists (hoists are placed in step 3). Where the app quotes a maker (a truss's source, its deflection limit, the list of makers' limits in Rig settings) it links to the maker's own data sheet, opened in a new tab. Rig settings has a Center on 0,0 button that moves the whole rig so the middle of its footprint is at the origin (bolted parts follow; results unchanged). Theme (dark, light, follow the computer) is also in Rig settings."],
@@ -1063,6 +1070,54 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     };
   }
 
+  /* ---- dead hangs (1.22.0): a support that is just wire rope (and its shackles) from the truss to the hang point ----
+   * Typical catalogue values - minimum breaking strength (lb) and weight (lb/ft). 7x19 galvanized aircraft cable per
+   * MIL-DTL-83420; 6x19 IWRC, extra improved plow steel, bright (Wire Rope Users Manual). EA (lb) per d^2 (in^2) for a
+   * rope spring, from the metallic area (about 0.44 d^2 for 7x19, 0.40 d^2 for 6x19 IWRC) and a rope modulus of about
+   * 11e6 and 13.5e6 psi - estimates, used only when the rig's hoists are springs. Check your own rope's certificate. */
+  var ROPES = [
+    ["gac-1/8", "1/8\" 7x19 GAC", 0.125, 2000, 0.029], ["gac-5/32", "5/32\" 7x19 GAC", 0.15625, 2800, 0.045], ["gac-3/16", "3/16\" 7x19 GAC", 0.1875, 4200, 0.065],
+    ["gac-7/32", "7/32\" 7x19 GAC", 0.21875, 5600, 0.086], ["gac-1/4", "1/4\" 7x19 GAC", 0.25, 7000, 0.11], ["gac-5/16", "5/16\" 7x19 GAC", 0.3125, 9800, 0.173],
+    ["gac-3/8", "3/8\" 7x19 GAC", 0.375, 14400, 0.243],
+    ["iwrc-1/4", "1/4\" 6x19 IWRC EIPS", 0.25, 6800, 0.12], ["iwrc-5/16", "5/16\" 6x19 IWRC EIPS", 0.3125, 10540, 0.18], ["iwrc-3/8", "3/8\" 6x19 IWRC EIPS", 0.375, 15100, 0.26],
+    ["iwrc-7/16", "7/16\" 6x19 IWRC EIPS", 0.4375, 20400, 0.35], ["iwrc-1/2", "1/2\" 6x19 IWRC EIPS", 0.5, 26600, 0.46]
+  ].map(function (r) { return { id: r[0], name: r[1], d_in: r[2], mbs_lb: r[3], weight_per_ft_lb: r[4], ea_per_d2: /^gac/.test(r[0]) ? 11e6 * 0.44 : 13.5e6 * 0.40 }; });
+  var ROPE_DF = 10;      // owner, 2026-09-24: 10:1 unless Rig settings say otherwise
+  function rope(id) { return ROPES.filter(function (r) { return r.id === id; })[0] || null; }
+  function ropeFactor(settings) { return settings && Number(settings.ropeDesignFactor) > 0 ? Number(settings.ropeDesignFactor) : ROPE_DF; }
+  /** A dead hang's working load limit: the rope's breaking strength / design factor, capped by a typed assembly WLL
+   * (the weakest shackle or fitting). No rope and no WLL: 0 (always Overloaded - it must be entered). */
+  function deadHangWll(s, settings) {
+    var r = rope(s.rope), a = r ? r.mbs_lb / ropeFactor(settings) : Infinity, b = Number(s.wll) > 0 ? Number(s.wll) : Infinity, w = Math.min(a, b);
+    return isFinite(w) ? w : 0;
+  }
+  /** The hoist-like entry a support is checked with: its hoist from the database, or (dead hang) the rope as the
+   * "chain" (its weight per ft x the rope length), no hoist body, capacity = the dead hang's WLL. */
+  function supportEntry(s, db, settings) {
+    if (s && s.dead) { var r = rope(s.rope); return { dead: true, rope: r, weight_lb: 0, chain_weight_per_ft_lb: r ? r.weight_per_ft_lb : 0, speed_fpm: 0, capacity_lb: deadHangWll(s, settings) }; }
+    var list = (db && db.hoists) || [];
+    return list.filter(function (h) { return h.id === (s && s.hoistId); })[0] || list[0] || null;
+  }
+  /** Check one hoist or dead hang support (low hook reaction in, high hook loads out). A dead hang is static: factor
+   * 1.0 unless one is typed (owner, 2026-09-24). */
+  function checkSupport(s, db, reaction, settings) {
+    settings = settings || {};
+    var e = supportEntry(s, db, settings), dead = !!(s && s.dead);
+    var c = checkHoist(e, dead ? s.ropeLength : s.chainLength, reaction, s.hardwareWeight, dead ? (Number(s.dlf) > 0 ? Number(s.dlf) : 1) : s.dlf, settings.defaultDlf, settings.addPercent);
+    if (dead) c.dead = true;
+    return c;
+  }
+  /** Weight hanging with a support (hoist + chain, or rope), lb - without its hardware. */
+  function supportWeight(s, db, settings) {
+    var e = supportEntry(s, db, settings);
+    return e ? (Number(e.weight_lb) || 0) + (Number(e.chain_weight_per_ft_lb) || 0) * (Number(s.dead ? s.ropeLength : s.chainLength) || 0) : 0;
+  }
+  /** A dead hang's rope as a spring, lb/ft (EA / L), or 0 when unknown. */
+  function ropeStiffness(s) {
+    var r = s && s.dead ? rope(s.rope) : null, L = Number(s && s.ropeLength) || 0;
+    return r && L > 0 ? r.ea_per_d2 * r.d_in * r.d_in / L : 0;
+  }
+
   /** Status as shown to the user. The status values stay the workbook's words (Good, OVERLOADED...), which the code
    * compares against; what people read is OK / Overloaded / Too long / Slack / Unstable, for trusses and hoists alike. */
   function statusText(status) {
@@ -1084,7 +1139,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * (1.18.0; saved rigs keep an explicit choice). */
   function countSelfWeight(settings) { return !settings || settings.cantileverSelfWeight !== false; }
 
-  TLA.limits = { countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
+  TLA.limits = { ROPES: ROPES, ROPE_DF: ROPE_DF, rope: rope, ropeFactor: ropeFactor, deadHangWll: deadHangWll, supportEntry: supportEntry, checkSupport: checkSupport, supportWeight: supportWeight, ropeStiffness: ropeStiffness, countSelfWeight: countSelfWeight, checkTruss: checkTruss, deflectionLimit: deflectionLimit, DEFL_DEFAULT: DEFL_DEFAULT, tableAt: tableAt, checkHoist: checkHoist, memberCapacity: memberCapacity, checkMember: checkMember, memberMessage: memberMessage, table: table, derate: derate, STATUS: STATUS, statusText: statusText };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -1270,8 +1325,38 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
   var SLACK_TOL = 0.01;   // lb - a hoist reaction below -SLACK_TOL is a pushing (slack) chain
 
+  /* ------------------------------------------------------------------ allowances (1.22.0, competitor list item 4)
+   * Cable weight per foot of truss (settings.cablePerFt, or the truss's own cablePerFt) is added to its UDL, and each
+   * load is multiplied by its category's factor (settings.loadFactors[category]; load.cat, blank = "other"). The solve
+   * and the whole-rig analysis work on this effective rig; a rig without allowances is used as it is. */
+  var LOAD_CATS = [["lighting", "Lighting"], ["audio", "Audio"], ["video", "Video"], ["scenic", "Scenic"], ["rigging", "Rigging hardware"], ["other", "Other / not set"]];
+  function cableOf(t, settings) {
+    if (t.isBlock) return 0;
+    var c = t.cablePerFt != null && t.cablePerFt !== "" ? Number(t.cablePerFt) : Number(settings && settings.cablePerFt);
+    return c > 0 ? c : 0;
+  }
+  function loadFactor(l, settings) {
+    var f = settings && settings.loadFactors && Number(settings.loadFactors[l.cat || "other"]);
+    return f > 0 ? f : 1;
+  }
+  function effective(rig) {
+    if (!rig || rig.__effective) return rig;
+    var st = rig.settings || {};
+    var any = rig.trusses.some(function (t) { return cableOf(t, st) > 0 || (t.loads || []).some(function (l) { return loadFactor(l, st) !== 1; }); });
+    if (!any) return rig;
+    var e = JSON.parse(JSON.stringify(rig));
+    Object.defineProperty(e, "__effective", { value: true });
+    e.trusses.forEach(function (t) {
+      var c = cableOf(t, st);
+      if (c > 0) { t.udlTyped = Number(t.wallWeight) || 0; t.cable = c * (Number(t.length) || 0); t.wallWeight = t.udlTyped + t.cable; }
+      (t.loads || []).forEach(function (l) { var f = loadFactor(l, st); if (f !== 1) { l.typed = Number(l.weight) || 0; l.factor = f; l.weight = l.typed * f; } });
+    });
+    return e;
+  }
+
   function solve(rig, dbIn, opts) {
     opts = opts || {};
+    rig = effective(rig);
     var db = dbIn || TLA.data || {};
     var settings = rig.settings || {};
     var warnings = [], slackSet = {}, unstable = [];
@@ -1290,11 +1375,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       });
     });
 
-    // dependency graph: feeder -> target
-    var feeders = {}, targets = {};
+    // dependency graph: feeder -> target (a truss bolted to another, or hung from it on a hoist)
+    var feeders = {}, targets = {}, hangOf = {};
     rig.trusses.forEach(function (t) { feeders[t.id] = []; targets[t.id] = []; });
     rig.trusses.forEach(function (t) {
       (t.supports || []).forEach(function (s) {
+        if (s.kind === "hoist" && s.hangFrom) {
+          var hp = hangPoint(byId, t, s);
+          if (hp) hangOf[t.id + ":" + s.id] = hp;
+          if (!hp) { warnings.push({ truss: t.id, message: t.name + ": hoist '" + (s.name || s.id) + "' hangs from a truss that does not exist or is this truss - it is treated as hung from the structure" }); return; }
+          if (hp.off) warnings.push({ truss: t.id, kind: "hang", message: t.name + " " + (s.name || "hoist") + ": hangs from " + byId[s.hangFrom].name + " but is not under it on the plan (" + (Math.round(Math.abs(hp.offset) * 12 * 10) / 10) + " in to the side" + (hp.past ? ", past its end" : "") + ") - its load is put on the nearest point of " + byId[s.hangFrom].name + ". Move the hoist or the truss." });
+          if (feeders[hp.truss].indexOf(t.id) < 0) feeders[hp.truss].push(t.id);
+          if (targets[t.id].indexOf(hp.truss) < 0) targets[t.id].push(hp.truss);
+          return;
+        }
         if (s.kind !== "truss") return;
         if (!byId[s.onTruss]) { warnings.push({ truss: t.id, message: t.name + ": support '" + (s.name || s.id) + "' is bolted to a truss that does not exist" }); return; }
         if (s.onTruss === t.id) { warnings.push({ truss: t.id, message: t.name + ": a truss cannot be bolted to itself" }); return; }
@@ -1358,6 +1452,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
             injected.push(inj);
             loads.push(inj);
           }
+          // a hoist hung below this truss: its high hook load, with its dynamic factor (owner, 2026-09-24)
+          var hp = sr.support.kind === "hoist" && hangOf[fid + ":" + sr.support.id];
+          if (hp && hp.truss === t.id && sr.hoist) {
+            var inj2 = { distance: hp.distance, weight: sr.hoist.dynamicLoad, note: "hoist " + (sr.support.name || "") + " of " + byId[fid].name, source: { truss: fid, support: sr.support.id, hang: true }, injected: true };
+            injected.push(inj2);
+            loads.push(inj2);
+          }
         });
       });
 
@@ -1406,11 +1507,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         var isSlack = !!slack[s.id], reaction = isSlack ? 0 : reactionOf[s.id];
         var rec = { support: s, reaction: reaction, slack: isSlack };
         if (s.kind === "hoist") {
-          rec.hoist = TLA.limits.checkHoist(dbHoist(s.hoistId, db), s.chainLength, reaction, s.hardwareWeight, s.dlf, settings.defaultDlf, settings.addPercent);
+          rec.hoist = TLA.limits.checkSupport(s, db, reaction, settings);
           if (isSlack) { rec.hoist.status = "Slack"; rec.hoist.slack = true; }
           else if (isUnstable) rec.hoist.status = "UNSTABLE";      // the truss tips: this number means nothing
-          hoistReaction += reaction;
-          hoists.push({ truss: t.id, trussName: t.name, support: s.id, supportName: s.name, layer: layer[t.id], distance: s.distance, reaction: reaction, slack: isSlack, hoist: rec.hoist });
+          var hung = hangOf[t.id + ":" + s.id];
+          // a hoist hung below a truss hangs its own weight on that truss; the structure never sees its load directly
+          if (hung) { rec.hung = hung; applied += rec.hoist.hoistChain + (Number(s.hardwareWeight) || 0); }
+          else hoistReaction += reaction;
+          hoists.push({ truss: t.id, trussName: t.name, support: s.id, supportName: s.name, layer: layer[t.id], distance: s.distance, reaction: reaction, slack: isSlack, hoist: rec.hoist, hung: hung ? hung.truss : null });
         }
         return rec;
       });
@@ -1431,17 +1535,175 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     });
 
     mfgCheck(rig, db, results, settings).forEach(function (w) { warnings.push(w); });
+    checkRig(rig, db).forEach(function (w) { warnings.push(w); });
     var bolts = boltFamilies(rig, db);
     bolts.forEach(function (b) { warnings.push({ truss: b.truss, kind: "bolt", level: b.level === "warn" ? "bolt" : "note", message: b.message }); });
 
-    var totals = hoists.reduce(function (a, h) {
-      a.staticLoad += h.hoist.staticLoad; a.dynamicLoad += h.hoist.dynamicLoad; a.hoistChain += h.hoist.hoistChain; a.count++;
-      return a;
-    }, { staticLoad: 0, dynamicLoad: 0, hoistChain: 0, count: 0 });
+    var totals = sumHoists(hoists);
     totals.applied = applied;
     totals.hoistReaction = hoistReaction;
 
     return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable, bolts: bolts };
+  }
+
+  /* ------------------------------------------------------------------ check rig (1.22.0, competitor list item 5)
+   * Input mistakes the solve would take at face value (Braceworks / Production Assist run a list like this before
+   * solving): loads with no weight, two hoists at one point, an assembly of bolted trusses with too few hoists or all
+   * of them in one line, trusses that cross on the plan with no joint, bolted ends that don't meet on the plan, and
+   * hoists with no model. Each item: { kind: "check", level: "check" (a warning) | "note", truss, support?, load?,
+   * message }. Nothing here changes a result. */
+  var SAME_SPOT = 2 / 12;       // ft: two hoists closer than 2" on the plan are "at the same point"
+  function checkRig(rig, db) {
+    var out = [], byId = {}, G = { endPoint: endPoint, project: project, crossing: crossing };
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    function hname(t, s) { return t.name + " " + (s.name || (s.dead ? "dead hang" : "hoist")) + " at " + (Math.round((Number(s.distance) || 0) * 10) / 10) + " ft"; }
+    function add(level, t, msg, extra) { out.push(Object.assign({ kind: "check", level: level, truss: t ? t.id : undefined, message: msg }, extra || {})); }
+    // loads with no weight
+    rig.trusses.forEach(function (t) {
+      (t.loads || []).forEach(function (l) {
+        if (!(Number(l.weight) > 0)) add("check", t, t.name + ": the load" + (l.note ? " '" + l.note + "'" : "") + " at " + (Math.round((Number(l.distance) || 0) * 10) / 10) + " ft has no weight - enter it, or delete the load.", { load: l.id });
+      });
+    });
+    // hoists at the same point, on one truss or across trusses (plan position)
+    var pts = [];
+    rig.trusses.forEach(function (t) { (t.supports || []).forEach(function (s) { if (s.kind === "hoist") pts.push({ t: t, s: s, p: endPoint(t, Number(s.distance) || 0) }); }); });
+    for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
+      var a = pts[i], b = pts[j];
+      if (Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y) < SAME_SPOT && !(a.s.hangFrom === b.t.id || b.s.hangFrom === a.t.id))
+        add("check", a.t, hname(a.t, a.s) + " and " + hname(b.t, b.s) + " are at the same point on the plan - they split its load between them. Is one of them a duplicate?", { support: a.s.id });
+    }
+    // assemblies of bolted trusses (and the blocks in them): at least 3 hoists, not all in one line
+    var parent = {};
+    function find(x) { while (parent[x] !== x) x = parent[x] = parent[parent[x]]; return x; }
+    rig.trusses.forEach(function (t) { parent[t.id] = t.id; });
+    rig.trusses.forEach(function (t) {
+      if (t.isBlock && byId[t.host]) parent[find(t.id)] = find(t.host);
+      (t.supports || []).forEach(function (s) { if (s.kind === "truss" && byId[s.onTruss]) parent[find(t.id)] = find(s.onTruss); });
+    });
+    var groups = {};
+    rig.trusses.forEach(function (t) { var r = find(t.id); (groups[r] = groups[r] || []).push(t); });
+    Object.keys(groups).forEach(function (k) {
+      var ts = groups[k], lines = ts.filter(function (t) { return !t.isBlock; });
+      if (lines.length < 2) return;
+      var hp = [];
+      ts.forEach(function (t) { (t.supports || []).forEach(function (s) { if (s.kind === "hoist") hp.push(t.isBlock ? endPoint(t, t.length / 2) : endPoint(t, Number(s.distance) || 0)); }); });
+      var names = lines.map(function (t) { return t.name; }).join(", ");
+      if (!hp.length) return;                                // "not held up by any hoist" is reported by the solve
+      var inLine = hp.length < 3 || hp.every(function (p) {
+        var p0 = hp[0], far = hp.reduce(function (m, q) { return Math.hypot(q.x - p0.x, q.y - p0.y) > Math.hypot(m.x - p0.x, m.y - p0.y) ? q : m; }, p0);
+        var L = Math.hypot(far.x - p0.x, far.y - p0.y);
+        return L < 1e-6 || Math.abs((far.x - p0.x) * (p.y - p0.y) - (far.y - p0.y) * (p.x - p0.x)) / L < 0.25;
+      });
+      if (inLine) add("check", lines[0], "Bolted assembly " + names + ": " + (hp.length < 3 ? "only " + hp.length + " hoist" + (hp.length === 1 ? "" : "s") : "all its hoists are in one line") + " - a frame needs at least 3 hoists that are not in a line, or it can tip about the line of its hoists.");
+    });
+    // trusses crossing on the plan with no joint between them
+    var joined = {};
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        var o = s.kind === "truss" ? byId[s.onTruss] : s.kind === "hoist" && s.hangFrom ? byId[s.hangFrom] : null; if (!o) return;
+        var A = t.isBlock ? byId[t.host] || t : t, B = o.isBlock ? byId[o.host] || o : o;
+        joined[A.id + "|" + B.id] = joined[B.id + "|" + A.id] = true;
+      });
+    });
+    var lines2 = rig.trusses.filter(function (t) { return !t.isBlock; });
+    for (i = 0; i < lines2.length; i++) for (j = i + 1; j < lines2.length; j++) {
+      var u = lines2[i], v = lines2[j], c = crossing(u, v);
+      if (!c || joined[u.id + "|" + v.id]) continue;
+      var m = 0.05;
+      if (c.onA > m && c.onA < u.length - m && c.onB > m && c.onB < v.length - m)
+        add("note", u, u.name + " and " + v.name + " cross on the plan with no joint between them. If they are joined there, bolt or stack them; if one runs above the other with nothing between, ignore this.");
+    }
+    // bolted connections whose ends don't meet on the plan
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "truss" || t.isBlock) return;
+        var o = byId[s.onTruss]; if (!o || o.isBlock) return;          // blocks: the store checks that the loop closes
+        var p = endPoint(t, Number(s.distance) || 0), q = endPoint(o, Number(s.onDistance) || 0), off = Math.hypot(p.x - q.x, p.y - q.y);
+        if (off > 0.25) add("check", t, t.name + ": bolted to " + o.name + " at a point " + (Math.round(off * 12)) + " in away from it on the plan - check the positions (the solve joins them anyway).", { support: s.id });
+      });
+    });
+    // hoists with no hoist model (the "None" entry: no weight, no capacity)
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "hoist" || s.dead) return;
+        var e = dbHoist(s.hoistId, db);
+        if (e && Number(e.capacity_lb) >= 999999) add("note", t, hname(t, s) + ": no hoist model - its load is not checked against a capacity.", { support: s.id });
+      });
+    });
+    return out;
+  }
+
+  /** Everything joined to truss `id` (1.22.0): bolted or stacked in either direction, corner blocks with their host,
+   * and trusses hung on a hoist below another. { id: true, ... } */
+  function assembly(rig, id) {
+    var adj = {}, byId = {};
+    rig.trusses.forEach(function (t) { byId[t.id] = t; adj[t.id] = []; });
+    function link(a, b) { if (adj[a] && adj[b]) { adj[a].push(b); adj[b].push(a); } }
+    rig.trusses.forEach(function (t) {
+      if (t.isBlock && t.host) link(t.id, t.host);
+      (t.supports || []).forEach(function (s) { if (s.kind === "truss") link(t.id, s.onTruss); else if (s.hangFrom) link(t.id, s.hangFrom); });
+    });
+    var seen = {}, q = [id]; seen[id] = true;
+    while (q.length) (adj[q.shift()] || []).forEach(function (n) { if (!seen[n]) { seen[n] = true; q.push(n); } });
+    return seen;
+  }
+
+  /* ------------------------------------------------------------------ measured vs calculated (1.22.0, item 7)
+   * Load-cell readings typed on the hoists (support.measured, lb) against the calculated load: the high hook static
+   * load, or the low hook load when Rig settings say the cells hang between the hoist and the truss
+   * (settings.cellReads === "low"). One hoist on an indeterminate rig can legitimately differ a lot from the model
+   * (level, stiffness), so the comparison that counts is per assembly (trusses joined by bolts or hung hoists): the
+   * total of its measured hoists against their calculated total, flagged past MEAS_TOL. Hung hoists are inside an
+   * assembly, so only hoists to the structure are totalled. Information only - no result changes. */
+  var MEAS_TOL = 0.05;
+  /** A difference as "+3.0%" / "-4.1%" / "0.0%" (never "-0%"). */
+  function pctText(d) { var v = Math.round(d * 1000) / 10; return (v > 0 ? "+" : "") + (v === 0 ? "0.0" : v.toFixed(1)) + "%"; }
+  function measured(rig, results) {
+    var st = rig.settings || {}, low = st.cellReads === "low", byId = {}, out = { hoists: {}, assemblies: [], any: false, tol: MEAS_TOL, reads: low ? "low" : "high" };
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    var groups = {}, order = [];
+    (results.hoists || []).forEach(function (h) {
+      var s = ((byId[h.truss] || {}).supports || []).filter(function (x) { return x.id === h.support; })[0];
+      if (!s || !(Number(s.measured) >= 0) || s.measured === "" || s.measured == null) return;
+      var calc = low ? h.hoist.reaction : h.hoist.staticLoad, m = Number(s.measured), key = h.truss + ":" + h.support;
+      out.any = true;
+      out.hoists[key] = { measured: m, calc: calc, diff: calc ? (m - calc) / calc : null };
+      if (h.hung) return;
+      var asm = assembly(rig, h.truss), gk = Object.keys(asm).sort()[0];
+      if (!groups[gk]) { groups[gk] = { ids: asm, measured: 0, calc: 0, n: 0 }; order.push(gk); }
+      groups[gk].measured += m; groups[gk].calc += calc; groups[gk].n++;
+    });
+    order.forEach(function (gk) {
+      var g = groups[gk], names = rig.trusses.filter(function (t) { return g.ids[t.id] && !t.isBlock; }).map(function (t) { return t.name; });
+      var total = (results.hoists || []).filter(function (h) { return g.ids[h.truss] && !h.hung; }).length;
+      var d = g.calc ? (g.measured - g.calc) / g.calc : null;
+      out.assemblies.push({ names: names, n: g.n, of: total, measured: g.measured, calc: g.calc, diff: d, over: d !== null && Math.abs(d) > MEAS_TOL, first: names[0] });
+    });
+    return out;
+  }
+
+  /** Totals over the hoists that hang from the structure (a hoist hung below a truss is inside the rig: its load
+   * reaches the structure through the carrier's hoists). count is every hoist. */
+  function sumHoists(hoists) {
+    return hoists.reduce(function (a, h) {
+      a.count++;
+      if (h.hung) { a.hung++; return a; }
+      a.staticLoad += h.hoist.staticLoad; a.dynamicLoad += h.hoist.dynamicLoad; a.hoistChain += h.hoist.hoistChain;
+      return a;
+    }, { staticLoad: 0, dynamicLoad: 0, hoistChain: 0, count: 0, hung: 0 });
+  }
+
+  /** Where a hoist hung below a truss (support.hangFrom) hooks onto it: the chain is vertical, so the hoist's plan
+   * point projected onto the carrier. A corner block hangs it at the block (the block's own centre). Returns
+   * { truss (the carrier, block or truss), distance, offset ft, off: not under it } or null. */
+  function hangPoint(byId, t, s) {
+    var c = byId[s.hangFrom];
+    if (!c || c === t) return null;
+    if (c.isBlock) return { truss: c.id, distance: (c.length || 0) / 2, offset: 0, off: false };
+    var p = endPoint(t, Number(s.distance) || 0), q = project(c, p), L = Number(c.length) || 0;
+    var d = Math.min(Math.max(q.distance, 0), L), past = q.distance < -0.05 || q.distance > L + 0.05;
+    var tol = widthFt(c) / 2 + 0.25;
+    return { truss: c.id, distance: d, offset: q.offset, past: past, off: past || Math.abs(q.offset) > tol };
   }
 
   function describeSeg(s) {
@@ -1707,7 +1969,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var clone = JSON.parse(JSON.stringify(rig));
       clone.trusses.forEach(function (c) {
         if (c.id === t.id) return;
-        c.loads = []; c.weightless = true; c.wallWeight = 0;
+        c.loads = []; c.weightless = true; c.wallWeight = 0; c.cablePerFt = 0;
         c.supports.forEach(function (s) { s.hardwareWeight = 0; });
       });
       var h = pick(solve(clone, db, { slack: base.slack }));   // same slack hoists as the full rig, so the parts add up
@@ -1717,7 +1979,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { pctText: pctText, measured: measured, MEAS_TOL: MEAS_TOL, effective: effective, cableOf: cableOf, loadFactor: loadFactor, LOAD_CATS: LOAD_CATS, assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -1745,7 +2007,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  *                (alpha = 1, 4, 16: the range between "nominally pinned" and "rigid" in steel-joint classification),
  *                because a load share can peak between the two extremes
  *   rigid      - the textbook grillage assumption: bending and torsion also pass through the corner block
- * Every check uses the worst of all of them. Stiffness can be scaled per truss (truss.eiScale, applied to EI, GA, GJ). */
+ * Every check uses the worst of all of them. Stiffness can be scaled per truss (truss.eiScale, applied to EI, GA, GJ).
+ * A hoist hung below a truss (1.22.0, support.hangFrom) is a tension-only chain between its truss and the carrier; the
+ * carrier (and what is bolted to it) is also checked in a "carrier case" with the hung hoist's high hook dynamic load. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
 
@@ -1789,7 +2053,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * lift(id, ft) - the reactions when one hoist is raised by ft with no other load. A support with k (lb/ft) is a
    * spring (a hoist and its chain stretch); without, it is rigid. */
   function solveModel(model, joints) {
-    var beams = model.beams, links = model.links, jm = jointsOf(joints), rigid = jm.rigid;
+    var beams = model.beams, links = model.links, hangs = model.hangs || [], jm = jointsOf(joints), rigid = jm.rigid;
     var parent = [];
     function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
     function union(a, b) { a = find(a); b = find(b); if (a !== b) parent[b] = a; }
@@ -1805,6 +2069,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var map = {}, n = 0;
     function dof(id) { var r = find(id); if (map[r] === undefined) map[r] = n++; return map[r]; }
     var dofs = ids.map(function (bn) { return bn.map(function (x) { return [dof(x[0]), dof(x[1]), dof(x[2])]; }); });
+    // a hoist hung below a truss (1.22.0) is a chain between two trusses: one more unknown per hoist, its tension
+    // (a Lagrange multiplier, scaled to the trusses' stiffness): u_lower - u_carrier = the chain shortened (0), or
+    // stretched by T / k when the hoist has a stiffness
+    var nw = n; n += hangs.length;
     var K = []; for (i = 0; i < n; i++) K.push(new Float64Array(n));
     beams.forEach(function (bm, bi) {
       bm.els = bm.els || [];
@@ -1826,9 +2094,19 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var fixed = {}, springs = [];
     model.supports.forEach(function (sp) { if (!(sp.k > 0)) fixed[dofs[sp.b][sp.n][0]] = true; });
     model.supports.forEach(function (sp) { var d = dofs[sp.b][sp.n][0]; if (sp.k > 0 && !fixed[d]) { K[d][d] += sp.k; springs.push({ sp: sp, d: d }); } });
+    var maxW = 0; for (i = 0; i < nw; i++) if (diagEl[i] > maxW) maxW = diagEl[i];
+    var hangAt = hangs.map(function (hg, j) {
+      var da = dofs[hg.a][hg.na][0], db = dofs[hg.b][hg.nb][0], x = nw + j, sc = Math.max(diagEl[da], diagEl[db]) || maxW || 1;
+      // the two ends already move together (bolted there too), or both are held: the chain carries nothing
+      if (da === db || (fixed[da] && fixed[db])) { K[x][x] = 1; return { hg: hg, x: x, s: 0 }; }
+      K[da][x] -= sc; K[x][da] -= sc; K[db][x] += sc; K[x][db] += sc;
+      if (hg.k > 0) K[x][x] -= sc * sc / hg.k;
+      return { hg: hg, x: x, s: sc };
+    });
     /** Load vector for everything (origin undefined) or only the loads that belong to one truss (attribution). */
     function loadVector(origin) {
       var F = new Float64Array(n);
+      (model.extra || []).forEach(function (ex) { if (origin === undefined || ex.origin === origin) F[dofs[ex.b][ex.n][0]] -= ex.P; });
       beams.forEach(function (bm, bi) {
         if (origin === undefined || bm.t.id === origin) for (var e = 0; e < bm.nodes.length - 1; e++) {
           var el = bm.els[e]; if (!el) continue;
@@ -1877,9 +2155,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
     var byDof = {};
     model.supports.forEach(function (sp) { var d = dofs[sp.b][sp.n][0]; if (fixed[d] && !(sp.k > 0)) (byDof[d] = byDof[d] || []).push(sp); });
-    /** set: optional imposed displacements (ft, up) - of fixed dofs ({dof: ft}) and of spring hoists' tops ({id: ft}). */
+    /** set: optional imposed displacements (ft, up) - of fixed dofs ({dof: ft}), of spring hoists' tops ({id: ft}) and
+     * of hoists hung below a truss (chain shortened, {id: ft}). */
     function solveF(F, set) {
-      var y = new Float64Array(m), ii, jj, fd = (set && set.dofs) || {}, sd = (set && set.springs) || {};
+      var y = new Float64Array(m), ii, jj, fd = (set && set.dofs) || {}, sd = (set && set.springs) || {}, hd = (set && set.hangs) || {};
+      if (Object.keys(hd).length) { F = F.slice(); hangAt.forEach(function (h) { if (hd[h.hg.id]) F[h.x] -= h.s * hd[h.hg.id]; }); }
       for (ii = 0; ii < m; ii++) { var s = F[free[perm[ii]]], Ai = A[ii]; for (jj = 0; jj < ii; jj++) s -= Ai[jj] * y[jj]; y[ii] = s; }
       for (ii = m - 1; ii >= 0; ii--) { var s2 = y[ii], Ai2 = A[ii]; for (jj = ii + 1; jj < m; jj++) s2 -= Ai2[jj] * y[jj]; y[ii] = s2 / Ai2[ii]; }
       var U = new Float64Array(n); free.forEach(function (gi, k) { U[gi] = y[k]; });
@@ -1891,24 +2171,41 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       });
       springs.forEach(function (x) { var r = x.sp.k * ((sd[x.sp.id] || 0) - U[x.d]); reactions[x.sp.id] = r; total += r; });
       model.supports.forEach(function (sp) { if (reactions[sp.id] === undefined) reactions[sp.id] = 0; });
+      // a hung hoist's tension is its low hook load; it stays inside the rig, so it is not part of the total
+      hangAt.forEach(function (h) { reactions[h.hg.id] = h.s * U[h.x]; });
       return { U: U, u: y, reactions: reactions, total: total };
+    }
+    /** The load vector and imposed displacements for the supports' designed levels (dz ft, up): a rigid hoist's point is
+     * moved, a spring hoist's top, a hung hoist's chain shortened. Two rigid hoists at one point share the first's. */
+    function levelSet(F0) {
+      var F2 = F0.slice(), set = { dofs: {}, springs: {}, hangs: {} }, any = false;
+      model.supports.forEach(function (sp) {
+        if (!sp.dz) return;
+        var d = dofs[sp.b][sp.n][0]; any = true;
+        if (fixed[d]) { if (set.dofs[d] === undefined) { set.dofs[d] = sp.dz; free.forEach(function (q) { F2[q] -= K[q][d] * sp.dz; }); } }
+        else { set.springs[sp.id] = sp.dz; F2[d] += sp.k * sp.dz; }
+      });
+      hangs.forEach(function (hg) { if (hg.dz) { set.hangs[hg.id] = hg.dz; any = true; } });
+      return { F: F2, set: set, any: any };
     }
     /** Reactions when hoist `id` alone is raised by `ft` (a trim error), everything else as solved. */
     function lift(id, ft) {
+      var hs = {}; if (hangAt.some(function (h) { return h.hg.id === id && h.s; })) { hs[id] = ft; return solveF(new Float64Array(n), { hangs: hs }); }
       var sp = model.supports.filter(function (x) { return x.id === id; })[0]; if (!sp) return null;
       var d = dofs[sp.b][sp.n][0], F = new Float64Array(n), set = { dofs: {}, springs: {} };
       if (fixed[d]) { free.forEach(function (q) { F[q] = -K[q][d] * ft; }); set.dofs[d] = ft; }
       else { F[d] = sp.k * ft; set.springs[id] = ft; }
       return solveF(F, set);
     }
-    var F = loadVector(), sol = solveF(F);
+    // 1.22.0: hoists hung at a designed level (support dz, ft up): imposed displacements of the supports' tops
+    var lv = levelSet(loadVector()), F = lv.F, sol = solveF(F, lv.set);
     // The eps above only exists to pin down twist that nothing loads. If it ends up carrying real moment, a truss is
     // free to rotate (tip) - a mechanism, not a structure.
     var fsum = 0; for (i = 0; i < n; i++) fsum += Math.abs(F[i]);
     var leak = 0, leakDof = -1;
     for (i = 0; i < m; i++) if (eps[i] && Math.abs(eps[i] * sol.u[i]) > leak) { leak = Math.abs(eps[i] * sol.u[i]); leakDof = free[i]; }
     if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof, dofs: dofs };
-    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
+    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, set: lv.set, leveled: lv.any, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
   }
 
   var JUMP_TOL = 1e-5;   // of the truss's largest moment: smaller steps are the solver's tiny twist stiffness, not a joint
@@ -1978,6 +2275,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     // what is left at a node after the hoists there comes through its bolted connections: peel the link tree from
     // its leaves (a leaf node's residual is the force in its only link)
     sol.supports.forEach(function (sp) { ext[sp.b + ":" + sp.n] -= sol.reactions[sp.id]; });
+    // a hung hoist pulls its truss up and its carrier down; extra loads (the carrier case) sit on their node
+    (model.hangs || []).forEach(function (hg) { var T = sol.reactions[hg.id] || 0; ext[hg.a + ":" + hg.na] -= T; ext[hg.b + ":" + hg.nb] += T; });
+    (model.extra || []).forEach(function (ex) { ext[ex.b + ":" + ex.n] += ex.P; });
     var edges = {}, adj = {}, linkForce = [];
     model.links.forEach(function (lk, li) {
       var A = lk.a + ":" + lk.na, B = lk.b + ":" + lk.nb; if (A === B) return;
@@ -2029,11 +2329,31 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var res = results.trusses[bm.t.id];
       res.beam.loads.forEach(function (l) { if (l.injected) return; addP(bm, pt(bm, l.distance), l.weight, bm.t.id); });
     });
+    // hoists hung below a truss (1.22.0): a chain between the hoist's point on its truss and the carrier; the hoist,
+    // chain and hardware weight hang on the carrier
+    var hangPending = [];
+    rig.trusses.forEach(function (t) {
+      if (t.isBlock || index[t.id] === undefined) return;
+      t.supports.forEach(function (s) {
+        var hp = s.kind === "hoist" && s.hangFrom ? TLA.rig.hangPoint(byId, t, s) : null;
+        if (!hp) return;
+        var c = byId[hp.truss], d = hp.distance;
+        if (c.isBlock) {
+          var hh = byId[c.host || (c.attach && c.attach.b)], sb = hh && c.supports.filter(function (x) { return x.kind === "truss" && x.onTruss === hh.id; })[0];
+          c = hh; d = sb ? sb.onDistance : 0;
+        }
+        if (!c || index[c.id] === undefined || c.id === t.id) return;
+        var cb = beams[index[c.id]], dc = pt(cb, Number(d) || 0), lb = beams[index[t.id]], dl = pt(lb, s.distance);
+        var w = TLA.limits.supportWeight(s, db, rig.settings) + (Number(s.hardwareWeight) || 0);
+        if (w) addP(cb, dc, w, t.id);
+        hangPending.push({ a: t.id, da: dl, b: c.id, db: dc, id: t.id + ":" + s.id, s: s });
+      });
+    });
     rig.trusses.forEach(function (t) {
       var host = t.isBlock ? byId[t.host || (t.attach && t.attach.b)] : null;
       // hoists on trusses and on blocks
       t.supports.forEach(function (s) {
-        if (s.kind === "hoist") {
+        if (s.kind === "hoist" && !(s.hangFrom && hangPending.some(function (p) { return p.s === s; }))) {
           var owner = t.isBlock ? host : t, d = t.isBlock ? blockCentre(t) : s.distance;
           if (!owner || index[owner.id] === undefined) return;
           var bm = beams[index[owner.id]], dd = pt(bm, d);
@@ -2093,21 +2413,41 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     });
     // hoist springs (lb/in -> lb/ft): the hoist's own stiffness, else the rig's; none = rigid
     var kRig = Number(rig.settings && rig.settings.hoistStiffness) || 0;
+    // lb/in: the support's own stiffness, else - when the rig's hoists are springs - a dead hang's rope (EA / L), else
+    // the rig's hoist stiffness; none = rigid (a dead hang on a rig of rigid hoists is rigid too)
+    function supportK(s) {
+      if (s && Number(s.stiffness) > 0) return Number(s.stiffness);
+      var kr = s && s.dead && kRig > 0 ? TLA.limits.ropeStiffness(s) / 12 : 0;
+      return kr > 0 ? kr : kRig;
+    }
+    // a designed level offset (1.22.0): support.level, inches, + = hung higher than the rest; ft here
+    function levelOf(s) { var v = Number(s && s.level) || 0; return v / 12; }
+    function nodeOf(bm, d) { return bm.nodes.findIndex(function (nd) { return Math.abs(nd.d - d) < 1e-6; }); }
+    var hangs = hangPending.map(function (p) {
+      var k = supportK(p.s), A = beams[index[p.a]], B = beams[index[p.b]];
+      return { a: index[p.a], na: nodeOf(A, p.da), b: index[p.b], nb: nodeOf(B, p.db), id: p.id, k: k > 0 ? k * 12 : 0, truss: p.a, carrier: p.b, dz: levelOf(p.s) };
+    });
     beams.forEach(function (bm, bi) {
       bm.nodes.forEach(function (nd, ni) {
         (nd.hoist || []).forEach(function (id) {
-          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = Number(s && s.stiffness) > 0 ? Number(s.stiffness) : kRig;
-          supports.push(k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id });
+          var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = supportK(s);
+          var sp = k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id }, dz = levelOf(s);
+          if (dz) sp.dz = dz;
+          supports.push(sp);
         });
       });
     });
-    return { beams: beams, links: links, supports: supports };
+    return { beams: beams, links: links, supports: supports, hangs: hangs };
   }
+
+
 
   var last = { sig: null, out: null };
   function signature(rig, results) {
     // plan position does not change the stiffness solution (only distances and angles do), so dragging reuses the last solve
-    return JSON.stringify(rig, function (k, v) { return k === "x" || k === "y" ? undefined : v; }) + "|" + (results.totals ? results.totals.applied : "");
+    // (a hoist hung below a truss hooks on where the plan puts it, so then position counts)
+    var hung = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return s.kind === "hoist" && s.hangFrom; }); });
+    return JSON.stringify(rig, function (k, v) { return !hung && (k === "x" || k === "y") ? undefined : v; }) + "|" + (results.totals ? results.totals.applied : "");
   }
 
   var SLACK_TOL = 0.01;   // lb, as in rig.js
@@ -2126,6 +2466,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var parent = model.beams.map(function (_, i) { return i; });
     function find(a) { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; }
     model.links.forEach(function (lk) { parent[find(lk.b)] = find(lk.a); });
+    (model.hangs || []).forEach(function (hg) { parent[find(hg.a)] = find(hg.b); });
     var held = {}; model.supports.forEach(function (sp) { held[find(sp.b)] = true; });
     var groups = {};
     model.beams.forEach(function (bm, i) { var r = find(i); if (!held[r]) (groups[r] = groups[r] || []).push(bm.t.name); });
@@ -2135,19 +2476,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   /** Solve one joint model with tension-only hoists: a hoist that comes out pushing has a slack chain, so it is taken
    * out and the rig solved again, most negative first. Slack hoists report 0. */
   function solveSlack(model, joints) {
-    var sup = model.supports.slice(), slack = [];
+    var sup = model.supports.slice(), hg = (model.hangs || []).slice(), slack = [];
     for (;;) {
-      var r = solveModel({ beams: model.beams, links: model.links, supports: sup }, joints);
+      var r = solveModel({ beams: model.beams, links: model.links, supports: sup, hangs: hg, extra: model.extra }, joints);
       if (!r.ok) { r.slack = slack; r.names = ownersOf(model, r.dofs, r.dof); return r; }
       var worst = null, least = -SLACK_TOL;
-      sup.forEach(function (sp) { var v = r.reactions[sp.id]; if (v < least) { least = v; worst = sp; } });
-      if (!worst || sup.length <= 1) {
+      sup.concat(hg).forEach(function (sp) { var v = r.reactions[sp.id]; if (v < least) { least = v; worst = sp; } });
+      if (!worst || (sup.indexOf(worst) >= 0 && sup.length <= 1)) {
         slack.forEach(function (id) { r.reactions[id] = 0; });
         r.slack = slack;
         return r;
       }
       slack.push(worst.id);
       sup = sup.filter(function (sp) { return sp !== worst; });
+      hg = hg.filter(function (x) { return x !== worst; });
     }
   }
 
@@ -2193,9 +2535,56 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (s.forces) return;
       s.equilibriumError = s.total - out.load;
       s.forces = forces(model, s);
+      s.hangLoad = hangLoads(model, s, rig, db, false);
     });
     out.ok = true; out.model = model;
+    if (model.hangs.length) carrierCase(rig, db, model, out);
     return out;
+  }
+
+  /** What a hung hoist puts on its carrier in one solve: its high hook load (low hook + Add % + hoist, chain and
+   * hardware weight), static or dynamic. The static solve itself carries only the low hook + hoist, chain and hardware
+   * weight (Add % never loads a truss, as in the original). */
+  function hangLoads(model, sol, rig, db, dynamic) {
+    var out = {}, st = rig.settings || {}, byId = {};
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    model.hangs.forEach(function (hg) {
+      var p = hg.id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")); if (!s) return;
+      var T = sol.reactions[hg.id] || 0, c = TLA.limits.checkSupport(s, db, T, st);
+      out[hg.id] = dynamic ? c.dynamicLoad : T + c.hoistChain + (Number(s.hardwareWeight) || 0);
+    });
+    return out;
+  }
+
+  /** The carrier case (1.22.0, owner): a truss carrying a hoist hung below it is checked with that hoist's high hook
+   * DYNAMIC load - the hoist runs, its load factor acts on the carrier. For each joint model: the rig solved again with
+   * each hung hoist's chain replaced by a point load on the carrier (its high hook dynamic load from the static solve)
+   * and its truss held at the hoist. The trusses joined to a carrier (bolted, not hung) take the worse of this and the
+   * static solve; so do their hoists, unless Rig settings turn that off (settings.hungDynamic === false). */
+  function carrierCase(rig, db, model, out) {
+    var parent = model.beams.map(function (_, i) { return i; });
+    function find(a) { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; }
+    model.links.forEach(function (lk) { parent[find(lk.b)] = find(lk.a); });
+    var roots = {}, group = {};
+    model.hangs.forEach(function (hg) { roots[find(hg.b)] = true; });
+    model.beams.forEach(function (bm, i) { if (roots[find(i)]) group[bm.t.id] = true; });
+    out.dynGroup = group; out.dynOrder = [];
+    out.order.forEach(function (m) {
+      var base = out[m], dyn = hangLoads(model, base, rig, db, true), sup = model.supports.slice(), extra = [];
+      model.hangs.forEach(function (hg) {
+        if (base.slack.indexOf(hg.id) < 0) sup.push({ b: hg.a, n: hg.na, id: "hang@" + hg.id, internal: true });
+        extra.push({ b: hg.b, n: hg.nb, P: dyn[hg.id] - hangStatic(hg), origin: hg.truss });
+      });
+      function hangStatic(hg) { return base.hangLoad[hg.id] - (base.reactions[hg.id] || 0); }   // hoist, chain, hardware
+      var mc = { beams: model.beams, links: model.links, supports: sup, hangs: [], extra: extra }, sc = solveSlack(mc, base.rigid ? "rigid" : m);
+      if (!sc.ok) return;
+      var load = out.load; extra.forEach(function (ex) { load += ex.P; });
+      sc.equilibriumError = sc.total - load;
+      sc.forces = forces(mc, sc);
+      sc.hangLoad = dyn;
+      sc.model = mc; sc.base = m; sc.dynamic = true;
+      out[m + "+dyn"] = sc; out.dynOrder.push(m + "+dyn");
+    });
   }
 
   /* ---- 1.3.0: the whole-rig analysis is the primary result ----
@@ -2206,6 +2595,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
   var MODEL_LABEL = { hinged: "hinged joints", rigid: "rigid joints" };
   SWEEP.forEach(function (a) { MODEL_LABEL["semi" + a] = "semi-rigid joints (" + a + " EI/L)"; });
+  // the carrier case (1.22.0): the same joint model with each hoist hung below a truss at its high hook dynamic load
+  Object.keys(MODEL_LABEL).forEach(function (k) { MODEL_LABEL[k + "+dyn"] = MODEL_LABEL[k] + ", hung hoists at their dynamic load"; });
   function isSemi(m) { return /^semi/.test(m); }
 
   function supportOf(t, id) { return ((t && t.supports) || []).filter(function (s) { return s.id === id; })[0]; }
@@ -2218,6 +2609,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   /** The force a load-path "injected" load stands for, from one whole-rig analysis: a bolted truss's connection force,
    * or a corner block's net force on the truss it sits on. Hardware at the connection rides along, as in rig.js. */
   function injectedForce(src, sol, rig, byId, results) {
+    if (src.hang) return (sol.hangLoad && sol.hangLoad[src.truss + ":" + src.support]) || 0;
     var t = byId[src.truss], s = supportOf(t, src.support), hw = Number(s && s.hardwareWeight) || 0;
     if (!t || !t.isBlock) return (sol.forces.connections[src.truss + ":" + src.support] || 0) + hw;
     var f = 0, r = results.trusses[t.id];
@@ -2225,6 +2617,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (u.isBlock) return;
       (u.supports || []).forEach(function (s2) {
         if (s2.kind === "truss" && s2.onTruss === t.id) f += (sol.forces.connections[u.id + ":" + s2.id] || 0) + (Number(s2.hardwareWeight) || 0);
+        if (s2.kind === "hoist" && s2.hangFrom === t.id) f += (sol.hangLoad && sol.hangLoad[u.id + ":" + s2.id]) || 0;
       });
     });
     (t.supports || []).forEach(function (s3) { if (s3.kind === "hoist") f -= sol.reactions[t.id + ":" + s3.id] || 0; });
@@ -2287,7 +2680,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (full && bi >= 0 && !TLA.limits.countSelfWeight(st) && model.beams[bi].wSelf > 0) {
       var bmT = model.beams[bi], F = sol.F.slice(), Fs = sol.udlVector(bi, bmT.wSelf);
       for (var q = 0; q < F.length; q++) F[q] -= Fs[q];
-      var r = sol.solveF(F);                            // same structure, same slack hoists
+      var r = sol.solveF(F, sol.set);                   // same structure, same slack hoists, same levels
       net = forces(model, { U: r.U, reactions: r.reactions, dofs: sol.dofs, supports: sol.supports }, function (b) { return b === bmT ? b.w - b.wSelf : b.w; }).members[t.id];
     }
     var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: TLA.limits.countSelfWeight(st), memberDiagrams: full ? { full: full, net: net } : null });
@@ -2307,6 +2700,18 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
   var TRIM_FT = 1 / 48;          // a quarter inch
+  function round2(v) { return Math.round(v * 100) / 100; }
+  /** Out-of-level influence (1.22.0): the reactions when each active hoist alone is raised by ft, cached on the solve. */
+  function influence(sol, model, ft) {
+    var c = sol.levelInf || (sol.levelInf = {});
+    if (c[ft]) return c[ft];
+    var out = {};
+    model.supports.concat(model.hangs || []).forEach(function (sp) {
+      if (sol.slack.indexOf(sp.id) >= 0 || out[sp.id]) return;
+      var r = sol.lift(sp.id, ft); if (r) out[sp.id] = r.reactions;
+    });
+    return (c[ft] = out);
+  }
   var TRIM_WARN = 0.1;           // of the hoist's capacity
 
   function applyPrimary(rig, results, db, out) {
@@ -2317,18 +2722,22 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     // the load-path hoist and span warnings are replaced by the ones below
     for (var i = W.length - 1; i >= 0; i--) if (W[i].kind === "segment" || W[i].kind === "member" || W[i].kind === "hoist") W.splice(i, 1);
 
+    var DYN = out.dynOrder || [];
     Object.keys(results.trusses).forEach(function (id) {
       var t = byId[id], res = results.trusses[id];
       if (!t || t.isBlock) return;
+      // a truss joined to a carrier of a hung hoist is also checked in the carrier case (listed first: ties go to the
+      // static solve)
+      var ML = DYN.length && out.dynGroup[id] ? DYN.concat(MODELS) : MODELS;
       var by = {}, any = false;
-      MODELS.forEach(function (mm) { by[mm] = checkWith(t, res, out[mm], rig, byId, results, out.model); if (by[mm]) any = true; });
+      ML.forEach(function (mm) { by[mm] = checkWith(t, res, out[mm], rig, byId, results, out[mm].model || out.model); if (by[mm]) any = true; });
       if (!any) return;
-      var m = worst(by, MODELS);
+      var m = worst(by, ML);
       res.loadPath = { beam: res.beam, limits: res.limits, injected: res.injected };
       res.byModel = by; res.model = m;
       res.beam = by[m].beam; res.limits = by[m].limits; res.injected = by[m].injected;
       res.memberForces = {};
-      MODELS.forEach(function (mm) { res.memberForces[mm] = out[mm].forces.members[id]; });
+      ML.forEach(function (mm) { res.memberForces[mm] = out[mm].forces.members[id]; });
       var bm = out.model.beams.filter(function (b) { return b.t.id === id; })[0];
       if (bm) res.section = bm.section;
       res.deflection = deflectionCheck(t, res, out, MODELS, st);
@@ -2338,10 +2747,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       // the reactions shown with this truss's diagram are from the same joint model as its checks
       res.supports.forEach(function (sr) {
         var key = id + ":" + sr.support.id;
-        function val(sol) { return sr.support.kind === "hoist" ? sol.reactions[key] || 0 : sol.forces.connections[key] || 0; }
+        function val(sol) {
+          if (sol.dynamic && sr.support.hangFrom) sol = out[sol.base];         // a hung hoist's own load: the static solve
+          return sr.support.kind === "hoist" ? sol.reactions[key] || 0 : sol.forces.connections[key] || 0;
+        }
         sr.loadPathReaction = sr.reaction;
         sr.byModel = {};
-        MODELS.forEach(function (mm) { sr.byModel[mm] = val(out[mm]); });
+        ML.forEach(function (mm) { sr.byModel[mm] = val(out[mm]); });
         sr.reaction = sr.byModel[m];
       });
       res.limits.segments.forEach(function (s) {
@@ -2351,20 +2763,22 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (mb && mb.code) W.push({ truss: id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) + " (" + MODEL_LABEL[m] + ")" });
     });
 
-    var names = {}, touchy = [];
+    var names = {}, touchy = [], tol = Number(st.levelTolerance) > 0 ? Number(st.levelTolerance) / 12 : 0, levelSlack = [], levelOver = [];
     results.hoists.forEach(function (h) { names[h.truss + ":" + h.support] = h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft"; });
     results.hoists.forEach(function (h) {
       var id = h.truss + ":" + h.support, s = supportOf(byId[h.truss], h.support);
       if (!s || MODELS.some(function (mm) { return out[mm].reactions[id] === undefined; })) return;
-      var entry = hoistEntry(db, s.hoistId), by = {};
-      MODELS.forEach(function (mm) {
-        by[mm] = TLA.limits.checkHoist(entry, s.chainLength, out[mm].reactions[id], s.hardwareWeight, s.dlf, st.defaultDlf, st.addPercent);
+      var by = {};
+      // hoists of a carrier take a hung hoist's dynamic load too, unless Rig settings turn it off (owner, 2026-09-24)
+      var HL = !h.hung && DYN.length && out.dynGroup[h.truss] && st.hungDynamic !== false ? MODELS.concat(DYN) : MODELS;
+      HL.forEach(function (mm) {
+        by[mm] = TLA.limits.checkSupport(s, db, out[mm].reactions[id], st);
         by[mm].model = mm;
         if (out[mm].slack.indexOf(id) >= 0) { by[mm].slack = true; by[mm].status = "Slack"; }
       });
       // governing: the largest static load (ties: rigid, then the stiffer semi-rigid models, as before 1.4.0)
       var m = "rigid";
-      MODELS.slice().reverse().forEach(function (mm) { if (by[mm].staticLoad > by[m].staticLoad + 1e-9) m = mm; });
+      HL.slice().reverse().forEach(function (mm) { if (by[mm].staticLoad > by[m].staticLoad + 1e-9) m = mm; });
       var gov = Object.assign({}, by[m]);
       if (results.unstable.indexOf(h.truss) >= 0) gov.status = "UNSTABLE";     // the load path says this truss tips
       var lp = { reaction: h.reaction, slack: h.slack, hoist: h.hoist };
@@ -2383,14 +2797,28 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         slackHinged: !!by.hinged.slack, slackRigid: !!by.rigid.slack, slackIn: slackIn,
         higher: gov.staticLoad > lps + margin(lps), lower: gov.staticLoad < lps - margin(lps)
       };
-      // trim: this hoist a quarter inch high, in the joint model that governs it (linear, same slack hoists)
-      var sol = out[m];
+      // trim: this hoist a quarter inch high, in the joint model that governs it (linear, same slack hoists; the static
+      // solve of it when the carrier case governs)
+      var tm = out[m].dynamic ? out[m].base : m, sol = out[tm];
       if (!h.slack && sol.lift) {
         var lr = sol.lift(id, TRIM_FT), other = null;
         if (lr) {
           Object.keys(lr.reactions).forEach(function (k) { if (k !== id && (!other || Math.abs(lr.reactions[k]) > Math.abs(other.lb))) other = { id: k, name: names[k] || k, lb: lr.reactions[k] }; });
-          h.trim = gov.trim = { self: lr.reactions[id], other: other, model: m };
+          h.trim = gov.trim = { self: lr.reactions[id], other: other, model: tm };
         }
+      }
+      // 1.22.0: out-of-level tolerance - every hoist may be up to +/- tol off its level, each on its own. The worst
+      // increase at this hoist is the sum of what each one alone does to it (linear, same slack hoists), added to its
+      // low hook load for the check; the low side is reported (it may go slack)
+      if (tol > 0 && !h.slack && sol.lift) {
+        var inf = influence(sol, out.model, tol), dl = 0;
+        Object.keys(inf).forEach(function (j) { dl += Math.abs(inf[j][id] || 0); });
+        var c2 = TLA.limits.checkSupport(s, db, gov.reaction + dl, st), unst = gov.status === "UNSTABLE";
+        ["added", "staticLoad", "dynamicLoad", "status", "dynamicOver"].forEach(function (k) { gov[k] = c2[k]; });
+        if (unst) gov.status = "UNSTABLE";
+        h.level = gov.level = { tol: tol, add: dl, low: gov.reaction - dl, model: tm };
+        if (gov.reaction - dl < -SLACK_TOL) levelSlack.push(names[id]);
+        if (gov.status !== "Good" && !unst && by[m].status === "Good") levelOver.push(names[id]);
       }
       var where = names[id];
       if (h.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": slack - the load would push this hoist up (with every joint model), so its chain goes slack and it carries nothing (only the hoist and chain weight). The rest of the rig carries its share; the results shown are with this hoist taken out." });
@@ -2399,6 +2827,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       else if (!h.slack && gov.dynamicOver) W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity (" + MODEL_LABEL[m] + ")" });
       if (h.trim && gov.capacity > 0 && gov.capacity < 999999 && Math.abs(h.trim.self) > TRIM_WARN * gov.capacity) touchy.push({ h: h, share: Math.abs(h.trim.self) / gov.capacity });
     });
+    if (levelOver.length) W.push({ kind: "hoist", level: "level", message: "Out of level by up to ±" + round2(tol * 12) + " in on every hoist (Rig settings): " + levelOver.join(", ") + (levelOver.length === 1 ? " is" : " are") + " over capacity only because of the level allowance. Level the hoists more closely, or use bigger hoists." });
+    if (levelSlack.length) W.push({ kind: "hoist", level: "level", message: "Out of level by up to ±" + round2(tol * 12) + " in: " + levelSlack.join(", ") + " could unload completely and go slack on the low side - the others then carry more. Level carefully." });
     // one warning for every trim-sensitive hoist, led by the worst
     if (touchy.length) {
       touchy.sort(function (a, b) { return b.share - a.share; });
@@ -2413,6 +2843,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     tot.byModel = {};
     MODELS.forEach(function (mm) { tot.byModel[mm] = 0; });
     results.hoists.forEach(function (h) {
+      if (h.hung) return;                                   // inside the rig: its load reaches the structure through the carrier
       tot.staticLoad += h.hoist.staticLoad; tot.dynamicLoad += h.hoist.dynamicLoad; tot.hoistChain += h.hoist.hoistChain; tot.hoistReaction += h.reaction;
       MODELS.forEach(function (mm) { tot.byModel[mm] += h.byModel ? h.byModel[mm].staticLoad : h.hoist.staticLoad; });
     });
@@ -2422,13 +2853,15 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     results.primary = "load-path";
     var hoists = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return s.kind === "hoist"; }); });
     if (out.unstable || !hoists) return;
+    var st = rig.settings || {}, lev = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return Number(s.level); }); });
+    if (lev || Number(st.levelTolerance) > 0) results.warnings.push({ level: "fallback", message: "Hoist level offsets and the out-of-level tolerance need the whole-rig analysis: they are left out of these load-path results." });
     results.warnings.push({ level: "fallback", message: "Whole-rig analysis not available" + (out.note ? " (" + out.note.replace(/\.$/, "") + ")" : "") +
       ": hoist loads and truss checks are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid." });
   }
 
   /** Solve every joint model, then make them the primary result (see applyPrimary). */
   function annotate(rig, results, db, opts) {
-    opts = opts || {}; db = db || TLA.data || {};
+    opts = opts || {}; db = db || TLA.data || {}; rig = TLA.rig.effective(rig);     // cable and load factors (1.22.0)
     var sig = signature(rig, results), out;
     if (last.sig === sig && last.out) out = last.out;
     else { out = compute(rig, results, db, opts); last = { sig: sig, out: out }; }
@@ -2469,6 +2902,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         var r = sol.solveF(sol.loadVector(o)).reactions[id];
         if (r !== undefined && Math.abs(r) > 0.005) parts.push({ truss: o, name: names[o] || o, weight: r });
       });
+      // designed level offsets (1.22.0) move load between hoists without adding any: what is left over is theirs
+      if (sol.leveled && sol.slack.indexOf(id) < 0) {
+        var rest = (sol.reactions[id] || 0) - parts.reduce(function (a2, p2) { return a2 + p2.weight; }, 0);
+        if (Math.abs(rest) > 0.005) parts.push({ truss: "", name: "Designed level offsets", weight: rest });
+      }
       parts.sort(function (a2, b2) { return Math.abs(b2.weight) - Math.abs(a2.weight); });
       cache[id] = parts;
     }
@@ -2480,7 +2918,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * rigid joints, hoist springs, with this tool's own reactions and member forces for the same model. Lengths ft,
    * forces lb, EI/GJ lb-ft2, k lb/ft. */
   function exportModel(rig, results, db) {
-    db = db || TLA.data || {};
+    db = db || TLA.data || {}; rig = TLA.rig.effective(rig);
     if (results.unsolved && results.unsolved.length) return null;
     var model = build(rig, results, db);
     if (!model.supports.length || unheldGroups(model).length) return null;
@@ -2494,6 +2932,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       }),
       links: model.links.map(function (lk) { return { a: lk.a, na: lk.na, b: lk.b, nb: lk.nb, rigid: !!lk.rigid }; }),
       supports: model.supports.map(function (sp) { return sp.k > 0 ? { b: sp.b, n: sp.n, id: sp.id, k: sp.k } : { b: sp.b, n: sp.n, id: sp.id }; }),
+      // hoists hung below a truss (1.22.0): a vertical tension-only link from node (a, na) up to node (b, nb), spring k
+      // lb/ft or rigid - tools/pynite_check.py does not model these yet
+      hangs: (model.hangs || []).map(function (hg) { return hg.k > 0 ? { a: hg.a, na: hg.na, b: hg.b, nb: hg.nb, id: hg.id, k: hg.k } : { a: hg.a, na: hg.na, b: hg.b, nb: hg.nb, id: hg.id }; }),
       results: {}
     };
     ["hinged", "rigid"].forEach(function (m) {
@@ -2736,6 +3177,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     S.rig.trusses = S.rig.trusses.filter(function (t) { return t.id !== tid; });
     S.rig.trusses.forEach(function (t) {
       t.supports = t.supports.filter(function (s) { return !(s.kind === "truss" && s.onTruss === tid); });
+      t.supports.forEach(function (s) { if (s.hangFrom === tid) delete s.hangFrom; });   // its hoists hang from the structure again
       if (t.anchor && t.anchor.block === tid) delete t.anchor;
     });
     S.pruneBlocks();
@@ -3433,6 +3875,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       });
     })();
     try { TLA.grillage.annotate(S.rig, S.results, db()); } catch (e) { S.results.compat = { ok: false, note: "Whole-rig analysis failed: " + e.message }; }
+    // 1.22.0: load-cell readings against the calculation, per assembly (information only)
+    var ms = S.results.measured = TLA.rig.measured(S.rig, S.results);
+    ms.assemblies.forEach(function (a) {
+      if (!a.over) return;
+      var t0 = S.rig.trusses.filter(function (t) { return t.name === a.first; })[0];
+      S.results.warnings.push({ truss: t0 && t0.id, kind: "measured", level: "measured", message: "Measured loads: " + a.names.join(", ") + " - the " + a.n + " load cell" + (a.n === 1 ? "" : "s") + " read " + Math.round(a.measured) + " lb against " + Math.round(a.calc) + " lb calculated (" + (a.diff > 0 ? "+" : "") + Math.round(a.diff * 1000) / 10 + "%, more than " + Math.round(TLA.rig.MEAS_TOL * 100) + "%)" + (a.n < a.of ? " - " + (a.of - a.n) + " of its hoists have no reading, so compare those too" : "") + ". Check the rig against the model: weights, positions, levels." });
+    });
     return S.results;
   };
 
@@ -3636,12 +4085,32 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (!res) return "c-unsolved";
     var st = trussStatus(res);
     if (mode === "status") return st.bad ? "c-fail" : "c-ok";
+    if (mode === "defl") {                              // 1.22.0: sag against the limit
+      var dc = res.deflection;
+      if (!dc || !dc.spans.length) return "c-neutral";
+      return dc.util > 1 ? (dc.fail ? "c-fail" : "c-warn") : dc.util >= 0.8 ? "c-warn" : "c-ok";
+    }
     if (mode === "hoist") {
       var f = 0, any = false;
       res.supports.forEach(function (sr) { if (sr.hoist) { any = true; f = Math.max(f, sr.hoist.staticLoad / (sr.hoist.capacity || 1)); } });
       return !any ? "c-neutral" : f >= 1 ? "c-fail" : f >= 0.8 ? "c-warn" : "c-ok";
     }
     return utilClass(st);
+  }
+
+  /** A truss's deflected shape (1.22.0, competitor list item 6): [[x ft, w ft up], ...] from the joint model of its
+   * worst span (its governing model otherwise), or null. */
+  function deflShape(res) {
+    if (!res || !res.memberForces) return null;
+    var dc = res.deflection, worst = dc && dc.spans.length ? dc.spans.slice().sort(function (a, b) { return b.util - a.util; })[0] : null;
+    var m = worst ? worst.model : String(res.model || "").replace(/\+dyn$/, ""), mf = res.memberForces[m];
+    return mf && mf.defl && mf.defl.length ? mf.defl : null;
+  }
+  /** The largest |w| of every truss's shape, to exaggerate them all by one factor. */
+  function deflMax(results) {
+    var mx = 0;
+    Object.keys(results.trusses || {}).forEach(function (id) { var d = deflShape(results.trusses[id]); if (d) d.forEach(function (p) { mx = Math.max(mx, Math.abs(p[1])); }); });
+    return mx;
   }
 
   function upstream(results, tid) {
@@ -3697,6 +4166,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
     var hl = null;
     if (S.sel.support && S.sel.truss) hl = upstream(results, S.sel.truss);
+    else if (S.ui.connected && S.sel.truss === S.ui.connected) hl = TLA.rig.assembly(S.rig, S.ui.connected);   // 1.22.0
 
     function bw(t, res) { return Math.max(3, sc * TLA.rig.widthFt(t, res && res.dbTruss)); }
     var bodyW = 6;
@@ -3734,6 +4204,21 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         });
       }
     });
+
+    // 1.22.0 deflection mode: each truss's deflected shape drawn beside it, exaggerated (down = to its right-hand side)
+    if (S.ui.colorMode === "defl") {
+      var dmax = deflMax(results), px = 18;
+      if (dmax > 0) order.forEach(function (t) {
+        if (t.isBlock) return;
+        var res = results.trusses[t.id], d = deflShape(res); if (!d) return;
+        var ang = (t.angle || 0) * Math.PI / 180, nx = Math.sin(ang), ny = -Math.cos(ang);          // right-hand normal, plan y up
+        var pts = d.map(function (p) { var q = TLA.rig.geometry.endPoint(t, p[0]), o = -p[1] / dmax * px; return (X(q.x) + nx * o).toFixed(1) + "," + (Y(q.y) - ny * o).toFixed(1); });
+        var dg = el("g", { "class": "deflg " + trussClass(t, res, results) + (hl && !hl[t.id] ? " dim" : "") }, svg);
+        el("polyline", { points: pts.join(" "), "class": "defl" }, dg);
+        var ti = el("title", null, dg), dc = res.deflection, w0 = d.reduce(function (m, p) { return Math.max(m, -p[1]); }, 0);
+        ti.textContent = t.name + ": deflects up to " + TLA.units.f("inch", w0 * 12, 2) + (dc && dc.spans.length ? " - worst span " + Math.round(dc.util * 100) + "% of span/" + dc.ratio : "");
+      });
+    }
 
     // hot spots: a glow radiating from the peak of any truss working at 80% or more
     hotGlow.forEach(function (hgw, i) {
@@ -3778,9 +4263,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           var selected = S.sel.support === s.id;
           if (s.kind === "hoist") {
             var ok = sr.hoist.status === "Good" && !sr.hoist.dynamicOver;
-            var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") }, grp);
-            var tt = el("title", null, hg);
-            tt.textContent = (s.name || "Hoist") + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + " capacity (" + TLA.limits.statusText(sr.hoist.status) + ")";
+            var hg = el("g", { "data-hoist": s.id, "data-truss-of": t.id, "class": "hoist " + (sr.hoist.status === "Check" ? "c-warn" : sr.hoist.status !== "Good" ? "c-fail" : sr.hoist.dynamicOver ? "c-warn" : "c-ok") + (selected ? " selected" : "") + (sr.hung ? " hung" : "") + (s.dead ? " dead" : "") }, grp);
+            var tt = el("title", null, hg), carrier = sr.hung && S.truss(sr.hung.truss);
+            tt.textContent = (s.name || (s.dead ? "Dead hang" : "Hoist")) + ": " + TLA.units.f("w", sr.hoist.staticLoad, 0) + " static / " + TLA.units.f("w", sr.hoist.capacity, 0) + (s.dead ? " WLL (" : " capacity (") + TLA.limits.statusText(sr.hoist.status) + ")" +
+              (carrier ? " - hung below " + carrier.name : "");
             hoistSymbol(hg, X(p.x), Y(p.y), Math.max(6, sc * 0.5));
             if (dragHoist && dragHoist.s === s) {
               var doff = bodyW / 2 + 12;
@@ -3975,6 +4461,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
   TLA.plan = {
+    deflShape: deflShape, deflMax: deflMax,
     mount: function (store, container) { S = store; root = container; bindEvents(); },
     render: render, fit: function () { fit(); render(); },
     zoom: function (f) { if (!root) return; var v = S.ui.view, mx = root.clientWidth / 2, my = root.clientHeight / 2, ns = Math.max(1.5, Math.min(80, v.scale * f)), wx = (mx - v.ox) / v.scale, wy = (v.oy - my) / v.scale; v.scale = ns; v.ox = mx - wx * ns; v.oy = my + wy * ns; render(); },
@@ -4074,7 +4561,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function hangsFrom(t) {
     var on = [], nh = 0;
     (t.supports || []).forEach(function (s) {
-      if (s.kind === "hoist") nh++;
+      if (s.kind === "hoist" && s.hangFrom && S.truss(s.hangFrom)) { var c = "hoist below " + S.truss(s.hangFrom).name; if (on.indexOf(c) < 0) on.push(c); }
+      else if (s.kind === "hoist") nh++;
       else if (s.kind === "truss") { var o = S.truss(s.onTruss); if (o && on.indexOf(o.name) < 0) on.push(o.name); }
     });
     if (nh) on.push(nh === 1 ? "1 hoist" : nh + " hoists");
@@ -4535,6 +5023,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function hoistRes(sid) { return (S.results.hoists || []).filter(function (x) { return x.support === sid; })[0] || null; }
   function hoistDb(id) { return S.db().hoists.filter(function (q) { return q.id === id; })[0] || null; }
   function hoistName(hd) { return hd ? (hd.brand ? hd.brand + " " : "") + String(hd.description).trim() + " " + hd.capacity_label : "-"; }
+  /** What holds a support up: its hoist model, or (1.22.0) "Dead hang" and its rope. */
+  function supportName(s) {
+    if (!s.dead) return hoistName(hoistDb(s.hoistId));
+    var r = TLA.limits.rope(s.rope);
+    return "Dead hang, " + (r ? r.name : Number(s.wll) > 0 ? "rope by WLL" : "no rope set");
+  }
   function posLabel(item, t) {
     var v = S.measureDisplay(item, t.length), ref = item.from === "center" ? " from CL" : item.from === "end" ? " from end" : "";
     return (item.from === "center" && v > 0 ? "+" : "") + U.n("len", v, 3) + " " + U.unit("len") + ref;
@@ -4555,6 +5049,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function applyFixture(l, f) {
     l.note = f.manufacturer + " " + f.fixture; l.fixtureLb = f.weight_lb; l.clampLb = f.clamp_lb || 0;
     setLoadParts(l, { each: f.weight_lb, clamp: f.clamp_lb || 0 });
+    if (!l.cat) l.cat = "lighting";                     // the fixture library is lighting (1.22.0 load categories)
   }
   /** Where the mirrored twin of a load sits (null when it has none). */
   function mirrorAt(l, t) {
@@ -4598,6 +5093,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       [h("button", { text: "+ Hoist", title: "Add a hoist in the middle of this truss", onclick: function () { var sp = S.addHoist(t.id); if (sp) sel({ truss: t.id, support: sp.id }); } }),
        h("button", { text: "+ Load", title: "Add a load: type a fixture or weight in the Loads section", onclick: function () { var d = root.querySelector('[data-grp="loads"]'); if (d) { d.open = true; } if (quickBox) { quickBox.focus(); quickBox.scrollIntoView({ block: "center" }); } } }),
        h("button", { text: "Bolt to…", title: "Then click a corner block on the plan", onclick: function () { startPick({ kind: "block", truss: t.id }); } }),
+       h("button", { "class": S.ui.connected === t.id ? "on" : "", text: "Connected", title: "Show on the plan everything joined to this truss - bolted, stacked, or hung on a hoist below it - and dim the rest (to spot a part that is not connected)", onclick: function () { S.ui.connected = S.ui.connected === t.id ? null : t.id; S.emit(); } }),
        h("span", { "class": "grow" }),
        t.anchor ? null : h("button", { "class": "ghost icon", text: "⟳", title: "Rotate 90° (R)", onclick: function () { t.angle = ((t.angle || 0) + 90) % 360; S.commit(); } }),
        h("button", { "class": "ghost", text: "Duplicate", onclick: function () { S.duplicateTruss(t.id); } }),
@@ -4617,6 +5113,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       field("Truss pieces (" + U.unit("len") + ")", (t.layout && t.layout.manual) || Array.isArray(t.pieces) ? h("input", { type: "text", "class": "num", value: lenText(t.pieceLength), disabled: true, title: "Set by the pieces / segments below" }) : numInput(t.pieceLength != null ? t.pieceLength : t.length, function (v) { t.pieceLength = Math.max(0.5, v); S.commit(); }, { ft: true, title: "Total length of the truss sections in this line, before corner blocks" })),
       field("UDL (" + U.unit("w") + ")", numInput(t.wallWeight, function (v) { t.wallWeight = v; S.commit(); }, { q: "w", title: "UDL (uniformly distributed load): total weight spread evenly over the full length, e.g. a drape or LED wall" })),
       field("Measure from", select([{ value: "start", label: "start" }, { value: "center", label: "centerline" }, { value: "end", label: "end" }], t.measure || "start", function (v) { t.measure = v; S.commit(); }), "")));
+    var rigCable = Number(S.rig.settings && S.rig.settings.cablePerFt) || 0, cab = TLA.rig.cableOf(t, S.rig.settings);
+    c.appendChild(h("div", { "class": "grid3" },
+      field("Cable (" + U.unit("wpl") + ")", cableInput(t, rigCable))));
+    if (cab > 0) c.appendChild(h("div", { "class": "sub", text: "Cable allowance " + U.f("wpl", cab, 2) + " x " + U.f("len", t.length, 2) + " = " + U.f("w", cab * t.length, 1) + ", added to the UDL" + (Number(t.wallWeight) ? " (" + U.f("w", t.wallWeight, 1) + " typed)" : "") + "." }));
     c.appendChild(h("div", { "class": "linelen" },
       h("span", null, U.f("len", t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss"),
       h("span", null, " + " + U.f("len", t.blocksAdded || 0, 3) + " corner blocks = "), h("b", { text: U.f("len", t.length, 3) + " whole line" }),
@@ -4709,7 +5209,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         if (s.kind !== "hoist") return;
         var x = hoistRes(s.id), hd = hoistDb(s.hoistId);
         hb.appendChild(h("tr", { onclick: function () { sel({ truss: t.id, support: s.id }); } },
-          h("td", { "class": "mono", text: posLabel(s, t) }), h("td", { text: hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
+          h("td", { "class": "mono", text: posLabel(s, t) }), h("td", { text: s.dead ? supportName(s) : hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
           h("td", { "class": "r", text: x ? U.n("w", x.hoist.staticLoad, 0) : "-" }),
           h("td", null, x && x.hoist.capacity < 999999 ? wlCell(x.hoist.staticLoad / x.hoist.capacity) : h("span", { "class": "mini", text: "-" })),
           h("td", null, x ? badge(x.hoist.status) : null)));
@@ -4775,10 +5275,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
   function hoistInspector(root, t, s, res, db) {
-    var x = hoistRes(s.id), hd = hoistDb(s.hoistId), hoists = t.supports.filter(function (q) { return q.kind === "hoist"; }), k = hoists.indexOf(s);
-    root.appendChild(crumb([["Rig", function () { sel({}); }], [t.name, function () { sel({ truss: t.id }); }], ["Hoist @ " + posLabel(s, t)]], "hoist"));
-    root.appendChild(insHead(textInput(s.name, function (v) { s.name = v; S.commit(); }, "title-input", "Hoist " + (k + 1) + " on " + t.name), x ? badge(x.hoist.status) : null,
-      [h("b", { text: hoistName(hd) }), hd && hd.capacity_lb < 999999 ? h("span", { text: U.f("w", hd.capacity_lb, 0) + " capacity" }) : null, hd && hd.speed_fpm ? h("span", { text: U.f("speed", hd.speed_fpm, 0) }) : null],
+    var x = hoistRes(s.id), hd = s.dead ? null : hoistDb(s.hoistId), hoists = t.supports.filter(function (q) { return q.kind === "hoist"; }), k = hoists.indexOf(s), noun = s.dead ? "Dead hang" : "Hoist";
+    var wll = s.dead ? TLA.limits.deadHangWll(s, S.rig.settings) : 0;
+    root.appendChild(crumb([["Rig", function () { sel({}); }], [t.name, function () { sel({ truss: t.id }); }], [noun + " @ " + posLabel(s, t)]], "hoist"));
+    root.appendChild(insHead(textInput(s.name, function (v) { s.name = v; S.commit(); }, "title-input", noun + " " + (k + 1) + " on " + t.name), x ? badge(x.hoist.status) : null,
+      [h("b", { text: supportName(s) }), hd && hd.capacity_lb < 999999 ? h("span", { text: U.f("w", hd.capacity_lb, 0) + " capacity" }) : null, hd && hd.speed_fpm ? h("span", { text: U.f("speed", hd.speed_fpm, 0) }) : null,
+        s.dead ? h("span", { text: wll > 0 ? U.f("w", wll, 0) + " WLL" : "no WLL" }) : null],
       [h("button", { "class": "icon", text: "‹", title: "Previous hoist on this truss", disabled: k <= 0, onclick: function () { sel({ truss: t.id, support: hoists[k - 1].id }); } }),
        h("button", { "class": "icon", text: "›", title: "Next hoist on this truss", disabled: k >= hoists.length - 1, onclick: function () { sel({ truss: t.id, support: hoists[k + 1].id }); } }),
        h("span", { "class": "grow" }),
@@ -4791,27 +5293,82 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         h("div", { "class": x.hoist.status !== "Good" ? "f" : "" }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) }), h("span", { text: "high hook static, " + U.unit("w") })),
         h("div", { "class": x.hoist.dynamicOver ? "w" : "" }, h("b", { text: U.n("w", x.hoist.dynamicLoad, 1) }), h("span", { text: "high hook dynamic, " + U.unit("w") + " (x" + fmt(x.hoist.dynamicFactor, 3) + ")" }))));
       if (x.hoist.capacity < 999999) c.appendChild(h("div", { "class": "checks" }, barRow("Workload", x.hoist.staticLoad / x.hoist.capacity, "High hook static / capacity")));
+      if (x.level) c.appendChild(h("div", { "class": "sub" + (x.level.low < 0 ? " hotline" : "") }, "Out of level ±" + U.f("inch", x.level.tol * 12, 2) + " (Rig settings): up to ", h("b", { text: "+" + U.f("w", x.level.add, 0) }), " on this hoist - included in its high hook load; on the low side " + U.f("w", x.level.low, 0) + (x.level.low < 0 ? ", so it could go slack." : ".")));
       if (x.trim) c.appendChild(h("div", { "class": "sub" + (hot ? " hotline" : "") }, "Level sensitivity: ", h("b", { text: "±" + U.f("w", Math.abs(x.trim.self), 0) }), " if this hoist runs 1/4\" (6 mm) high or low" + (x.trim.other ? "; " + x.trim.other.name + " changes by " + U.f("w", x.trim.other.lb, 0) : "") + (hot ? " - more than 10% of its capacity: level it carefully." : ".")));
+      var ms = S.results.measured && S.results.measured.hoists[t.id + ":" + s.id], lowCell = S.rig.settings && S.rig.settings.cellReads === "low";
+      c.appendChild(h("div", { "class": "grid2" }, field("Load cell reading (" + U.unit("w") + ")", (function () {
+        var i = h("input", { type: "number", step: "any", min: 0, "class": "num", value: s.measured != null && s.measured !== "" ? Math.round(U.v("w", s.measured) * 10) / 10 : "", placeholder: "none", title: "What a load cell on this hoist reads (" + (lowCell ? "between the hoist and the truss: compared with the low hook load" : "above the hoist: compared with the high hook static load") + " - set in Rig settings). Blank = no reading." });
+        i.addEventListener("change", function () { var v = parseFloat(i.value); if (i.value.trim() === "" || !(v >= 0)) delete s.measured; else s.measured = U.back("w", v); S.commit(); });
+        return i;
+      })())));
+      if (ms && ms.diff !== null) c.appendChild(h("div", { "class": "sub" + (Math.abs(ms.diff) > TLA.rig.MEAS_TOL ? " hotline" : "") }, "Measured " + U.f("w", ms.measured, 0) + " against " + U.f("w", ms.calc, 0) + " calculated (" + (lowCell ? "low hook" : "high hook static") + "): ", h("b", { text: TLA.rig.pctText(ms.diff) }), ". One hoist can differ a lot on a rig that shares load (level, stiffness) - compare the assembly's total in the rig panel."));
       var a = TLA.grillage.attribution(S.rig, S.results, S.db(), t.id, s.id);
       if (a) {
         c.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Where the load comes from" }), h("th", { "class": "r", text: U.unit("w") }))), h("tbody", null,
           a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (self weight)" : "") }), h("td", { "class": "r", text: U.n("w", p.weight, 1) })); }),
-          h("tr", null, h("td", { text: "Hoist + chain" }), h("td", { "class": "r", text: U.n("w", a.hoistChain, 1) })),
+          x.level ? h("tr", null, h("td", { text: "Out-of-level allowance (±" + U.f("inch", x.level.tol * 12, 2) + ")" }), h("td", { "class": "r", text: U.n("w", x.level.add, 1) })) : null,
+          x.hoist.added ? h("tr", null, h("td", { text: "Add " + S.rig.settings.addPercent + "%" }), h("td", { "class": "r", text: U.n("w", x.hoist.added, 1) })) : null,
+          (Number(s.hardwareWeight) || 0) ? h("tr", null, h("td", { text: "Hardware" }), h("td", { "class": "r", text: U.n("w", s.hardwareWeight, 1) })) : null,
+          h("tr", null, h("td", { text: s.dead ? "Rope" : "Hoist + chain" }), h("td", { "class": "r", text: U.n("w", a.hoistChain, 1) })),
           h("tr", null, h("td", null, h("b", { text: "High hook load (static)" })), h("td", { "class": "r" }, h("b", { text: U.n("w", a.staticLoad, 1) }))))));
         c.appendChild(h("div", { "class": "sub", text: a.model === "load-path" ? "Load-path method (whole-rig analysis not available)." : "Whole-rig analysis, " + TLA.grillage.MODEL_LABEL[a.model] + " (the joint model that loads this hoist most)." }));
       }
     }
-    c = group(root, "hoist", "Hoist", true, "");
-    var hsel = select(db.hoists.map(function (q) { return { value: q.id, label: hoistName(q) + (U.metric() && q.capacity_lb < 999999 ? " (" + U.f("w", q.capacity_lb, 0) + ")" : "") + " " + U.f("speed", q.speed_fpm, 0) }; }), s.hoistId, function (v) { s.hoistId = parseInt(v, 10); S.commit(); });
-    c.appendChild(field("Model", hsel, "span3"));
-    var auto = x ? x.hoist.dynamicFactor : 1.25;
-    c.appendChild(h("div", { "class": "grid3" },
-      field("Chain (" + U.unit("len") + ")", numInput(s.chainLength || 0, function (v) { s.chainLength = Math.max(0, v); S.commit(); }, { ft: true })),
-      field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: s.dlf ? "auto" : "auto " + fmt(auto, 3), title: "Blank = from the hoist speed (fpm / 60 + 1), or the rig default if the speed is unknown" })),
-      field("Hardware (" + U.unit("w") + ")", numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { q: "w", title: "Hardware weight at this hoist (shackles, spansets, beam clamp...)" }))));
+    c = group(root, "hoist", s.dead ? "Dead hang" : "Hoist", true, "");
+    c.appendChild(field("Support", select([{ value: "hoist", label: "Chain hoist" }, { value: "dead", label: "Dead hang (wire rope, no hoist)" }], s.dead ? "dead" : "hoist", function (v) { setDead(s, v === "dead"); S.commit(); }), "span3"));
+    if (s.dead) {
+      var sf = TLA.limits.ropeFactor(S.rig.settings);
+      c.appendChild(field("Rope", select([{ value: "", label: "not in the list - WLL typed below" }].concat(TLA.limits.ROPES.map(function (r) { return { value: r.id, label: r.name + " - WLL " + U.f("w", r.mbs_lb / sf, 0) }; })), s.rope || "", function (v) { s.rope = v || undefined; S.commit(); }), "span3"));
+      c.appendChild(h("div", { "class": "grid3" },
+        field("Rope (" + U.unit("len") + ")", numInput(s.ropeLength || 0, function (v) { s.ropeLength = Math.max(0, v); S.commit(); }, { ft: true, title: "Rope length, for its weight (and its stretch when the rig's hoists are springs)" })),
+        field("Assembly WLL (" + U.unit("w") + ")", numInput(Number(s.wll) > 0 ? s.wll : "", function (v) { s.wll = v > 0 ? v : undefined; S.commit(); }, { q: "w", placeholder: "rope", title: "The WLL of the weakest part of the assembly (shackles, fittings); caps the rope's WLL" })),
+        field("Hardware (" + U.unit("w") + ")", numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { q: "w", title: "Hardware weight (shackles, beam clamp, spanset...)" }))));
+      c.appendChild(h("div", { "class": "grid3" },
+        field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: "1.000 static", title: "A dead hang does not move: 1.0 unless you type a factor" }))));
+      var rp = TLA.limits.rope(s.rope);
+      c.appendChild(h("div", { "class": "sub" + (wll > 0 ? "" : " hotline") }, wll > 0 ? "WLL " + U.f("w", wll, 0) + (rp ? " = min(" + rp.name + " breaking strength " + U.f("w", rp.mbs_lb, 0) + " / " + sf + (Number(s.wll) > 0 ? ", assembly " + U.f("w", s.wll, 0) : "") + ")" : " (typed)") + ". Design factor " + sf + ":1 is set in Rig settings; breaking strengths are typical catalogue values - check your rope's certificate."
+        : "Pick the rope or type the assembly WLL - without one this dead hang is Overloaded."));
+    } else {
+      var hsel = select(db.hoists.map(function (q) { return { value: q.id, label: hoistName(q) + (U.metric() && q.capacity_lb < 999999 ? " (" + U.f("w", q.capacity_lb, 0) + ")" : "") + " " + U.f("speed", q.speed_fpm, 0) }; }), s.hoistId, function (v) { s.hoistId = parseInt(v, 10); S.commit(); });
+      c.appendChild(field("Model", hsel, "span3"));
+      var auto = x ? x.hoist.dynamicFactor : 1.25;
+      c.appendChild(h("div", { "class": "grid3" },
+        field("Chain (" + U.unit("len") + ")", numInput(s.chainLength || 0, function (v) { s.chainLength = Math.max(0, v); S.commit(); }, { ft: true })),
+        field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: s.dlf ? "auto" : "auto " + fmt(auto, 3), title: "Blank = from the hoist speed (fpm / 60 + 1), or the rig default if the speed is unknown" })),
+        field("Hardware (" + U.unit("w") + ")", numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { q: "w", title: "Hardware weight at this hoist (shackles, spansets, beam clamp...)" }))));
+    }
     c = group(root, "hpos", "Position", true, "on " + t.name);
-    c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(s, t.length))));
+    c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(s, t.length)), field("Hangs from", hangSelect(t, s))));
+    c.appendChild(h("div", { "class": "grid2" }, field("Level offset (" + U.unit("inch") + ")", numInput(Number(s.level) || "", function (v) { s.level = v ? v : undefined; S.commit(); }, { q: "inch", placeholder: "0 = level", title: "Hung on purpose higher (+) or lower (-) than the other hoists' level - a designed trim or rake. The whole-rig analysis solves the rig with this hoist's point moved by that much." }))));
     c.appendChild(h("div", { "class": "sub", text: "= " + U.f("len", s.distance, 3) + " from the start of " + t.name + " (" + U.f("len", t.length, 2) + "). Drag the hoist on the plan to move it in 1\" (2 cm) steps." }));
+    var hp = hangInfo(t, s);
+    if (hp) c.appendChild(h("div", { "class": "sub" + (hp.off ? " hotline" : "") }, "Hung below ", h("b", { text: hp.name }), ": its chain hooks on " + U.f("len", hp.distance, 2) + " from the start of " + hp.name +
+      (hp.off ? " - but the hoist is not under it on the plan; move the hoist or the truss." : ". " + hp.name + " carries this hoist's high hook load, and is checked with the high hook dynamic load.")));
+  }
+
+  /** A truss's own cable allowance (1.22.0): blank = the rig's, 0 = none (so not numInput, which reads blank as 0). */
+  function cableInput(t, rigCable) {
+    var own = t.cablePerFt != null && t.cablePerFt !== "";
+    var i = h("input", { type: "number", step: "any", min: 0, "class": "num", value: own ? Math.round(U.v("wpl", t.cablePerFt) * 10000) / 10000 : "", placeholder: rigCable ? "rig " + U.n("wpl", rigCable, 2) : "none",
+      title: "Cable weight per length of this truss, added to its UDL. Blank = the rig's cable allowance (Rig settings); 0 = no cable on this truss." });
+    i.addEventListener("change", function () { var v = parseFloat(i.value); t.cablePerFt = i.value.trim() === "" || !(v >= 0) ? undefined : U.back("wpl", v); S.commit(); });
+    return i;
+  }
+  /** Turn a hoist into a dead hang (a 3/8" GAC rope as long as its chain) or back. */
+  function setDead(s, on) {
+    if (on) { s.dead = true; if (!s.rope && !(Number(s.wll) > 0)) s.rope = "gac-3/8"; if (s.ropeLength == null) s.ropeLength = s.chainLength || 0; s.dlf = undefined; }
+    else delete s.dead;
+  }
+  /** Where a hoist hangs: the structure (the usual), or below another truss (1.22.0). */
+  function hangSelect(t, s) {
+    var opts = [{ value: "", label: "the structure" }].concat(S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; }).map(function (o) { return { value: o.id, label: "below " + o.name }; }));
+    return select(opts, s.hangFrom || "", function (v) { s.hangFrom = v || undefined; S.commit(); });
+  }
+  function hangInfo(t, s) {
+    if (!s.hangFrom) return null;
+    var byId = {}; S.rig.trusses.forEach(function (o) { byId[o.id] = o; });
+    var hp = TLA.rig.hangPoint(byId, t, s);
+    return hp ? { name: byId[hp.truss].name, distance: hp.distance, off: hp.off } : null;
   }
 
   function loadInspector(root, t, l) {
@@ -4834,6 +5391,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       field("Weight (" + U.unit("w") + ")", numInput(p.each, part("each"), { q: "w" })),
       field("Clamp (" + U.unit("w") + ")", numInput(p.clamp, part("clamp"), { q: "w" }))));
     c.appendChild(h("div", { "class": "sub" }, "Total ", h("b", { text: U.f("w", l.weight, 1) }), mt ? " - plus the same again mirrored at " + mt : ""));
+    var lfac = TLA.rig.loadFactor(l, S.rig.settings);
+    c.appendChild(h("div", { "class": "grid3" }, field("Category", select(TLA.rig.LOAD_CATS.map(function (x) { return { value: x[0], label: x[1] }; }), l.cat || "other", function (v) { l.cat = v === "other" ? undefined : v; S.commit(); }))));
+    if (lfac !== 1) c.appendChild(h("div", { "class": "sub", text: "Load factor " + lfac + " for this category (Rig settings): the trusses and hoists carry " + U.f("w", l.weight * lfac, 1) + (mt ? " at each position" : "") + "." }));
     c.appendChild(field("Note", textInput(l.comment, function (v) { l.comment = v || undefined; S.commit(); }, "", "e.g. SR 1/2, cable pick"), "span3"));
     c = group(root, "lpos", "Position", true, "on " + t.name);
     c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(l, t.length))));
@@ -4902,7 +5462,28 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         h("button", { "class": "primary", text: "+ Truss", onclick: function () { S.addTruss({ hoists: [] }); } })));
       return;
     }
-    var c = group(root, "outline", "Outline", true, "click to select");
+    // 1.22.0: load-cell readings against the calculation, per assembly
+    var mss = r.measured;
+    if (mss && mss.any) {
+      var mc = group(root, "measured", "Measured vs calculated", true, mss.assemblies.some(function (a) { return a.over; }) ? "differs" : "within " + Math.round(mss.tol * 100) + "%");
+      mc.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Assembly" }), h("th", { "class": "r", text: "Cells" }), h("th", { "class": "r", text: "Measured" }), h("th", { "class": "r", text: "Calculated" }), h("th", { "class": "r", text: "Diff." }))),
+        h("tbody", null, mss.assemblies.map(function (a) {
+          return h("tr", null, h("td", { text: a.names.join(", ") }), h("td", { "class": "r", text: a.n + "/" + a.of }), h("td", { "class": "r", text: U.n("w", a.measured, 0) }), h("td", { "class": "r", text: U.n("w", a.calc, 0) }),
+            h("td", { "class": "r" }, h("span", { "class": a.over ? "st w" : "", text: a.diff === null ? "-" : TLA.rig.pctText(a.diff) })));
+        }))));
+      mc.appendChild(h("div", { "class": "sub", text: "Load cells read the " + (mss.reads === "low" ? "low hook load (between hoist and truss)" : "high hook static load (above the hoist)") + " - Rig settings. Flagged past " + Math.round(mss.tol * 100) + "% for an assembly's total; single hoists can differ more on a rig that shares load." }));
+    }
+    // 1.22.0: the check-rig list - input mistakes, found on every change (click one to select what it is about)
+    var chk = r.warnings.filter(function (w) { return w.kind === "check"; });
+    var c = group(root, "check", "Check rig", chk.some(function (w) { return w.level === "check"; }), chk.length ? chk.length + " to look at" : "nothing found");
+    if (chk.length) {
+      var ul = h("ul", { "class": "warnings checklist" });
+      chk.forEach(function (w) {
+        ul.appendChild(h("li", { "class": w.level === "note" ? "note" : "", title: "Click to select", onclick: function () { if (w.truss) sel({ truss: w.truss, support: w.support || null, load: w.load || null }); } }, U.text(w.message)));
+      });
+      c.appendChild(ul);
+    } else c.appendChild(h("div", { "class": "sub", text: "No input mistakes found: every load has a weight, no two hoists share a point, every bolted assembly has at least 3 hoists not in a line, bolted ends meet, and trusses that cross are joined." }));
+    c = group(root, "outline", "Outline", true, "click to select");
     var ol = h("div", { "class": "outline" });
     trs.forEach(function (t) {
       var rr = r.trusses[t.id], vd = trussVerdict(rr), nh = t.supports.filter(function (s) { return s.kind === "hoist"; });
@@ -4915,7 +5496,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       });
       nh.forEach(function (s) {
         var x = hoistRes(s.id);
-        ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id, support: s.id }); } }, h("span", { "class": "ic", text: "○" }), "Hoist @ " + posLabel(s, t), h("span", { "class": "r", text: x ? U.f("w", x.hoist.staticLoad, 0) : "" })));
+        ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id, support: s.id }); } }, h("span", { "class": "ic", text: s.dead ? "●" : "○" }), (s.dead ? "Dead hang @ " : "Hoist @ ") + posLabel(s, t), h("span", { "class": "r", text: x ? U.f("w", x.hoist.staticLoad, 0) : "" })));
       });
       if (t.loads.length) ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id }); if (TLA.app) TLA.app.setStep(2); } }, h("span", { "class": "ic", text: "▾" }), t.loads.length + " load" + (t.loads.length === 1 ? "" : "s"),
         h("span", { "class": "r", text: U.f("w", t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (mirrorAt(l, t) ? 2 : 1); }, 0), 1) })));
@@ -5028,7 +5609,23 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       row("Add % to hoist loads", numInput(Number(st.addPercent) > 0 ? st.addPercent : "", function (v) { st.addPercent = v > 0 ? v : undefined; S.commit(); }, { placeholder: "0" }),
         "An extra percentage on the load and truss weight at every hoist (unknown cable weight, a safety margin), as the original's 'Add Percentage'. Added before the hoist, chain and hardware weight; the truss checks are not changed."),
       row("Hoist stiffness (" + U.unit("stiff") + ")", numInput(Number(st.hoistStiffness) > 0 ? st.hoistStiffness : "", function (v) { st.hoistStiffness = v > 0 ? v : undefined; S.commit(); }, { q: "stiff", placeholder: "rigid" }),
-        "How much a hoist and its chain stretch under load (for example " + (U.metric() ? "27 kg/mm" : "1500 lb/in") + " for a 1-ton chain hoist on a long drop - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive.")]));
+        "How much a hoist and its chain stretch under load (for example " + (U.metric() ? "27 kg/mm" : "1500 lb/in") + " for a 1-ton chain hoist on a long drop - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive."),
+      row("Out-of-level tolerance ± (" + U.unit("inch") + ")", numInput(Number(st.levelTolerance) > 0 ? st.levelTolerance : "", function (v) { st.levelTolerance = v > 0 ? v : undefined; S.commit(); }, { q: "inch", placeholder: "off" }),
+        "How far any hoist may end up off its level, each on its own (e.g. 1/4\" = 0.25). Each hoist's check then carries the worst it could see: the sum of what every hoist alone running that much high or low does to it (from the whole-rig analysis). Short, stiff spans are very level-sensitive. Blank = off (hoists exactly level). For a hoist trimmed on purpose, use its own Level offset."),
+      row("Load cells read", select([{ value: "high", label: "high hook static (cell above the hoist)" }, { value: "low", label: "low hook (cell between hoist and truss)" }], st.cellReads === "low" ? "low" : "high", function (v) { st.cellReads = v === "low" ? "low" : undefined; S.commit(); }),
+        "Where the load cells hang, for the Measured column of the hoists: readings are compared with that calculated load, and each assembly's total is flagged when it is more than 5% off."),
+      row("Hoists hung below a truss", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: st.hungDynamic !== false, onchange: function (e) { st.hungDynamic = e.target.checked ? undefined : false; S.commit(); } }), h("span", { text: "The carrier's hoists also take the hung hoist's dynamic load (on by default)" })),
+        "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies)."),
+      row("Dead hang rope design factor", select([7, 8, 10].map(function (f) { return { value: String(f), label: f + ":1" + (f === TLA.limits.ROPE_DF ? " (default)" : "") }; }), String(TLA.limits.ropeFactor(st)), function (v) { st.ropeDesignFactor = +v === TLA.limits.ROPE_DF ? undefined : +v; S.commit(); }),
+        "A dead hang's WLL is its rope's minimum breaking strength divided by this, capped by the assembly WLL typed on the dead hang. Dead hangs are static (dynamic factor 1.0 unless typed).")]));
+    var lf = st.loadFactors || {};
+    body.appendChild(card("Allowances", "Weight the drawing doesn't show: cable along the trusses, and a factor on each kind of load (e.g. 1.1 on lighting for clamps, safeties and gel frames not listed). They load the trusses and hoists like any other weight.", [
+      row("Cable allowance (" + U.unit("wpl") + ")", numInput(Number(st.cablePerFt) > 0 ? st.cablePerFt : "", function (v) { st.cablePerFt = v > 0 ? v : undefined; S.commit(); }, { q: "wpl", placeholder: "none" }),
+        "Cable weight per length on every truss (added to its UDL). A truss can set its own in its panel (0 = none)."),
+      h("div", { "class": "setrow" }, h("label", { "class": "setl" }, h("b", { text: "Load factors" }), h("span", { text: "Each load's weight is multiplied by its category's factor (set the category on the load). 1 = as typed." })),
+        h("div", { "class": "setc lfgrid" }, TLA.rig.LOAD_CATS.map(function (c) {
+          return h("label", { "class": "field" }, h("span", { text: c[1] }), numInput(Number(lf[c[0]]) > 0 ? lf[c[0]] : "", function (v) { var o = st.loadFactors || (st.loadFactors = {}); if (v > 0 && v !== 1) o[c[0]] = v; else delete o[c[0]]; if (!Object.keys(o).length) delete st.loadFactors; S.commit(); }, { placeholder: "1", cls: "w50" }));
+        })))]));
     body.appendChild(card("Truss checks", "The span, cantilever, moment and shear checks against the manufacturers' tables.", [
       row("Repetitive-use factor", select([{ value: "auto", label: "per truss data (0.85 unless the table includes it; Universal 0.75)" }, { value: "0.85", label: "always 0.85" }, { value: "1", label: "none (1.0)" }], typeof st.derate === "number" ? String(st.derate) : "auto", function (v) { st.derate = v === "auto" ? null : parseFloat(v); S.commit(); }),
         "ANSI repetitive-use rule: table capacities are multiplied by 0.85 unless the data already includes it."),
@@ -5101,8 +5698,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var hd = hoistDb(hs && hs.hoistId);
       tb.appendChild(h("tr", { "class": S.sel.support === x.support ? "sel" : "", onclick: function () { sel({ truss: x.truss, support: x.support }); } },
         h("td", { text: x.trussName }), h("td", { "class": "r", text: U.n("len", x.distance, 2) }),
-        h("td", { text: hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
-        h("td", { "class": "r", text: hs ? U.n("len", hs.chainLength || 0, 1) : "-" }),
+        h("td", { text: hs && hs.dead ? supportName(hs) : hd ? String(hd.description).trim() + " " + hd.capacity_label : "-" }),
+        h("td", { "class": "r", text: hs ? U.n("len", (hs.dead ? hs.ropeLength : hs.chainLength) || 0, 1) : "-" }),
         h("td", { "class": "r", title: "Hoist body + chain (chain length x weight per foot)" + (hs && hs.hardwareWeight ? " + hardware" : ""), text: U.n("w", x.hoist.staticLoad - x.hoist.reaction - (x.hoist.added || 0), 1) }),
         modelCell(x, "hinged"), semiCell(x), modelCell(x, "rigid"),
         h("td", { "class": "r", title: (x.model ? "Largest of the joint models (" + TLA.grillage.MODEL_LABEL[x.model] + ")" : "Load-path method (whole-rig analysis not available)") + (x.hoist.added ? "; includes " + U.f("w", x.hoist.added, 1) + " added (" + S.rig.settings.addPercent + "%)" : "") }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) })),
@@ -5146,7 +5743,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
     loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
-    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
+    hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, supportName: supportName, setDead: setDead, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
       var rows = [["Truss", "At " + L, "Low hook " + W, "Hoist & Chain " + W, "Added % " + W, "Hinged joints high hook " + W, "Semi-rigid min high hook " + W, "Semi-rigid max high hook " + W, "Rigid joints high hook " + W, "High hook static " + W, "Governing", "Dynamic factor", "High hook dynamic " + W, "Capacity " + W, "Status"]];
@@ -5217,8 +5814,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function hoistLabel(q) { return P.hoistName(q) + " · " + U.f("speed", q.speed_fpm, 0); }
   function hoistSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
-    return S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
-      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; });
+    // 1.22.0: "dead hang" (wire rope, no hoist) is picked here too
+    var dead = /^(d|de|dea|dead|dead ?h.*|dh|rope|wire.*|gac)$/i.test(String(q).trim()) ? [{ value: { dead: true }, html: "Dead hang (wire rope, no hoist)", right: "set the rope in the inspector" }] : [];
+    return dead.concat(S.db().hoists.filter(function (x) { var n = hoistLabel(x).toLowerCase(), n2 = n.replace(/\s+/g, ""); return words.every(function (w) { return n.indexOf(w) >= 0 || n2.indexOf(w) >= 0; }); })
+      .slice(0, 40).map(function (x) { return { value: x, html: esc(P.hoistName(x)), right: x.capacity_lb < 999999 ? U.f("w", x.capacity_lb, 0) + " · " + U.f("speed", x.speed_fpm, 0) : "" }; }));
   }
   function trussTypeSource(q) {
     var words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
@@ -5361,7 +5960,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")" }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
       roCell(function (l, row) { return U.n("w", l.weight, 1) + (P.mirrorAt(l, row.truss) ? ' <span class="pill">×2</span>' : ""); }, { r: true, html: true }),
       { key: "mirror", label: "Mirror about CL", type: "check", get: function (l, row) { var m = P.mirrorAt(l, row.truss); return m ? "at " + m : ""; }, val: function (l) { return !!l.mirror; }, set: function (l, v) { l.mirror = !!v; } },
-      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; }))
+      Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; })),
+      { key: "cat", label: "Category", type: "select", options: TLA.rig.LOAD_CATS.map(function (c) { return [c[0], c[1]]; }), get: function (l) { var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === (l.cat || "other"); })[0]; var f = TLA.rig.loadFactor(l, S.rig.settings); return (c ? c[1] : "Other") + (f !== 1 ? " ×" + f : ""); }, raw: function (l) { return l.cat || "other"; },
+        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } }
     ];
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[6].label = "Total (" + U.unit("w") + ")";
     var rows = [];
@@ -5373,7 +5974,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       t.loads.forEach(function (l) { rows.push({ key: "L:" + l.id, obj: l, truss: t, sel: { truss: t.id, load: l.id }, del: function () { t.loads.splice(t.loads.indexOf(l), 1); } }); });
       rows.push({ key: "NL:" + t.id, kind: "new", truss: t, label: "+ load on " + t.name + " (start typing)", sel: { truss: t.id }, create: function () { var l = P.newLoad(t); return { key: "L:" + l.id, obj: l, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note." };
+    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category." };
   }
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
@@ -5386,6 +5987,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (r && r.clamped) alert(r.clamped + " load(s) were past the end of " + dst.name + " and were placed at its end.");
   }
 
+  /** Where a hoist hangs (1.22.0): the structure, or below another truss (type its name). */
+  function hangCell() {
+    var opts = [["", "structure"]].concat(S.rig.trusses.filter(function (t) { return !t.isBlock; }).map(function (t) { return [t.id, "below " + t.name]; }));
+    function label(v) { var o = opts.filter(function (x) { return x[0] === (v || ""); })[0]; return o ? o[1] : "structure"; }
+    return { key: "hang", label: "Hangs from", type: "select", options: opts, get: function (s) { return label(s.hangFrom); }, raw: function (s) { return s.hangFrom || ""; },
+      parse: function (q) {
+        q = String(q).trim().toLowerCase().replace(/^below\s+/, "");
+        if (!q || q === "structure" || q === "roof" || q === "grid") return "";
+        var o = opts.filter(function (x) { return x[0] === q || x[1].toLowerCase().replace(/^below\s+/, "") === q; })[0];
+        return o ? o[0] : undefined;
+      },
+      set: function (s, v, row) { s.hangFrom = v && v !== row.truss.id ? v : undefined; } };
+  }
+
   /* ---------------- step 3: hoists ---------------- */
   function hoists() {
     var len = function (row) { return row.truss.length; };
@@ -5394,11 +6009,15 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       roCell(function (s, row) { return row.truss.name; }, { cls: "mut" }),
       Object.assign({ key: "at" }, lenCell(function (s, row) { return S.measureDisplay(s, row.truss.length); }, function (s, v, row) { S.measureSet(s, v, row.truss.length); })),
       Object.assign({ key: "from", label: "From" }, fromCell(len)),
-      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
-        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { s.hoistId = x.id; } },
-      Object.assign({ key: "chain", label: "Chain (" + U.unit("len") + ")" }, lenCell(function (s) { return s.chainLength || 0; }, function (s, v) { s.chainLength = Math.max(0, v); })),
+      { key: "hoist", label: "Hoist", type: "ac", source: hoistSource, get: function (s) { if (s.dead) return P.supportName(s); var hd = P.hoistDb(s.hoistId); return hd ? String(hd.description).trim() + " " + hd.capacity_label : "-"; }, raw: function () { return ""; },
+        parse: function (q) { var hit = hoistSource(q)[0]; return hit ? hit.value : undefined; }, set: function (s, x) { if (x.dead) { P.setDead(s, true); return; } P.setDead(s, false); s.hoistId = x.id; } },
+      Object.assign({ key: "chain", label: "Chain / rope (" + U.unit("len") + ")" }, lenCell(function (s) { return (s.dead ? s.ropeLength : s.chainLength) || 0; }, function (s, v) { if (s.dead) s.ropeLength = Math.max(0, v); else s.chainLength = Math.max(0, v); })),
       Object.assign({ key: "dlf", label: "DLF" }, numCell(function (s) { return s.dlf; }, function (s, v) { s.dlf = v > 0 ? v : undefined; }, { blank: 0, ph: function (s) { var x = X(s); return "auto " + (x ? P.fmt(x.hoist.dynamicFactor, 3) : ""); } })),
-      Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1))
+      Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1)),
+      hangCell(),
+      // 1.22.0: designed level offset, inches (mm)
+      { key: "lvl", label: "Level (" + U.unit("inch") + ")", type: "num", r: true, get: function (s) { return Number(s.level) ? U.n("inch", s.level, 2) : ""; }, raw: function (s) { return Number(s.level) ? String(Math.round(U.v("inch", s.level) * 1000) / 1000) : ""; },
+        parse: function (q) { if (String(q).trim() === "") return 0; var v = parseFloat(q); return isFinite(v) ? U.back("inch", v) : undefined; }, set: function (s, v) { s.level = v ? v : undefined; } }
     ];
     if (st.cmp) {
       [["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
@@ -5411,6 +6030,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? U.n("w", x.hoist.dynamicLoad, 1) : "-"; }, { r: true }), { key: "hhd", label: "High hook dyn. (" + U.unit("w") + ")" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x && x.hoist.capacity < 999999 ? P.wlCell(x.hoist.staticLoad / x.hoist.capacity).outerHTML : "-"; }, { html: true }), { key: "wl", label: "Workload" }));
     cols.push(Object.assign(roCell(function (s) { var x = X(s); return x ? P.badge(x.hoist.status).outerHTML : "-"; }, { html: true }), { key: "st", label: "Status" }));
+    // 1.22.0: load-cell reading (blank = none) and how far it is from the calculation
+    cols.push({ key: "meas", label: "Measured (" + U.unit("w") + ")", type: "w", r: true, get: function (s) { return s.measured != null && s.measured !== "" ? U.n("w", s.measured, 0) : ""; }, raw: function (s) { return s.measured != null && s.measured !== "" ? String(Math.round(U.v("w", s.measured) * 10) / 10) : ""; },
+      parse: function (q) { if (String(q).trim() === "") return null; var v = parseFloat(String(q).replace(/,/g, "")); return isFinite(v) && v >= 0 ? U.back("w", v) : undefined; }, set: function (s, v) { if (v === null) delete s.measured; else s.measured = v; } });
+    cols.push(Object.assign(roCell(function (s, row) { var m = S.results.measured && S.results.measured.hoists[row.truss.id + ":" + s.id]; return m && m.diff !== null ? '<span class="' + (Math.abs(m.diff) > TLA.rig.MEAS_TOL ? "st w" : "mut") + '">' + TLA.rig.pctText(m.diff) + "</span>" : ""; }, { r: true, html: true }), { key: "mdiff", label: "vs calc." }));
     cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")";
     var rows = [];
     S.rig.trusses.forEach(function (t) {
@@ -5825,6 +6448,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       return { t: t, z: z, depth: project(m.x, m.y, z).d };
     }).sort(function (a, b) { return b.depth - a.depth; });
 
+    var dmax = S.ui.colorMode === "defl" && TLA.plan.deflMax ? TLA.plan.deflMax(results) : 0;
     var zById = {};
     items.forEach(function (it) { zById[it.t.id] = it.z; });
 
@@ -5877,6 +6501,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           });
         }
       }
+      // 1.22.0 deflection mode: the deflected shape above the truss, exaggerated so the largest sag in the rig is 3 ft
+      var dsh = S.ui.colorMode === "defl" && TLA.plan.deflShape ? TLA.plan.deflShape(res) : null;
+      if (dsh && dmax > 0) el("polyline", { points: dsh.map(function (p) { var q = TLA.rig.geometry.endPoint(t, p[0]), a3 = project(q.x, q.y, z + p[1] / dmax * 3); return a3.X.toFixed(1) + "," + a3.Y.toFixed(1); }).join(" "), "class": "defl" }, grp);
       var mid = TLA.rig.geometry.endPoint(t, t.length / 2), pm = project(mid.x, mid.y, z);
       if (S.ui.showLabels) { var lab = el("text", { x: pm.X, y: pm.Y - bodyW - 4, "class": "lbl name", "text-anchor": "middle" }, grp); lab.textContent = t.name; }
 
@@ -6208,7 +6835,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function Mf(x) { return U.f("mom", x, 0); }
   function pct(x) { return isFinite(x) ? fmt(x * 100, 1) + "%" : "over (no capacity)"; }
   function modelName(m) { return m === "load-path" ? "load-path method" : TLA.grillage.MODEL_LABEL[m] || m; }
-  function shortModel(m) { return m === "hinged" ? "Hinged" : m === "rigid" ? "Rigid" : /^semi/.test(m) ? "Semi " + m.slice(4) + " EI/L" : m; }
+  function shortModel(m) {
+    var d = /\+dyn$/.test(m); if (d) m = m.slice(0, -4);
+    return (m === "hinged" ? "Hinged" : m === "rigid" ? "Rigid" : /^semi/.test(m) ? "Semi " + m.slice(4) + " EI/L" : m) + (d ? ", hung dyn." : "");
+  }
 
   /** Which table row a span is read from, as limits.tableAt reads it: rounded up to the next whole foot, or whole
    * metre for a truss whose data is native metric. */
@@ -6268,7 +6898,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function calcs(title, lines, note) { return h("div", { "class": "calcs" }, title ? h("div", { "class": "calcs-h", text: title }) : null, lines, note ? h("div", { "class": "calcs-n", text: note }) : null); }
 
   /* ---- what the sheet needs from the results ---- */
-  function hoistEntry(s) { var list = S.db().hoists; return list.filter(function (q) { return q.id === s.hoistId; })[0] || list[0] || null; }
+  function hoistEntry(s) { return TLA.limits.supportEntry(s, S.db(), S.rig.settings); }
   function supportOf(t, id) { return (t.supports || []).filter(function (s) { return s.id === id; })[0]; }
   function trussEntry(t) { return t.custom || S.db().trusses.filter(function (x) { return x.id === t.trussId; })[0] || null; }
   function whereLoad(beam, x) {
@@ -6305,7 +6935,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 
     // hoist ids used throughout
     var hid = {};
-    r.hoists.forEach(function (x, i) { hid[x.truss + ":" + x.support] = "H" + (i + 1); });
+    var nH = 0, nD = 0;                                   // hoists H1, H2...; dead hangs DH1, DH2... (1.22.0)
+    r.hoists.forEach(function (x) { hid[x.truss + ":" + x.support] = x.hoist.dead ? "DH" + (++nD) : "H" + (++nH); });
     var byId = {}; rig.trusses.forEach(function (t) { byId[t.id] = t; });
     var lines = r.order.map(function (id) { return byId[id]; }).filter(function (t) { return t && !t.isBlock; });
     rig.trusses.forEach(function (t) { if (!t.isBlock && lines.indexOf(t) < 0) lines.push(t); });   // unsolved ones last
@@ -6358,8 +6989,30 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a whole-rig analysis: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
       grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
+      levelNote() ? h("li", { text: levelNote() }) : null,
+      allowNote() ? h("li", { text: allowNote() }) : null,
+      tot.hung ? h("li", { text: "Hoists hung below a truss (marked 'below' in section 4): the hoist's chain joins the two trusses, so the truss above (the carrier) sags with the load and the truss below shares load with its other hoists. The carrier carries the hung hoist's high hook load; the carrier - and every truss bolted to it - is also checked with the hung hoist's high hook DYNAMIC load as a point load (columns marked 'hung dyn.'), and the worse result is used. " +
+        (st.hungDynamic === false ? "Rig setting: the carrier's own hoists take the hung hoist's static load." : "The carrier's own hoists take the dynamic load too (rig setting, on by default).") + " Hung hoists are not added into the totals: their load reaches the structure through the carrier's hoists." }) : null,
       h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
+    /** Allowances (1.22.0): cable per length and load factors by category. */
+    function allowNote() {
+      var parts = [], cabT = rig.trusses.filter(function (t) { return TLA.rig.cableOf(t, st) > 0; });
+      if (cabT.length) parts.push("Cable allowance added to the UDL of " + (cabT.length === rig.trusses.filter(function (t) { return !t.isBlock; }).length ? "every truss" : cabT.map(function (t) { return t.name; }).join(", ")) +
+        (Number(st.cablePerFt) > 0 ? " (rig: " + U.f("wpl", st.cablePerFt, 2) + ")" : "") + ".");
+      var lf = st.loadFactors || {}, fs = TLA.rig.LOAD_CATS.filter(function (c) { return Number(lf[c[0]]) > 0 && Number(lf[c[0]]) !== 1; });
+      if (fs.length) parts.push("Load factors by category: " + fs.map(function (c) { return c[1] + " x " + lf[c[0]]; }).join(", ") + " - each load's weight is multiplied by its category's factor before any calculation (the weights in sections 6 and 7 include it).");
+      return parts.join(" ");
+    }
+    /** Hoist levels (1.22.0): designed offsets and the out-of-level tolerance. */
+    function levelNote() {
+      var offs = [];
+      r.hoists.forEach(function (x) { var s0 = supportOf(byId[x.truss], x.support); if (s0 && Number(s0.level)) offs.push(hid[x.truss + ":" + x.support] + " " + (s0.level > 0 ? "+" : "") + U.f("inch", s0.level, 2)); });
+      var tl = Number(st.levelTolerance) > 0 ? Number(st.levelTolerance) : 0;
+      if (!offs.length && !tl) return "";
+      return (offs.length ? "Designed hoist levels: every hoist at one level except " + offs.join(", ") + " (higher +, lower -); the whole-rig analysis solves the rig with those points moved. " : "") +
+        (tl ? "Out-of-level tolerance ±" + U.f("inch", tl, 2) + ": any hoist may be that far off its level, each on its own. Each hoist's check adds the worst it could see - the sum of what every hoist alone running " + U.f("inch", tl, 2) + " high or low does to it (4b, + Level)." : "");
+    }
     var fx = [
       ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
       ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
@@ -6401,29 +7054,38 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var headA = ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model"].concat(MODELS.map(function (m) { return [shortModel(m), "r"]; })).concat([["Low hook R used", "r"], "From"]);
       s4.appendChild(table("small", headA.map(function (c) { return typeof c === "string" ? c : c; }), r.hoists.map(function (x) {
         var e0 = hoistEntry(supportOf(byId[x.truss], x.support) || {}) || {};
-        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName), tdr(Ln(x.distance)), td(e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
+        var cells = [td(hid[x.truss + ":" + x.support], "b"), td(x.trussName + (x.hung && byId[x.hung] ? " (below " + byId[x.hung].name + ")" : "")), tdr(Ln(x.distance)), td(e0.dead ? "Dead hang, " + (e0.rope ? e0.rope.name : "WLL typed") : e0.description ? String(e0.description).trim() + " " + (e0.capacity_label || "") : "-", "nw")];
         MODELS.forEach(function (m) { var c = x.byModel && x.byModel[m]; cells.push(tdr(c ? Wn(c.reaction) + (c.slack ? " slack" : "") : "-", x.model === m ? "b" : "")); });
         cells.push(tdr(Wn(x.reaction), "b"), td(x.model ? shortModel(x.model) : "load path", "nw"));
         return h("tr", null, cells);
       })));
       s4.appendChild(para("4b. Hoist load (F4, F5). Chain = chain weight per " + U.unit("len") + " x chain length.", "cap"));
-      var sum = { r: 0, a: 0, hw: 0, ch: 0, hd: 0, s: 0, d: 0 };
+      var sum = { r: 0, a: 0, hw: 0, ch: 0, hd: 0, s: 0, d: 0 }, tl4 = r.hoists.some(function (x) { return x.level; });
       var rowsB = r.hoists.map(function (x) {
         var t = byId[x.truss], s = supportOf(t, x.support) || {}, e = hoistEntry(s) || {}, hx = x.hoist;
-        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, chain = perFt * (Number(s.chainLength) || 0), hw = Number(s.hardwareWeight) || 0;
-        var dlfSrc = Number(s.dlf) > 0 ? "typed" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
-        sum.r += hx.reaction; sum.a += hx.added || 0; sum.hw += body; sum.ch += chain; sum.hd += hw; sum.s += hx.staticLoad; sum.d += hx.dynamicLoad;
+        var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, cl = Number(e.dead ? s.ropeLength : s.chainLength) || 0, chain = perFt * cl, hw = Number(s.hardwareWeight) || 0;
+        var dlfSrc = Number(s.dlf) > 0 ? "typed" : e.dead ? "dead hang, static" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
+        if (!x.hung) { sum.r += hx.reaction; sum.a += hx.added || 0; sum.l = (sum.l || 0) + (x.level ? x.level.add : 0); sum.hw += body; sum.ch += chain; sum.hd += hw; sum.s += hx.staticLoad; sum.d += hx.dynamicLoad; }
         var cap = hx.capacity >= 999999 ? null : hx.capacity, bad = hx.status !== "Good";
         return h("tr", null, td(hid[x.truss + ":" + x.support], "b"),
-          tdr(Wn(hx.reaction)), tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
-          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(s.chainLength || 0, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
+          tdr(Wn(hx.reaction)), tl4 ? tdr(x.level ? Wn(x.level.add) : "-") : null, tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
+          tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(cl, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
           tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
-      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"], ["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"], rowsB,
-        h("tr", null, td("Total"), tdr(Wn(sum.r)), tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware.", "cap"));
+      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"]].concat(tl4 ? [["+ Level", "r"]] : []).concat([["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"]), rowsB,
+        h("tr", null, td("Total"), tdr(Wn(sum.r)), tl4 ? tdr(sum.l ? Wn(sum.l) : "-") : null, tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
+    }
+
+    // 1.22.0: load-cell readings against the calculation
+    var mss = r.measured;
+    if (mss && mss.any && r.hoists.length) {
+      s4.appendChild(para("4c. Measured loads (load cells reading the " + (mss.reads === "low" ? "low hook load" : "high hook static load") + ") against the calculation, per assembly; flagged past " + Math.round(mss.tol * 100) + "% of the total.", "cap"));
+      s4.appendChild(table("small", ["Assembly", ["Cells", "r"], ["Measured", "r"], ["Calculated", "r"], ["Difference", "r"]], mss.assemblies.map(function (a) {
+        return h("tr", null, td(a.names.join(", ")), tdr(a.n + " of " + a.of), tdr(Wn(a.measured)), tdr(Wn(a.calc)), td(a.diff === null ? "-" : TLA.rig.pctText(a.diff), a.over ? "fail" : "ok"));
+      })));
     }
 
     /* ---- 5. equilibrium ---- */
@@ -6432,11 +7094,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (grill && r.compat && r.compat.ok) {
       eqRows.push(h("tr", null, td("Weight in the whole-rig model"), tdr(W(r.compat.load, 1)), td(Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "agrees" : "DIFFERS", Math.abs(r.compat.load - tot.applied) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       MODELS.forEach(function (m) {
-        var sumR = r.hoists.reduce(function (a, x) { return a + (x.byModel && x.byModel[m] ? x.byModel[m].reaction : 0); }, 0), err = r.compat[m] ? r.compat[m].equilibriumError : NaN;
+        var sumR = r.hoists.reduce(function (a, x) { return a + (!x.hung && x.byModel && x.byModel[m] ? x.byModel[m].reaction : 0); }, 0), err = r.compat[m] ? r.compat[m].equilibriumError : NaN;
         eqRows.push(h("tr", null, td("Sum of hoist reactions, " + modelName(m)), tdr(W(sumR, 1)), td("out of balance by " + W(err, 3), Math.abs(err) <= 0.5 + 1e-6 * r.compat.load ? "ok" : "fail")));
       });
     }
-    var lpSum = r.hoists.reduce(function (a, x) { return a + x.reaction; }, 0);
+    var lpSum = r.hoists.reduce(function (a, x) { return a + (x.hung ? 0 : x.reaction); }, 0);
     if (!grill) eqRows.push(h("tr", null, td("Sum of hoist reactions, load-path method"), tdr(W(lpSum, 1)), td("difference " + W(lpSum - tot.applied, 3), Math.abs(lpSum - tot.applied) <= 0.5 ? "ok" : "warn")));
     s5.appendChild(table("kv wide", null, eqRows));
     s5.appendChild(para("Every model must carry the whole weight: the hoist reactions of each joint model add up to the weight carried. Each truss below also shows its own balance (loads = reactions).", "cap"));
@@ -6523,7 +7185,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       ["Truss", (e.manufacturer || "Custom") + " " + String(e.description || "").trim() + (e.source ? " (" + (e.source === "MFG" ? "manufacturer data" : e.source === "TLA" ? "Truss Load Analyzer workbook" : e.source === "User" ? "custom entry" : e.source) + ")" : "")],
       ["Data source", src.replace(/^Source: /, "") || "-"],
       ["Self weight", t.weightless ? "not counted (weightless)" : U.f("wpl", e.weight_per_ft_lb, 2) + " x " + Lf(beam.length, 3) + " = " + W(beam.wSelf * beam.length, 1)],
-      ["UDL", Number(t.wallWeight) ? W(t.wallWeight, 1) + " over the whole line = " + U.f("wpl", beam.wDist, 2) : "none"],
+      ["UDL", (function () {
+        var cab = TLA.rig.cableOf(t, S.rig.settings), typed = Number(t.wallWeight) || 0, tot = typed + cab * t.length;
+        if (!tot) return "none";
+        return (cab ? (typed ? W(typed, 1) + " typed + " : "") + "cable " + U.f("wpl", cab, 2) + " x " + Ln(t.length, 2) + " = " + W(tot, 1) : W(typed, 1)) + " over the whole line = " + U.f("wpl", beam.wDist, 2);
+      })()],
       ["Line length", Lf(t.length, 3) + (t.blocksAdded ? " (" + Lf(t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss + " + Lf(t.blocksAdded, 3) + " corner blocks)" : "")],
       ["Maximum span / cantilever", Lf(lim.maxSpan, 2) + " / " + Lf(lim.maxCantilever, 2) + " (= max span / 4)"],
       ["Repetitive-use factor k", fmt(k, 3) + " (" + derateWhy(e, k) + ")"]
@@ -6795,6 +7461,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li><b>Hoists and level sensitivity (since 1.4.0)</b>: hoists are rigid supports at one level unless you give a hoist stiffness (lb per inch of stretch, for the hoist and its chain) in Rig settings. A hoist's panel shows how much a hoist's load changes if it runs 1/4 in high (or low) - on short, stiff spans that can be hundreds of pounds, so a hoist whose level sensitivity passes 10% of its capacity is flagged: level the hoists carefully, or check with a hoist stiffness.</li>",
     "<li><b>Cross-check</b>: <i>Export whole-rig model</i> (Export menu) saves the rig's whole-rig model with this app's results; <code>python tools/pynite_check.py file</code> rebuilds it in PyNite, the 3D frame engine behind CalcForge, and compares hoist reactions and member forces (without shear deformation, which PyNite doesn't model). If the whole-rig analysis can't run (a load-path loop, or a very large rig) the app says so and falls back to the load-path method.</li>",
     "<li><b>Moment and shear check</b>: the span and cantilever checks compare each span on its own with the tables. A continuous truss also bends over its supports (hogging) from loads in the next span, and a heavy load right beside a support puts most of its weight into shear. So the bending moment and shear are also worked out all along the truss (shown under its diagram) and compared with an allowable moment and shear <b>estimated from the manufacturer's tables</b>: every table entry is a load the maker says the truss carries, so it demonstrates a moment (point load x span / 4, or uniform load x span / 8) and a shear (half the load). The allowable moment is the largest the tables demonstrate - the smaller of the point-load and uniform-load figures - and the allowable shear the largest shear any entry demonstrates (a safe-side estimate), both with the repetitive-use factor. The tables are loads on top of the truss's own weight, so by default (as Delbert Hall's Stress Table Creator does) each entry's moment and shear also include the self weight (+ w x span^2 / 8 and + w x span / 2), and the moments and shears checked include it too; the option in Rig settings leaves self weight out of both. These are estimates, not published values; use the maker's published moment and shear where you have them.</li>",
+    "<li><b>Hoists hung below a truss (since 1.22.0)</b>: set a hoist's <i>Hangs from</i> to another truss when it hangs from that truss instead of the structure (a truss flown under a truss). The hoist hooks on where the plan puts it; its chain joins the two trusses, so the upper truss (the carrier) sags with the load and the lower truss shares load with its other hoists. The carrier carries the hung hoist's high hook load (low hook + Add % + hoist, chain and hardware weight) and is checked with its high hook <i>dynamic</i> load; so are the hoists holding the carrier up, unless Rig settings turn that off. The plan draws a hung hoist with a dashed ring; the rig's total high hook load counts only hoists to the structure.</li>" +
+    "<li><b>Dead hangs (since 1.22.0)</b>: a support that is just wire rope (and shackles) from the truss to the hang point, no hoist - set a hoist's <i>Support</i> to Dead hang (or type \"dead\" in the grid's Hoist cell). Pick the rope (7x19 galvanized aircraft cable or 6x19 IWRC, typical catalogue breaking strengths) and its length; its WLL is the breaking strength / the design factor in Rig settings (7, 8 or 10:1, default 10:1), capped by the assembly WLL you type (the weakest shackle or fitting). No hoist body, no chain: the high hook load is the low hook + Add % + rope and hardware weight, and it is static (dynamic factor 1.0 unless typed). It is rigid like the hoists; when the rig's hoists are springs, the rope is a spring EA/L (much stiffer than a chain hoist, so it draws load). Shown as a filled dot on the plan and DH1, DH2... on the calc sheet.</li>" +
+    "<li><b>Hoist levels (since 1.22.0)</b>: two separate things. A <i>Level offset</i> on a hoist (inches, + higher) is a designed trim - a truss hung raked or at a different height on purpose, or a dead hang whose length is fixed: the whole-rig analysis solves the rig with that point moved, and the loads shift accordingly. The <i>out-of-level tolerance</i> in Rig settings (e.g. ±1/4\") is unintended error: any hoist may end up that far off, each on its own, and every hoist's check carries the worst it could see (the sum of what each hoist alone does to it); the low side is reported, and a hoist that could unload completely is warned about. Both need the whole-rig analysis.</li>" +
+    "<li><b>Check rig (since 1.22.0)</b>: on every change the app looks for input mistakes that the calculation would otherwise take at face value - a load with no weight, two hoists at the same point, a bolted assembly with fewer than 3 hoists or all of them in one line, bolted ends that don't meet on the plan, trusses that cross with no joint (a note: they may run one above the other), a hoist with no model. They are listed in the rig's panel (Check rig) and with the warnings; click one to select it. The truss panel's <i>Connected</i> button dims everything not joined to that truss, to spot a part that is not connected. Nothing here changes a result.</li>" +
+    "<li><b>Allowances (since 1.22.0)</b>: weight the drawing doesn't show. A <i>cable allowance</i> per length (Rig settings, or a truss's own in its panel; 0 = none) is added to each truss's UDL. <i>Load factors</i> by category (lighting, audio, video, scenic, rigging hardware, other) multiply each load's weight - set a load's category in its panel or the Loads grid; fixtures from the library are lighting. Everything is calculated with the factored weights; the loads keep the weights you typed. (Eurocode partial factors are not used: the manufacturers' tables are allowable loads.)</li>" +
+    "<li><b>Measured vs calculated (since 1.22.0)</b>: type what each load cell reads in the hoist grid's Measured column (or the hoist's panel). Rig settings says where the cells hang - above the hoist (compared with the high hook static load) or between hoist and truss (the low hook load). The rig panel totals each assembly of joined trusses and flags it past 5%; a single hoist on a rig that shares load can legitimately differ more (level, stiffness). Readings never change a result.</li>" +
     "<li><b>Slack hoists</b>: a chain can only pull. If the loads would push a hoist up (a negative reaction - typically a hoist next to a heavily loaded span or cantilever), its chain goes slack: the hoist is shown as <b>Slack</b>, carries only its own weight, and the truss is solved again without it, so the other hoists and the span checks see the real, longer spans. If that leaves a truss with a single support point, it would tip: it is flagged <b>UNSTABLE</b> and its numbers must not be used.</li>",
     "<li><b>Units</b>: the Units setting in Rig settings shows and takes everything in feet and pounds or in metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm). Only the display changes: the rig is stored and solved the same way, so every result and every truss or hoist choice stays exactly as it was. Trusses whose manufacturer data is metric are checked against their own metric table in either mode.</li>",
     "<li>Loads are based on ANSI repetitive-use rules: capacities are multiplied by 0.85 unless the truss data is marked as already including the repetitive-use factor (the generic <i>Universal</i> trusses from EOT 2.4 use 0.75).</li>",
@@ -6804,6 +7476,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li>Truss self weight is spread uniformly over the whole length, including cantilevers. Hoist and chain weight are added after the analysis.</li>",
     "<li>Mirror loads: a load can be mirrored about the truss centerline; the twin follows edits to the original.</li>",
     "<li><b>Deflection (since 1.18.0)</b>: each truss's deflected shape comes from the whole-rig analysis (exact for the beam model between its nodes: bending plus shear, with the stiffness estimated from the tables, so it is an estimate). Each span's sag is measured from the straight line between its two supports - so a carrier truss sagging under a bolted truss, or a hoist stretching, is not counted against the span - and compared with the maker's published limit (Tomcat L/100, the JTE sheets that state L/160) or, where the maker publishes none, the rig default in Rig settings (L/160). Past a maker's limit the truss is Overloaded (the maker's allowable loads are set by that limit); past the rig default it is a warning. Cantilever tips are shown, not checked (the makers' limits are for simple spans).</li>",
+    "<li><b>Deflection view (since 1.22.0)</b>: the <i>Deflection</i> colour mode colours each truss by its worst span's sag against its limit, and draws its deflected shape from the whole-rig analysis, exaggerated with one scale for the whole rig - beside the truss on the plan (a sag is drawn to its right-hand side) and above it in 3D. Hover a shape on the plan for its largest sag. It also shows a truss that sags with its carrier or a springy hoist, and a part that is not connected.</li>" +
     "<li><b>Hot spots (since 1.18.0)</b>: a colour mode that shades each truss along its length by its local workload - the worst of its span or cantilever table check and the bending moment and shear against their allowables at each point - to show where a truss is loaded most. The Checks section of a truss shows the same strip with the peak, the support reactions and the deflected shape.</li>",
     "<li><b>Calc sheet</b>: a printable record of the calculation for a second person to check - every input, the formulas with the numbers put in, the table row each capacity is read from, each check, each hoist's load worked out part by part, and the equilibrium self-checks - with signature boxes for the person who prepared it and the person who checked it. Print it or save it as PDF.</li></ul>",
     "<h3>Version history</h3><ul>" + TLA.CHANGES.map(function (c) { return "<li><b>" + c[0] + "</b> (" + c[1] + ", " + c[2] + "): " + c[3] + "</li>"; }).join("") + "</ul>",
@@ -6825,9 +7498,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         '<div style="display:flex;justify-content:space-between;width:170px;font:10px var(--mono);color:var(--muted)"><span>0</span><span>50</span><span>80</span><span>100</span><span>150%</span></div><div class="mini">Each span&#39;s table check follows its bending moment, so the colour peaks under the loads. A glow marks the peak of any truss at 80%+.</div>';
       return;
     }
-    items = mode === "status" ? [["ok", "OK"], ["fail", "Overloaded or unstable"]] : [["ok", (mode === "hoist" ? "Hoist workload" : "Workload") + " low (under 80%)"], ["warn", "High (80-100%)"], ["fail", "Overloaded (over 100%)"]];
+    items = mode === "defl" ? [["ok", "Sag under 80% of its limit"], ["warn", "80%+ of the limit, or past the rig default"], ["fail", "Past the maker's published limit"], ["neutral", "No span to check"]]
+      : mode === "status" ? [["ok", "OK"], ["fail", "Overloaded or unstable"]] : [["ok", (mode === "hoist" ? "Hoist workload" : "Workload") + " low (under 80%)"], ["warn", "High (80-100%)"], ["fail", "Overloaded (over 100%)"]];
     $("legend").innerHTML = items.map(function (i) { return '<div><i style="background:var(--' + i[0] + ')"></i>' + i[1] + "</div>"; }).join("") +
-      '<div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><path d="M0 7H14M7 0V14" stroke="var(--hoist)" stroke-width="1.6"/><circle cx="7" cy="7" r="4" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8"/><circle cx="7" cy="7" r="1.3" fill="var(--hoist)"/></svg>Hoist: high hook static, <em>dynamic</em> (amber = high, red = overloaded)</div><div><i style="background:var(--ink);transform:rotate(45deg) scale(.8)"></i>Bolted connection</div>';
+      '<div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><path d="M0 7H14M7 0V14" stroke="var(--hoist)" stroke-width="1.6"/><circle cx="7" cy="7" r="4" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8"/><circle cx="7" cy="7" r="1.3" fill="var(--hoist)"/></svg>Hoist: high hook static, <em>dynamic</em> (amber = high, red = overloaded)</div><div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><circle cx="7" cy="7" r="4.5" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8" stroke-dasharray="3 2"/></svg>Dashed: hoist hung below a truss</div><div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><circle cx="7" cy="7" r="4.5" fill="var(--hoist)"/></svg>Dead hang (wire rope, no hoist)</div><div><i style="background:var(--ink);transform:rotate(45deg) scale(.8)"></i>Bolted connection</div>';
   }
 
   function counts() {
