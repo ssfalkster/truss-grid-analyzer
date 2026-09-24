@@ -65,27 +65,27 @@ def jte(family, fits, name, code, kind, ways, lb, path, notes=""):
 
 
 g = "General Purpose 12 x 12"
-p = "aa/general-purpose-truss-12-x-12/corners-(1)/"
+p = "aa/general-purpose-truss-12-%C3%97-12/corners-(1)/"
 jte(g, "12x12", "2-Way Corner Block", "B4705", "corner", 2, 15, p + "2-way-corner-block")
 jte(g, "12x12", "3-Way Corner Block", "B4705A", "corner", 3, 17.5, p + "3-way-corner-block")
 jte(g, "12x12", "4-Way Corner Block", "B4706", "corner", 4, 19.5, p + "4-way-corner-block")
 jte(g, "12x12", "6-Way Corner Block", "B4707", "corner", 6, 26.5, p + "6-way-corner-block")
 jte(g, "12x12", "Flat Plate Hinge Section", "B4708", "hinge", 2, 14, p + "flat-plate-hinge-section")
-jte("General Purpose 18 x 12", "18x12", "4-Way Corner Block", "B4608", "corner", 4, 22, "aa/general-purpose-truss-18-x-12/corners/4-way-corner-block")
+jte("General Purpose 18 x 12", "18x12", "4-Way Corner Block", "B4608", "corner", 4, 22, "aa/general-purpose-truss-18-%C3%97-12/corners/4-way-corner-block")
 g = "General Purpose 15 x 15"
-p = "aa/general-purpose-truss-15-x-15/corners/"
+p = "aa/general-purpose-truss-15-%C3%97-15/corners/"
 jte(g, "15x15", "2-Way Corner Block", "B1502", "corner", 2, 18.5, p + "2-way-corner-block")
 jte(g, "15x15", "3-Way Corner Block", "B1503", "corner", 3, 21, p + "3-way-corner-block")
 jte(g, "15x15", "4-Way Corner Block", "B1504", "corner", 4, 24, p + "4-way-corner-block")
 jte(g, "15x15", "6-Way Corner Block", "B1506", "corner", 6, 28.5, p + "6-way-corner-block")
 jte(g, "15x15", "Flat Plate Hinge Section", "B1507", "hinge", 2, 20, p + "flat-plate-hinge-section")
 g = "General Purpose 20.5 x 20.5"
-p = "aa/general-purpose-20-5-x-20-5/corners/"
+p = "aa/general-purpose-20-5-%C3%97-20-5/corners/"
 jte(g, "20.5x20.5", "4-Way Corner Block", "B4407", "corner", 4, 37, p + "4-way-corner-block")
 jte(g, "20.5x20.5", "6-Way Corner Block", "B4408", "corner", 6, 42, p + "6-way-corner-block")
-jte(g, "20.5x20.5", "Flat Pivot Section 0-180 deg", "B4411", "pivot", 2, 37, p + "flat-pivot-section-0-180")
-jte(g, "20.5x20.5", "Universal Pivot Section 0-90 deg", "B4410", "pivot", 2, 42, p + "universal-pivot-section-0-90")
-jte(g, "20.5x20.5", "Universal Pivot Section 0-270 deg", "B4409", "pivot", 2, 43, p + "universal-pivot-section-0-270")
+jte(g, "20.5x20.5", "Flat Pivot Section 0-180 deg", "B4411", "pivot", 2, 37, p + "flat-pivot-section-0-180%C2%B0")
+jte(g, "20.5x20.5", "Universal Pivot Section 0-90 deg", "B4410", "pivot", 2, 42, p + "universal-pivot-section-0-90%C2%B0")
+jte(g, "20.5x20.5", "Universal Pivot Section 0-270 deg", "B4409", "pivot", 2, 43, p + "universal-pivot-section-0-270%C2%B0")
 g = "General Purpose 12 Triangle"
 p = "aa/general-purpose-12-triangle/corners/"
 jte(g, "12tri", "3-Way Corner Block", "B9003", "corner", 3, 18, p + "3-way-corner-block")
@@ -101,22 +101,22 @@ jte(g, "20.5tri", "Flat Pivot Section", "B4508", "pivot", 2, 39.5, p + "flat-piv
 g = "Pre-Rig Truss"
 p = "aa/pre-rig-truss/corners/"
 jte(g, "prerig", "4-Way Corner Block", "B4301", "corner", 4, 61.75, p + "4-way-corner-block")
-jte(g, "prerig", "Universal Pivot Section 0-90 deg", "B4303", "pivot", 2, 59.5, p + "universal-pivot-section-0-90")
-jte(g, "prerig", "Universal Pivot Section 0-270 deg", "B4302", "pivot", 2, 59.5, p + "universal-pivot-section-0-270")
+jte(g, "prerig", "Universal Pivot Section 0-90 deg", "B4303", "pivot", 2, 59.5, p + "universal-pivot-section-0-90%C2%B0")
+jte(g, "prerig", "Universal Pivot Section 0-270 deg", "B4302", "pivot", 2, 59.5, p + "universal-pivot-section-0-270%C2%B0")
 g = "SuperTruss 12 x 12"
-p = "super-truss/supertruss-12-x-12/"
+p = "super-truss/supertruss-12-%C3%97-12/"
 jte(g, "12x12", "90 deg Corner Gate", "B1201", "gate", 2, 8, p, "corner gate (bolt-on)")
 jte(g, "12x12", "3-Way Corner Gate", "B1204A", "gate", 3, 8, p)
 jte(g, "12x12", "Corner Plate", "B1208", "hinge", 2, 4, p)
 g = "SuperTruss 15 x 15"
-jte(g, "15x15", "90 deg Corner Gate", "", "gate", 2, None, "super-truss/supertruss-15-x-15/", "weight not published on the product page")
-jte(g, "15x15", "3-Way / 120 deg Gate", "", "gate", 3, None, "super-truss/supertruss-15-x-15/", "weight not published on the product page")
+jte(g, "15x15", "90 deg Corner Gate", "", "gate", 2, None, "super-truss/supertruss-15-%C3%97-15/", "weight not published on the product page")
+jte(g, "15x15", "3-Way / 120 deg Gate", "", "gate", 3, None, "super-truss/supertruss-15-%C3%97-15/", "weight not published on the product page")
 g = "SuperTruss 18 x 12"
-jte(g, "18x12", "90 deg Corner Gate", "", "gate", 2, None, "super-truss/supertruss-18-x-12/", "weight not published on the product page")
-jte(g, "18x12", "3-Way Corner Gate", "", "gate", 3, None, "super-truss/supertruss-18-x-12/", "weight not published on the product page")
+jte(g, "18x12", "90 deg Corner Gate", "", "gate", 2, None, "super-truss/supertruss-18-%C3%97-12/", "weight not published on the product page")
+jte(g, "18x12", "3-Way Corner Gate", "", "gate", 3, None, "super-truss/supertruss-18-%C3%97-12/", "weight not published on the product page")
 g = "SuperTruss 20.5 x 30"
-jte(g, "20.5x30", "3-Way Gate", "B2904", "gate", 3, 17, "super-truss/supertruss-20-5-x-30/")
-jte(g, "20.5x30", "3-Way Gate with lifting point", "B2905", "gate", 3, 18, "super-truss/supertruss-20-5-x-30/")
+jte(g, "20.5x30", "3-Way Gate", "B2904", "gate", 3, 17, "super-truss/supertruss-20-5-%C3%97-30/")
+jte(g, "20.5x30", "3-Way Gate with lifting point", "B2905", "gate", 3, 18, "super-truss/supertruss-20-5-%C3%97-30/")
 g = "Pre-Rig SuperTruss"
 p = "super-truss/pre-rig-supertruss/"
 jte(g, "prerig", "60 deg Corner Gate", "B1400", "gate", 2, 36, p)
