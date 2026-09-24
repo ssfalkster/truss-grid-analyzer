@@ -245,6 +245,7 @@
     });
 
     mfgCheck(rig, db, results, settings).forEach(function (w) { warnings.push(w); });
+    checkRig(rig, db).forEach(function (w) { warnings.push(w); });
     var bolts = boltFamilies(rig, db);
     bolts.forEach(function (b) { warnings.push({ truss: b.truss, kind: "bolt", level: b.level === "warn" ? "bolt" : "note", message: b.message }); });
 
@@ -253,6 +254,108 @@
     totals.hoistReaction = hoistReaction;
 
     return { order: order, layers: layer, trusses: results, hoists: hoists, totals: totals, warnings: warnings, cycles: cycles, unsolved: unsolved, slack: slackSet, unstable: unstable, bolts: bolts };
+  }
+
+  /* ------------------------------------------------------------------ check rig (1.22.0, competitor list item 5)
+   * Input mistakes the solve would take at face value (Braceworks / Production Assist run a list like this before
+   * solving): loads with no weight, two hoists at one point, an assembly of bolted trusses with too few hoists or all
+   * of them in one line, trusses that cross on the plan with no joint, bolted ends that don't meet on the plan, and
+   * hoists with no model. Each item: { kind: "check", level: "check" (a warning) | "note", truss, support?, load?,
+   * message }. Nothing here changes a result. */
+  var SAME_SPOT = 2 / 12;       // ft: two hoists closer than 2" on the plan are "at the same point"
+  function checkRig(rig, db) {
+    var out = [], byId = {}, G = { endPoint: endPoint, project: project, crossing: crossing };
+    rig.trusses.forEach(function (t) { byId[t.id] = t; });
+    function hname(t, s) { return t.name + " " + (s.name || (s.dead ? "dead hang" : "hoist")) + " at " + (Math.round((Number(s.distance) || 0) * 10) / 10) + " ft"; }
+    function add(level, t, msg, extra) { out.push(Object.assign({ kind: "check", level: level, truss: t ? t.id : undefined, message: msg }, extra || {})); }
+    // loads with no weight
+    rig.trusses.forEach(function (t) {
+      (t.loads || []).forEach(function (l) {
+        if (!(Number(l.weight) > 0)) add("check", t, t.name + ": the load" + (l.note ? " '" + l.note + "'" : "") + " at " + (Math.round((Number(l.distance) || 0) * 10) / 10) + " ft has no weight - enter it, or delete the load.", { load: l.id });
+      });
+    });
+    // hoists at the same point, on one truss or across trusses (plan position)
+    var pts = [];
+    rig.trusses.forEach(function (t) { (t.supports || []).forEach(function (s) { if (s.kind === "hoist") pts.push({ t: t, s: s, p: endPoint(t, Number(s.distance) || 0) }); }); });
+    for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
+      var a = pts[i], b = pts[j];
+      if (Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y) < SAME_SPOT && !(a.s.hangFrom === b.t.id || b.s.hangFrom === a.t.id))
+        add("check", a.t, hname(a.t, a.s) + " and " + hname(b.t, b.s) + " are at the same point on the plan - they split its load between them. Is one of them a duplicate?", { support: a.s.id });
+    }
+    // assemblies of bolted trusses (and the blocks in them): at least 3 hoists, not all in one line
+    var parent = {};
+    function find(x) { while (parent[x] !== x) x = parent[x] = parent[parent[x]]; return x; }
+    rig.trusses.forEach(function (t) { parent[t.id] = t.id; });
+    rig.trusses.forEach(function (t) {
+      if (t.isBlock && byId[t.host]) parent[find(t.id)] = find(t.host);
+      (t.supports || []).forEach(function (s) { if (s.kind === "truss" && byId[s.onTruss]) parent[find(t.id)] = find(s.onTruss); });
+    });
+    var groups = {};
+    rig.trusses.forEach(function (t) { var r = find(t.id); (groups[r] = groups[r] || []).push(t); });
+    Object.keys(groups).forEach(function (k) {
+      var ts = groups[k], lines = ts.filter(function (t) { return !t.isBlock; });
+      if (lines.length < 2) return;
+      var hp = [];
+      ts.forEach(function (t) { (t.supports || []).forEach(function (s) { if (s.kind === "hoist") hp.push(t.isBlock ? endPoint(t, t.length / 2) : endPoint(t, Number(s.distance) || 0)); }); });
+      var names = lines.map(function (t) { return t.name; }).join(", ");
+      if (!hp.length) return;                                // "not held up by any hoist" is reported by the solve
+      var inLine = hp.length < 3 || hp.every(function (p) {
+        var p0 = hp[0], far = hp.reduce(function (m, q) { return Math.hypot(q.x - p0.x, q.y - p0.y) > Math.hypot(m.x - p0.x, m.y - p0.y) ? q : m; }, p0);
+        var L = Math.hypot(far.x - p0.x, far.y - p0.y);
+        return L < 1e-6 || Math.abs((far.x - p0.x) * (p.y - p0.y) - (far.y - p0.y) * (p.x - p0.x)) / L < 0.25;
+      });
+      if (inLine) add("check", lines[0], "Bolted assembly " + names + ": " + (hp.length < 3 ? "only " + hp.length + " hoist" + (hp.length === 1 ? "" : "s") : "all its hoists are in one line") + " - a frame needs at least 3 hoists that are not in a line, or it can tip about the line of its hoists.");
+    });
+    // trusses crossing on the plan with no joint between them
+    var joined = {};
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        var o = s.kind === "truss" ? byId[s.onTruss] : s.kind === "hoist" && s.hangFrom ? byId[s.hangFrom] : null; if (!o) return;
+        var A = t.isBlock ? byId[t.host] || t : t, B = o.isBlock ? byId[o.host] || o : o;
+        joined[A.id + "|" + B.id] = joined[B.id + "|" + A.id] = true;
+      });
+    });
+    var lines2 = rig.trusses.filter(function (t) { return !t.isBlock; });
+    for (i = 0; i < lines2.length; i++) for (j = i + 1; j < lines2.length; j++) {
+      var u = lines2[i], v = lines2[j], c = crossing(u, v);
+      if (!c || joined[u.id + "|" + v.id]) continue;
+      var m = 0.05;
+      if (c.onA > m && c.onA < u.length - m && c.onB > m && c.onB < v.length - m)
+        add("note", u, u.name + " and " + v.name + " cross on the plan with no joint between them. If they are joined there, bolt or stack them; if one runs above the other with nothing between, ignore this.");
+    }
+    // bolted connections whose ends don't meet on the plan
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "truss" || t.isBlock) return;
+        var o = byId[s.onTruss]; if (!o) return;
+        var p = endPoint(t, Number(s.distance) || 0), q = endPoint(o, Number(s.onDistance) || 0), off = Math.hypot(p.x - q.x, p.y - q.y);
+        if (off > (o.isBlock ? 1.6 : 0.25)) add("check", t, t.name + ": bolted to " + o.name + " at a point " + (Math.round(off * 12)) + " in away from it on the plan - check the positions (the solve joins them anyway).", { support: s.id });
+      });
+    });
+    // hoists with no hoist model (the "None" entry: no weight, no capacity)
+    rig.trusses.forEach(function (t) {
+      (t.supports || []).forEach(function (s) {
+        if (s.kind !== "hoist" || s.dead) return;
+        var e = dbHoist(s.hoistId, db);
+        if (e && Number(e.capacity_lb) >= 999999) add("note", t, hname(t, s) + ": no hoist model - its load is not checked against a capacity.", { support: s.id });
+      });
+    });
+    return out;
+  }
+
+  /** Everything joined to truss `id` (1.22.0): bolted or stacked in either direction, corner blocks with their host,
+   * and trusses hung on a hoist below another. { id: true, ... } */
+  function assembly(rig, id) {
+    var adj = {}, byId = {};
+    rig.trusses.forEach(function (t) { byId[t.id] = t; adj[t.id] = []; });
+    function link(a, b) { if (adj[a] && adj[b]) { adj[a].push(b); adj[b].push(a); } }
+    rig.trusses.forEach(function (t) {
+      if (t.isBlock && t.host) link(t.id, t.host);
+      (t.supports || []).forEach(function (s) { if (s.kind === "truss") link(t.id, s.onTruss); else if (s.hangFrom) link(t.id, s.hangFrom); });
+    });
+    var seen = {}, q = [id]; seen[id] = true;
+    while (q.length) (adj[q.shift()] || []).forEach(function (n) { if (!seen[n]) { seen[n] = true; q.push(n); } });
+    return seen;
   }
 
   /** Totals over the hoists that hang from the structure (a hoist hung below a truss is inside the rig: its load
@@ -552,5 +655,5 @@
     return { reaction: target.reaction, hoistChain: target.hoist.hoistChain, staticLoad: target.hoist.staticLoad, parts: parts };
   }
 
-  TLA.rig = { hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
+  TLA.rig = { assembly: assembly, checkRig: checkRig, hangPoint: hangPoint, sumHoists: sumHoists, boltFamilies: boltFamilies, sectionIn: sectionIn, widthIn: widthIn, widthFt: widthFt, solve: solve, attribution: attribution, blockWeight: blockWeight, geometry: { endPoint: endPoint, project: project, crossing: crossing } };
 })(typeof globalThis !== "undefined" ? globalThis : window);

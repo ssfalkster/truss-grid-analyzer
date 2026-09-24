@@ -206,4 +206,34 @@
     eq(/Designed hoist levels/.test(text), true, "offsets listed");
     eq(/\+ Level/.test(text), true, "allowance column");
   });
+
+  function checks() { return S.results.warnings.filter(function (w) { return w.kind === "check"; }); }
+  add("check rig: the example box is clean; each input mistake is listed once, and changes no result", function () {
+    S.newRig(); TLA.samples.box(S); S.commit();
+    eq(checks().length, 0, "example box: nothing");
+    var before = JSON.stringify(S.results.hoists.map(function (x) { return x.hoist.staticLoad; }));
+    var west = S.rig.trusses.filter(function (t) { return t.name === "West"; })[0];
+    west.loads.push({ id: S.newId("l"), distance: 4, weight: 0, note: "spare" });
+    var dup = JSON.parse(JSON.stringify(west.supports.filter(function (s) { return s.kind === "hoist"; })[0])); dup.id = S.newId("s"); west.supports.push(dup);
+    S.commit();
+    var c = checks();
+    eq(c.filter(function (w) { return /no weight/.test(w.message); }).length, 1, "zero-weight load");
+    eq(c.filter(function (w) { return /same point/.test(w.message); }).length, 1, "duplicate hoist");
+    west.supports.pop(); west.loads.pop(); S.commit();
+    eq(JSON.stringify(S.results.hoists.map(function (x) { return x.hoist.staticLoad; })), before, "back to the same results");
+  });
+
+  add("check rig: a bolted frame with its hoists in one line; trusses crossing with no joint; bolted ends apart", function () {
+    S.newRig();
+    var a = S.addTruss({ name: "A", x: 0, y: 0, angle: 0, length: 20, hoists: [2, 18] });
+    var b = S.addTruss({ name: "B", x: 10, y: -5, angle: 90, length: 10, hoists: [] });
+    S.commit();
+    eq(checks().some(function (w) { return /A and B cross/.test(w.message) && w.level === "note"; }), true, "crossing without a joint");
+    b.x = 10; b.y = 0; b.length = 10; b.supports.push({ id: S.newId("s"), kind: "truss", distance: 0, onTruss: a.id, onDistance: 10, hardwareWeight: 0 });
+    S.commit();
+    eq(checks().some(function (w) { return /hoists are in one line|only 2 hoists/.test(w.message); }), true, "frame on 2 hoists");
+    b.supports[0].onDistance = 14; S.commit();
+    eq(checks().some(function (w) { return /in away from it on the plan/.test(w.message); }), true, "bolted ends don't meet");
+    eq(TLA.rig.assembly(S.rig, b.id)[a.id], true, "assembly: B is joined to A");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

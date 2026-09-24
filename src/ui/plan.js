@@ -102,6 +102,7 @@
 
     var hl = null;
     if (S.sel.support && S.sel.truss) hl = upstream(results, S.sel.truss);
+    else if (S.ui.connected && S.sel.truss === S.ui.connected) hl = TLA.rig.assembly(S.rig, S.ui.connected);   // 1.22.0
 
     function bw(t, res) { return Math.max(3, sc * TLA.rig.widthFt(t, res && res.dbTruss)); }
     var bodyW = 6;

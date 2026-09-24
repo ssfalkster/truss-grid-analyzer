@@ -619,6 +619,7 @@
       [h("button", { text: "+ Hoist", title: "Add a hoist in the middle of this truss", onclick: function () { var sp = S.addHoist(t.id); if (sp) sel({ truss: t.id, support: sp.id }); } }),
        h("button", { text: "+ Load", title: "Add a load: type a fixture or weight in the Loads section", onclick: function () { var d = root.querySelector('[data-grp="loads"]'); if (d) { d.open = true; } if (quickBox) { quickBox.focus(); quickBox.scrollIntoView({ block: "center" }); } } }),
        h("button", { text: "Bolt to…", title: "Then click a corner block on the plan", onclick: function () { startPick({ kind: "block", truss: t.id }); } }),
+       h("button", { "class": S.ui.connected === t.id ? "on" : "", text: "Connected", title: "Show on the plan everything joined to this truss - bolted, stacked, or hung on a hoist below it - and dim the rest (to spot a part that is not connected)", onclick: function () { S.ui.connected = S.ui.connected === t.id ? null : t.id; S.emit(); } }),
        h("span", { "class": "grow" }),
        t.anchor ? null : h("button", { "class": "ghost icon", text: "⟳", title: "Rotate 90° (R)", onclick: function () { t.angle = ((t.angle || 0) + 90) % 360; S.commit(); } }),
        h("button", { "class": "ghost", text: "Duplicate", onclick: function () { S.duplicateTruss(t.id); } }),
@@ -965,7 +966,17 @@
         h("button", { "class": "primary", text: "+ Truss", onclick: function () { S.addTruss({ hoists: [] }); } })));
       return;
     }
-    var c = group(root, "outline", "Outline", true, "click to select");
+    // 1.22.0: the check-rig list - input mistakes, found on every change (click one to select what it is about)
+    var chk = r.warnings.filter(function (w) { return w.kind === "check"; });
+    var c = group(root, "check", "Check rig", chk.some(function (w) { return w.level === "check"; }), chk.length ? chk.length + " to look at" : "nothing found");
+    if (chk.length) {
+      var ul = h("ul", { "class": "warnings checklist" });
+      chk.forEach(function (w) {
+        ul.appendChild(h("li", { "class": w.level === "note" ? "note" : "", title: "Click to select", onclick: function () { if (w.truss) sel({ truss: w.truss, support: w.support || null, load: w.load || null }); } }, U.text(w.message)));
+      });
+      c.appendChild(ul);
+    } else c.appendChild(h("div", { "class": "sub", text: "No input mistakes found: every load has a weight, no two hoists share a point, every bolted assembly has at least 3 hoists not in a line, bolted ends meet, and trusses that cross are joined." }));
+    c = group(root, "outline", "Outline", true, "click to select");
     var ol = h("div", { "class": "outline" });
     trs.forEach(function (t) {
       var rr = r.trusses[t.id], vd = trussVerdict(rr), nh = t.supports.filter(function (s) { return s.kind === "hoist"; });
