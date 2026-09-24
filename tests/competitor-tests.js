@@ -287,4 +287,21 @@
     var text = TLA.report.build().textContent;
     eq(/4c\. Measured loads/.test(text), true, "calc sheet 4c"); eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
   });
+
+  add("deflection mode: every truss has a shape from its worst span's joint model, coloured by its sag against the limit", function () {
+    S.newRig(); TLA.samples.box(S); S.commit();
+    S.rig.trusses.filter(function (t) { return !t.isBlock; }).forEach(function (t) {
+      var res = S.results.trusses[t.id], d = TLA.plan.deflShape(res);
+      eq(!!d && d.length > 2, true, t.name + " has a shape");
+      eq(d[0][0], 0, t.name + " from its start"); near(d[d.length - 1][0], t.length, 1e-9, t.name + " to its end");
+      var maxDown = d.reduce(function (m, p) { return Math.max(m, -p[1]); }, 0);
+      eq(maxDown >= res.deflection.spans.reduce(function (m, sp) { return Math.max(m, sp.max); }, 0) - 1e-9, true, t.name + ": the drawn shape includes the checked sag");
+    });
+    eq(TLA.plan.deflMax(S.results) > 0, true, "one scale for the rig");
+    TLA.plan.mount(S, document.createElement("div"));
+    S.ui.colorMode = "defl";
+    var t0 = S.rig.trusses.filter(function (t) { return !t.isBlock; })[0], res0 = S.results.trusses[t0.id];
+    eq(TLA.plan.trussClass(t0, res0, S.results), res0.deflection.util >= 0.8 ? (res0.deflection.util > 1 ? "c-fail" : "c-warn") : "c-ok", "coloured by sag");
+    S.ui.colorMode = "util";
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

@@ -491,6 +491,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .sheet .rplan .hn { font-weight: 700; fill: #1f5fd1; } .sheet .rplan .hn.fail { fill: #c62828; } .sheet .rplan .tn { font-weight: 600; font-size: 16px; }
 .sheet .rplan .sb { stroke: #111; stroke-width: 2; } .sheet .rplan .sbt { font-size: 13px; fill: #444; }
 .lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+.deflg .defl, .iso .defl { fill: none; stroke: var(--tc, var(--accent)); stroke-width: 2; stroke-linejoin: round; } .deflg { --tc: var(--ok); pointer-events: visibleStroke; } .deflg.c-warn { --tc: var(--warn); } .deflg.c-fail { --tc: var(--fail); } .deflg.c-neutral { --tc: var(--neutral); } .deflg.dim { opacity: .25; }
 
 </style>
 </head>
@@ -562,7 +563,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       <span class="grow"></span>
       <div class="box">
         <div class="segc" id="s-color" title="What the truss colours show">
-          <button data-color="util">Workload</button><button data-color="hot" title="Shade each truss along its length by local workload, to find where it is loaded most">Hot spots</button><button data-color="hoist">Hoists</button><button data-color="status">Pass/fail</button>
+          <button data-color="util">Workload</button><button data-color="hot" title="Shade each truss along its length by local workload, to find where it is loaded most">Hot spots</button><button data-color="defl" title="Colour each truss by its sag against its deflection limit, and draw its deflected shape (exaggerated) - beside it on the plan, above it in 3D">Deflection</button><button data-color="hoist">Hoists</button><button data-color="status">Pass/fail</button>
         </div>
         <label class="chk"><input type="checkbox" id="c-loads" checked> Loads</label>
         <label class="chk"><input type="checkbox" id="c-labels" checked> Labels</label>
@@ -4083,12 +4084,32 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (!res) return "c-unsolved";
     var st = trussStatus(res);
     if (mode === "status") return st.bad ? "c-fail" : "c-ok";
+    if (mode === "defl") {                              // 1.22.0: sag against the limit
+      var dc = res.deflection;
+      if (!dc || !dc.spans.length) return "c-neutral";
+      return dc.util > 1 ? (dc.fail ? "c-fail" : "c-warn") : dc.util >= 0.8 ? "c-warn" : "c-ok";
+    }
     if (mode === "hoist") {
       var f = 0, any = false;
       res.supports.forEach(function (sr) { if (sr.hoist) { any = true; f = Math.max(f, sr.hoist.staticLoad / (sr.hoist.capacity || 1)); } });
       return !any ? "c-neutral" : f >= 1 ? "c-fail" : f >= 0.8 ? "c-warn" : "c-ok";
     }
     return utilClass(st);
+  }
+
+  /** A truss's deflected shape (1.22.0, competitor list item 6): [[x ft, w ft up], ...] from the joint model of its
+   * worst span (its governing model otherwise), or null. */
+  function deflShape(res) {
+    if (!res || !res.memberForces) return null;
+    var dc = res.deflection, worst = dc && dc.spans.length ? dc.spans.slice().sort(function (a, b) { return b.util - a.util; })[0] : null;
+    var m = worst ? worst.model : String(res.model || "").replace(/\+dyn$/, ""), mf = res.memberForces[m];
+    return mf && mf.defl && mf.defl.length ? mf.defl : null;
+  }
+  /** The largest |w| of every truss's shape, to exaggerate them all by one factor. */
+  function deflMax(results) {
+    var mx = 0;
+    Object.keys(results.trusses || {}).forEach(function (id) { var d = deflShape(results.trusses[id]); if (d) d.forEach(function (p) { mx = Math.max(mx, Math.abs(p[1])); }); });
+    return mx;
   }
 
   function upstream(results, tid) {
@@ -4182,6 +4203,21 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         });
       }
     });
+
+    // 1.22.0 deflection mode: each truss's deflected shape drawn beside it, exaggerated (down = to its right-hand side)
+    if (S.ui.colorMode === "defl") {
+      var dmax = deflMax(results), px = 18;
+      if (dmax > 0) order.forEach(function (t) {
+        if (t.isBlock) return;
+        var res = results.trusses[t.id], d = deflShape(res); if (!d) return;
+        var ang = (t.angle || 0) * Math.PI / 180, nx = Math.sin(ang), ny = -Math.cos(ang);          // right-hand normal, plan y up
+        var pts = d.map(function (p) { var q = TLA.rig.geometry.endPoint(t, p[0]), o = -p[1] / dmax * px; return (X(q.x) + nx * o).toFixed(1) + "," + (Y(q.y) - ny * o).toFixed(1); });
+        var dg = el("g", { "class": "deflg " + trussClass(t, res, results) + (hl && !hl[t.id] ? " dim" : "") }, svg);
+        el("polyline", { points: pts.join(" "), "class": "defl" }, dg);
+        var ti = el("title", null, dg), dc = res.deflection, w0 = d.reduce(function (m, p) { return Math.max(m, -p[1]); }, 0);
+        ti.textContent = t.name + ": deflects up to " + TLA.units.f("inch", w0 * 12, 2) + (dc && dc.spans.length ? " - worst span " + Math.round(dc.util * 100) + "% of span/" + dc.ratio : "");
+      });
+    }
 
     // hot spots: a glow radiating from the peak of any truss working at 80% or more
     hotGlow.forEach(function (hgw, i) {
@@ -4424,6 +4460,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
   TLA.plan = {
+    deflShape: deflShape, deflMax: deflMax,
     mount: function (store, container) { S = store; root = container; bindEvents(); },
     render: render, fit: function () { fit(); render(); },
     zoom: function (f) { if (!root) return; var v = S.ui.view, mx = root.clientWidth / 2, my = root.clientHeight / 2, ns = Math.max(1.5, Math.min(80, v.scale * f)), wx = (mx - v.ox) / v.scale, wy = (v.oy - my) / v.scale; v.scale = ns; v.ox = mx - wx * ns; v.oy = my + wy * ns; render(); },
@@ -6410,6 +6447,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       return { t: t, z: z, depth: project(m.x, m.y, z).d };
     }).sort(function (a, b) { return b.depth - a.depth; });
 
+    var dmax = S.ui.colorMode === "defl" && TLA.plan.deflMax ? TLA.plan.deflMax(results) : 0;
     var zById = {};
     items.forEach(function (it) { zById[it.t.id] = it.z; });
 
@@ -6462,6 +6500,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           });
         }
       }
+      // 1.22.0 deflection mode: the deflected shape above the truss, exaggerated so the largest sag in the rig is 3 ft
+      var dsh = S.ui.colorMode === "defl" && TLA.plan.deflShape ? TLA.plan.deflShape(res) : null;
+      if (dsh && dmax > 0) el("polyline", { points: dsh.map(function (p) { var q = TLA.rig.geometry.endPoint(t, p[0]), a3 = project(q.x, q.y, z + p[1] / dmax * 3); return a3.X.toFixed(1) + "," + a3.Y.toFixed(1); }).join(" "), "class": "defl" }, grp);
       var mid = TLA.rig.geometry.endPoint(t, t.length / 2), pm = project(mid.x, mid.y, z);
       if (S.ui.showLabels) { var lab = el("text", { x: pm.X, y: pm.Y - bodyW - 4, "class": "lbl name", "text-anchor": "middle" }, grp); lab.textContent = t.name; }
 
@@ -7434,6 +7475,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     "<li>Truss self weight is spread uniformly over the whole length, including cantilevers. Hoist and chain weight are added after the analysis.</li>",
     "<li>Mirror loads: a load can be mirrored about the truss centerline; the twin follows edits to the original.</li>",
     "<li><b>Deflection (since 1.18.0)</b>: each truss's deflected shape comes from the whole-rig analysis (exact for the beam model between its nodes: bending plus shear, with the stiffness estimated from the tables, so it is an estimate). Each span's sag is measured from the straight line between its two supports - so a carrier truss sagging under a bolted truss, or a hoist stretching, is not counted against the span - and compared with the maker's published limit (Tomcat L/100, the JTE sheets that state L/160) or, where the maker publishes none, the rig default in Rig settings (L/160). Past a maker's limit the truss is Overloaded (the maker's allowable loads are set by that limit); past the rig default it is a warning. Cantilever tips are shown, not checked (the makers' limits are for simple spans).</li>",
+    "<li><b>Deflection view (since 1.22.0)</b>: the <i>Deflection</i> colour mode colours each truss by its worst span's sag against its limit, and draws its deflected shape from the whole-rig analysis, exaggerated with one scale for the whole rig - beside the truss on the plan (a sag is drawn to its right-hand side) and above it in 3D. Hover a shape on the plan for its largest sag. It also shows a truss that sags with its carrier or a springy hoist, and a part that is not connected.</li>" +
     "<li><b>Hot spots (since 1.18.0)</b>: a colour mode that shades each truss along its length by its local workload - the worst of its span or cantilever table check and the bending moment and shear against their allowables at each point - to show where a truss is loaded most. The Checks section of a truss shows the same strip with the peak, the support reactions and the deflected shape.</li>",
     "<li><b>Calc sheet</b>: a printable record of the calculation for a second person to check - every input, the formulas with the numbers put in, the table row each capacity is read from, each check, each hoist's load worked out part by part, and the equilibrium self-checks - with signature boxes for the person who prepared it and the person who checked it. Print it or save it as PDF.</li></ul>",
     "<h3>Version history</h3><ul>" + TLA.CHANGES.map(function (c) { return "<li><b>" + c[0] + "</b> (" + c[1] + ", " + c[2] + "): " + c[3] + "</li>"; }).join("") + "</ul>",
@@ -7455,7 +7497,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         '<div style="display:flex;justify-content:space-between;width:170px;font:10px var(--mono);color:var(--muted)"><span>0</span><span>50</span><span>80</span><span>100</span><span>150%</span></div><div class="mini">Each span&#39;s table check follows its bending moment, so the colour peaks under the loads. A glow marks the peak of any truss at 80%+.</div>';
       return;
     }
-    items = mode === "status" ? [["ok", "OK"], ["fail", "Overloaded or unstable"]] : [["ok", (mode === "hoist" ? "Hoist workload" : "Workload") + " low (under 80%)"], ["warn", "High (80-100%)"], ["fail", "Overloaded (over 100%)"]];
+    items = mode === "defl" ? [["ok", "Sag under 80% of its limit"], ["warn", "80%+ of the limit, or past the rig default"], ["fail", "Past the maker's published limit"], ["neutral", "No span to check"]]
+      : mode === "status" ? [["ok", "OK"], ["fail", "Overloaded or unstable"]] : [["ok", (mode === "hoist" ? "Hoist workload" : "Workload") + " low (under 80%)"], ["warn", "High (80-100%)"], ["fail", "Overloaded (over 100%)"]];
     $("legend").innerHTML = items.map(function (i) { return '<div><i style="background:var(--' + i[0] + ')"></i>' + i[1] + "</div>"; }).join("") +
       '<div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><path d="M0 7H14M7 0V14" stroke="var(--hoist)" stroke-width="1.6"/><circle cx="7" cy="7" r="4" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8"/><circle cx="7" cy="7" r="1.3" fill="var(--hoist)"/></svg>Hoist: high hook static, <em>dynamic</em> (amber = high, red = overloaded)</div><div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><circle cx="7" cy="7" r="4.5" fill="var(--panel)" stroke="var(--hoist)" stroke-width="1.8" stroke-dasharray="3 2"/></svg>Dashed: hoist hung below a truss</div><div><svg width="14" height="14" viewBox="0 0 14 14" style="margin-right:4px;vertical-align:-3px"><circle cx="7" cy="7" r="4.5" fill="var(--hoist)"/></svg>Dead hang (wire rope, no hoist)</div><div><i style="background:var(--ink);transform:rotate(45deg) scale(.8)"></i>Bolted connection</div>';
   }

@@ -72,6 +72,7 @@
       return { t: t, z: z, depth: project(m.x, m.y, z).d };
     }).sort(function (a, b) { return b.depth - a.depth; });
 
+    var dmax = S.ui.colorMode === "defl" && TLA.plan.deflMax ? TLA.plan.deflMax(results) : 0;
     var zById = {};
     items.forEach(function (it) { zById[it.t.id] = it.z; });
 
@@ -124,6 +125,9 @@
           });
         }
       }
+      // 1.22.0 deflection mode: the deflected shape above the truss, exaggerated so the largest sag in the rig is 3 ft
+      var dsh = S.ui.colorMode === "defl" && TLA.plan.deflShape ? TLA.plan.deflShape(res) : null;
+      if (dsh && dmax > 0) el("polyline", { points: dsh.map(function (p) { var q = TLA.rig.geometry.endPoint(t, p[0]), a3 = project(q.x, q.y, z + p[1] / dmax * 3); return a3.X.toFixed(1) + "," + a3.Y.toFixed(1); }).join(" "), "class": "defl" }, grp);
       var mid = TLA.rig.geometry.endPoint(t, t.length / 2), pm = project(mid.x, mid.y, z);
       if (S.ui.showLabels) { var lab = el("text", { x: pm.X, y: pm.Y - bodyW - 4, "class": "lbl name", "text-anchor": "middle" }, grp); lab.textContent = t.name; }
 

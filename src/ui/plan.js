@@ -41,12 +41,32 @@
     if (!res) return "c-unsolved";
     var st = trussStatus(res);
     if (mode === "status") return st.bad ? "c-fail" : "c-ok";
+    if (mode === "defl") {                              // 1.22.0: sag against the limit
+      var dc = res.deflection;
+      if (!dc || !dc.spans.length) return "c-neutral";
+      return dc.util > 1 ? (dc.fail ? "c-fail" : "c-warn") : dc.util >= 0.8 ? "c-warn" : "c-ok";
+    }
     if (mode === "hoist") {
       var f = 0, any = false;
       res.supports.forEach(function (sr) { if (sr.hoist) { any = true; f = Math.max(f, sr.hoist.staticLoad / (sr.hoist.capacity || 1)); } });
       return !any ? "c-neutral" : f >= 1 ? "c-fail" : f >= 0.8 ? "c-warn" : "c-ok";
     }
     return utilClass(st);
+  }
+
+  /** A truss's deflected shape (1.22.0, competitor list item 6): [[x ft, w ft up], ...] from the joint model of its
+   * worst span (its governing model otherwise), or null. */
+  function deflShape(res) {
+    if (!res || !res.memberForces) return null;
+    var dc = res.deflection, worst = dc && dc.spans.length ? dc.spans.slice().sort(function (a, b) { return b.util - a.util; })[0] : null;
+    var m = worst ? worst.model : String(res.model || "").replace(/\+dyn$/, ""), mf = res.memberForces[m];
+    return mf && mf.defl && mf.defl.length ? mf.defl : null;
+  }
+  /** The largest |w| of every truss's shape, to exaggerate them all by one factor. */
+  function deflMax(results) {
+    var mx = 0;
+    Object.keys(results.trusses || {}).forEach(function (id) { var d = deflShape(results.trusses[id]); if (d) d.forEach(function (p) { mx = Math.max(mx, Math.abs(p[1])); }); });
+    return mx;
   }
 
   function upstream(results, tid) {
@@ -140,6 +160,21 @@
         });
       }
     });
+
+    // 1.22.0 deflection mode: each truss's deflected shape drawn beside it, exaggerated (down = to its right-hand side)
+    if (S.ui.colorMode === "defl") {
+      var dmax = deflMax(results), px = 18;
+      if (dmax > 0) order.forEach(function (t) {
+        if (t.isBlock) return;
+        var res = results.trusses[t.id], d = deflShape(res); if (!d) return;
+        var ang = (t.angle || 0) * Math.PI / 180, nx = Math.sin(ang), ny = -Math.cos(ang);          // right-hand normal, plan y up
+        var pts = d.map(function (p) { var q = TLA.rig.geometry.endPoint(t, p[0]), o = -p[1] / dmax * px; return (X(q.x) + nx * o).toFixed(1) + "," + (Y(q.y) - ny * o).toFixed(1); });
+        var dg = el("g", { "class": "deflg " + trussClass(t, res, results) + (hl && !hl[t.id] ? " dim" : "") }, svg);
+        el("polyline", { points: pts.join(" "), "class": "defl" }, dg);
+        var ti = el("title", null, dg), dc = res.deflection, w0 = d.reduce(function (m, p) { return Math.max(m, -p[1]); }, 0);
+        ti.textContent = t.name + ": deflects up to " + TLA.units.f("inch", w0 * 12, 2) + (dc && dc.spans.length ? " - worst span " + Math.round(dc.util * 100) + "% of span/" + dc.ratio : "");
+      });
+    }
 
     // hot spots: a glow radiating from the peak of any truss working at 80% or more
     hotGlow.forEach(function (hgw, i) {
@@ -382,6 +417,7 @@
   }
 
   TLA.plan = {
+    deflShape: deflShape, deflMax: deflMax,
     mount: function (store, container) { S = store; root = container; bindEvents(); },
     render: render, fit: function () { fit(); render(); },
     zoom: function (f) { if (!root) return; var v = S.ui.view, mx = root.clientWidth / 2, my = root.clientHeight / 2, ns = Math.max(1.5, Math.min(80, v.scale * f)), wx = (mx - v.ox) / v.scale, wy = (v.oy - my) / v.scale; v.scale = ns; v.ox = mx - wx * ns; v.oy = my + wy * ns; render(); },
