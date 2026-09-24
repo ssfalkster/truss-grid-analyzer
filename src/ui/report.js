@@ -277,16 +277,15 @@
     if (warns.length) s9.appendChild(h("ol", { "class": "warns" }, warns.map(function (w) { return h("li", { text: U.text(w.message) }); })));
     if (notes.length) { s9.appendChild(para("Notes:", "cap")); s9.appendChild(h("ul", { "class": "warns notes" }, notes.map(function (w) { return h("li", { text: U.text(w.message) }); }))); }
 
-    /* ---- sign-off ---- */
+    /* ---- names (no signature blocks) ---- */
     sheet.appendChild(h("section", { "class": "rsec sign" },
       h("div", { "class": "signs" },
         ["Prepared by", "Checked by"].map(function (who, i) {
           var key = i ? "checkedBy" : "preparedBy";
-          return h("div", { "class": "signbox" }, h("div", { "class": "sl", text: who }), h("div", { "class": "sv" + (rep[key] ? "" : " blank"), "data-field": key, text: rep[key] || "" }),
-            h("div", { "class": "sl", text: "Signature" }), h("div", { "class": "sv blank" }), h("div", { "class": "sl", text: "Date" }), h("div", { "class": "sv blank" }));
+          return h("div", { "class": "signname" }, h("span", { "class": "sl", text: who }), h("span", { "class": "sv" + (rep[key] ? "" : " blank"), "data-field": key, text: rep[key] || "" }));
         })),
       h("p", { "class": "disc", text: "This sheet shows how the loads and checks were calculated so they can be verified. It is not a substitute for the judgement of a qualified person: the user is responsible for verifying the results, the rig as built, the hardware ratings and the rigging points before using them to make rigging decisions. Capacities are only as good as the truss and hoist data entered, and allowable moment and shear are estimates from the manufacturer's tables." }),
-      h("p", { "class": "disc", text: "Truss Grid Analyzer v" + TLA.VERSION + " - a rebuild of Truss Load Analyzer - EOT, created by Delbert L. Hall and Jon Sogoian. Free software; see the About dialog for the version history and license." })));
+      h("p", { "class": "disc", text: "Truss Grid Analyzer v" + TLA.VERSION + " by G.E. Simmons Falk - a rebuild of Truss Load Analyzer - EOT by Delbert L. Hall and Jon Sogoian, the originators of the program. Free software; see the About dialog for the version history and license." })));
     return sheet;
   }
 
