@@ -189,6 +189,19 @@
       hangAt.forEach(function (h) { reactions[h.hg.id] = h.s * U[h.x]; });
       return { U: U, u: y, reactions: reactions, total: total };
     }
+    /** The load vector and imposed displacements for the supports' designed levels (dz ft, up): a rigid hoist's point is
+     * moved, a spring hoist's top, a hung hoist's chain shortened. Two rigid hoists at one point share the first's. */
+    function levelSet(F0) {
+      var F2 = F0.slice(), set = { dofs: {}, springs: {}, hangs: {} }, any = false;
+      model.supports.forEach(function (sp) {
+        if (!sp.dz) return;
+        var d = dofs[sp.b][sp.n][0]; any = true;
+        if (fixed[d]) { if (set.dofs[d] === undefined) { set.dofs[d] = sp.dz; free.forEach(function (q) { F2[q] -= K[q][d] * sp.dz; }); } }
+        else { set.springs[sp.id] = sp.dz; F2[d] += sp.k * sp.dz; }
+      });
+      hangs.forEach(function (hg) { if (hg.dz) { set.hangs[hg.id] = hg.dz; any = true; } });
+      return { F: F2, set: set, any: any };
+    }
     /** Reactions when hoist `id` alone is raised by `ft` (a trim error), everything else as solved. */
     function lift(id, ft) {
       var hs = {}; if (hangAt.some(function (h) { return h.hg.id === id && h.s; })) { hs[id] = ft; return solveF(new Float64Array(n), { hangs: hs }); }
@@ -198,14 +211,15 @@
       else { F[d] = sp.k * ft; set.springs[id] = ft; }
       return solveF(F, set);
     }
-    var F = loadVector(), sol = solveF(F);
+    // 1.22.0: hoists hung at a designed level (support dz, ft up): imposed displacements of the supports' tops
+    var lv = levelSet(loadVector()), F = lv.F, sol = solveF(F, lv.set);
     // The eps above only exists to pin down twist that nothing loads. If it ends up carrying real moment, a truss is
     // free to rotate (tip) - a mechanism, not a structure.
     var fsum = 0; for (i = 0; i < n; i++) fsum += Math.abs(F[i]);
     var leak = 0, leakDof = -1;
     for (i = 0; i < m; i++) if (eps[i] && Math.abs(eps[i] * sol.u[i]) > leak) { leak = Math.abs(eps[i] * sol.u[i]); leakDof = free[i]; }
     if (leak > 1e-4 * Math.max(fsum, 1)) return { ok: false, dof: leakDof, dofs: dofs };
-    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
+    return { ok: true, reactions: sol.reactions, total: sol.total, U: sol.U, F: F, set: lv.set, leveled: lv.any, dofs: dofs, supports: model.supports, rigid: rigid, semi: jm.semi, loadVector: loadVector, udlVector: udlVector, solveF: solveF, lift: lift };
   }
 
   var JUMP_TOL = 1e-5;   // of the truss's largest moment: smaller steps are the solver's tiny twist stiffness, not a joint
@@ -420,16 +434,20 @@
       var kr = s && s.dead && kRig > 0 ? TLA.limits.ropeStiffness(s) / 12 : 0;
       return kr > 0 ? kr : kRig;
     }
+    // a designed level offset (1.22.0): support.level, inches, + = hung higher than the rest; ft here
+    function levelOf(s) { var v = Number(s && s.level) || 0; return v / 12; }
     function nodeOf(bm, d) { return bm.nodes.findIndex(function (nd) { return Math.abs(nd.d - d) < 1e-6; }); }
     var hangs = hangPending.map(function (p) {
       var k = supportK(p.s), A = beams[index[p.a]], B = beams[index[p.b]];
-      return { a: index[p.a], na: nodeOf(A, p.da), b: index[p.b], nb: nodeOf(B, p.db), id: p.id, k: k > 0 ? k * 12 : 0, truss: p.a, carrier: p.b };
+      return { a: index[p.a], na: nodeOf(A, p.da), b: index[p.b], nb: nodeOf(B, p.db), id: p.id, k: k > 0 ? k * 12 : 0, truss: p.a, carrier: p.b, dz: levelOf(p.s) };
     });
     beams.forEach(function (bm, bi) {
       bm.nodes.forEach(function (nd, ni) {
         (nd.hoist || []).forEach(function (id) {
           var p = id.split(":"), s = supportOf(byId[p[0]], p.slice(1).join(":")), k = supportK(s);
-          supports.push(k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id });
+          var sp = k > 0 ? { b: bi, n: ni, id: id, k: k * 12 } : { b: bi, n: ni, id: id }, dz = levelOf(s);
+          if (dz) sp.dz = dz;
+          supports.push(sp);
         });
       });
     });
@@ -676,7 +694,7 @@
     if (full && bi >= 0 && !TLA.limits.countSelfWeight(st) && model.beams[bi].wSelf > 0) {
       var bmT = model.beams[bi], F = sol.F.slice(), Fs = sol.udlVector(bi, bmT.wSelf);
       for (var q = 0; q < F.length; q++) F[q] -= Fs[q];
-      var r = sol.solveF(F);                            // same structure, same slack hoists
+      var r = sol.solveF(F, sol.set);                   // same structure, same slack hoists, same levels
       net = forces(model, { U: r.U, reactions: r.reactions, dofs: sol.dofs, supports: sol.supports }, function (b) { return b === bmT ? b.w - b.wSelf : b.w; }).members[t.id];
     }
     var limits = TLA.limits.checkTruss(truss, beam, t.wallWeight, { derate: typeof st.derate === "number" ? st.derate : undefined, cantileverSelfWeight: TLA.limits.countSelfWeight(st), memberDiagrams: full ? { full: full, net: net } : null });
@@ -696,6 +714,18 @@
   }
 
   var TRIM_FT = 1 / 48;          // a quarter inch
+  function round2(v) { return Math.round(v * 100) / 100; }
+  /** Out-of-level influence (1.22.0): the reactions when each active hoist alone is raised by ft, cached on the solve. */
+  function influence(sol, model, ft) {
+    var c = sol.levelInf || (sol.levelInf = {});
+    if (c[ft]) return c[ft];
+    var out = {};
+    model.supports.concat(model.hangs || []).forEach(function (sp) {
+      if (sol.slack.indexOf(sp.id) >= 0 || out[sp.id]) return;
+      var r = sol.lift(sp.id, ft); if (r) out[sp.id] = r.reactions;
+    });
+    return (c[ft] = out);
+  }
   var TRIM_WARN = 0.1;           // of the hoist's capacity
 
   function applyPrimary(rig, results, db, out) {
@@ -747,7 +777,7 @@
       if (mb && mb.code) W.push({ truss: id, kind: "member", level: "member", message: t.name + ": " + TLA.limits.memberMessage(mb) + " (" + MODEL_LABEL[m] + ")" });
     });
 
-    var names = {}, touchy = [];
+    var names = {}, touchy = [], tol = Number(st.levelTolerance) > 0 ? Number(st.levelTolerance) / 12 : 0, levelSlack = [], levelOver = [];
     results.hoists.forEach(function (h) { names[h.truss + ":" + h.support] = h.trussName + " " + (h.supportName || "hoist") + " at " + (Math.round(h.distance * 10) / 10) + " ft"; });
     results.hoists.forEach(function (h) {
       var id = h.truss + ":" + h.support, s = supportOf(byId[h.truss], h.support);
@@ -791,6 +821,19 @@
           h.trim = gov.trim = { self: lr.reactions[id], other: other, model: tm };
         }
       }
+      // 1.22.0: out-of-level tolerance - every hoist may be up to +/- tol off its level, each on its own. The worst
+      // increase at this hoist is the sum of what each one alone does to it (linear, same slack hoists), added to its
+      // low hook load for the check; the low side is reported (it may go slack)
+      if (tol > 0 && !h.slack && sol.lift) {
+        var inf = influence(sol, out.model, tol), dl = 0;
+        Object.keys(inf).forEach(function (j) { dl += Math.abs(inf[j][id] || 0); });
+        var c2 = TLA.limits.checkSupport(s, db, gov.reaction + dl, st), unst = gov.status === "UNSTABLE";
+        ["added", "staticLoad", "dynamicLoad", "status", "dynamicOver"].forEach(function (k) { gov[k] = c2[k]; });
+        if (unst) gov.status = "UNSTABLE";
+        h.level = gov.level = { tol: tol, add: dl, low: gov.reaction - dl, model: tm };
+        if (gov.reaction - dl < -SLACK_TOL) levelSlack.push(names[id]);
+        if (gov.status !== "Good" && !unst && by[m].status === "Good") levelOver.push(names[id]);
+      }
       var where = names[id];
       if (h.slack) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": slack - the load would push this hoist up (with every joint model), so its chain goes slack and it carries nothing (only the hoist and chain weight). The rest of the rig carries its share; the results shown are with this hoist taken out." });
       else if (slackIn.length) W.push({ truss: h.truss, kind: "hoist", level: "slack", message: where + ": goes slack with " + slackIn.map(function (mm) { return MODEL_LABEL[mm]; }).join(", ") + " only; the " + MODEL_LABEL[m] + " result (" + Math.round(gov.staticLoad) + " lb) is used." });
@@ -798,6 +841,8 @@
       else if (!h.slack && gov.dynamicOver) W.push({ truss: h.truss, kind: "hoist", message: h.trussName + " " + (h.supportName || "hoist") + ": dynamic load exceeds capacity (" + MODEL_LABEL[m] + ")" });
       if (h.trim && gov.capacity > 0 && gov.capacity < 999999 && Math.abs(h.trim.self) > TRIM_WARN * gov.capacity) touchy.push({ h: h, share: Math.abs(h.trim.self) / gov.capacity });
     });
+    if (levelOver.length) W.push({ kind: "hoist", level: "level", message: "Out of level by up to ±" + round2(tol * 12) + " in on every hoist (Rig settings): " + levelOver.join(", ") + (levelOver.length === 1 ? " is" : " are") + " over capacity only because of the level allowance. Level the hoists more closely, or use bigger hoists." });
+    if (levelSlack.length) W.push({ kind: "hoist", level: "level", message: "Out of level by up to ±" + round2(tol * 12) + " in: " + levelSlack.join(", ") + " could unload completely and go slack on the low side - the others then carry more. Level carefully." });
     // one warning for every trim-sensitive hoist, led by the worst
     if (touchy.length) {
       touchy.sort(function (a, b) { return b.share - a.share; });
@@ -822,6 +867,8 @@
     results.primary = "load-path";
     var hoists = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return s.kind === "hoist"; }); });
     if (out.unstable || !hoists) return;
+    var st = rig.settings || {}, lev = rig.trusses.some(function (t) { return (t.supports || []).some(function (s) { return Number(s.level); }); });
+    if (lev || Number(st.levelTolerance) > 0) results.warnings.push({ level: "fallback", message: "Hoist level offsets and the out-of-level tolerance need the whole-rig analysis: they are left out of these load-path results." });
     results.warnings.push({ level: "fallback", message: "Whole-rig analysis not available" + (out.note ? " (" + out.note.replace(/\.$/, "") + ")" : "") +
       ": hoist loads and truss checks are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid." });
   }
@@ -869,6 +916,11 @@
         var r = sol.solveF(sol.loadVector(o)).reactions[id];
         if (r !== undefined && Math.abs(r) > 0.005) parts.push({ truss: o, name: names[o] || o, weight: r });
       });
+      // designed level offsets (1.22.0) move load between hoists without adding any: what is left over is theirs
+      if (sol.leveled && sol.slack.indexOf(id) < 0) {
+        var rest = (sol.reactions[id] || 0) - parts.reduce(function (a2, p2) { return a2 + p2.weight; }, 0);
+        if (Math.abs(rest) > 0.005) parts.push({ truss: "", name: "Designed level offsets", weight: rest });
+      }
       parts.sort(function (a2, b2) { return Math.abs(b2.weight) - Math.abs(a2.weight); });
       cache[id] = parts;
     }

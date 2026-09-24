@@ -154,4 +154,56 @@
     eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
     eq(/Dead hangs \(DH\)/.test(text), true, "explained");
   });
+
+  /** A weightless 20 ft truss on hoists at 0, 10, 20 ft with 1000 lb at 5 and 15 ft. */
+  function levelRig(setup) {
+    S.newRig();
+    var t = S.addTruss({ name: "T", x: 0, y: 0, angle: 0, length: 20, hoists: [0, 10, 20] });
+    t.weightless = true;
+    t.loads.push({ id: S.newId("l"), distance: 5, weight: 1000 }, { id: S.newId("l"), distance: 15, weight: 1000 });
+    if (setup) setup(t);
+    S.commit();
+    return t;
+  }
+
+  add("level offset: a hoist hung 0.1 in high takes the load that pushes the truss up by 0.1 in there (two-span beam)", function () {
+    var t = levelRig(), base = hoistOf("T", 10).compat.hinged - hoistOf("T", 10).hoist.hoistChain;
+    var sec = S.results.trusses[t.id].section, dz = 0.1 / 12;
+    // a simple 20 ft span pushed up at mid-span: P = dz / (L^3 / 48EI + L / 4GA)
+    var P = dz / (Math.pow(20, 3) / (48 * sec.EI) + 20 / (4 * sec.GA));
+    t.supports[1].level = 0.1; S.commit();
+    var mid = hoistOf("T", 10);
+    near(mid.compat.hinged - mid.hoist.hoistChain, base + P, 1e-6, "middle hoist");
+    near(hoistOf("T", 0).reaction + hoistOf("T", 20).reaction + mid.reaction, 2000, 1e-6, "no load added");
+    // where the load comes from: the parts still add up, with the level offsets as a part of their own
+    var a = TLA.grillage.attribution(S.rig, S.results, S.db(), t.id, t.supports[1].id);
+    near(a.parts.reduce(function (x, p) { return x + p.weight; }, 0), mid.reaction, 1e-6, "parts add up");
+    eq(a.parts.some(function (p) { return /level offsets/.test(p.name); }), true, "level offsets listed");
+    // the load-path method can't do it: never the silent fallback
+    eq(S.results.primary, "grillage", "whole-rig analysis");
+  });
+
+  add("out-of-level tolerance: each hoist's check carries the sum of what every hoist alone at +/- tol does to it", function () {
+    levelRig(function () { S.rig.settings.levelTolerance = 0.25; });
+    var sol = S.results.compat.rigid, ids = S.results.hoists.map(function (h) { return h.truss + ":" + h.support; });
+    S.results.hoists.forEach(function (h, i) {
+      var sum = 0;
+      ids.forEach(function (j) { sum += Math.abs(sol.lift(j, 0.25 / 12).reactions[ids[i]]); });
+      near(h.level.add, sum, 1e-6, "allowance @" + h.distance);
+      near(h.hoist.staticLoad, h.reaction + sum + h.hoist.hoistChain, 1e-6, "in the high hook load @" + h.distance);
+      near(h.level.low, h.reaction - sum, 1e-9, "low side");
+      eq(h.level.add > 0, true, "short stiff spans: a real allowance");
+    });
+    S.rig.settings.levelTolerance = undefined; S.commit();
+    S.results.hoists.forEach(function (h) { eq(h.level, undefined, "off by default"); });
+  });
+
+  add("level: the calc sheet lists designed levels and the tolerance allowance", function () {
+    levelRig(function (t) { t.supports[1].level = 0.1; S.rig.settings.levelTolerance = 0.25; });
+    TLA.panels.mount(S); TLA.report.mount(S);
+    var text = TLA.report.build().textContent;
+    eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
+    eq(/Designed hoist levels/.test(text), true, "offsets listed");
+    eq(/\+ Level/.test(text), true, "allowance column");
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);

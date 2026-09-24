@@ -814,11 +814,15 @@
         h("div", { "class": x.hoist.status !== "Good" ? "f" : "" }, h("b", { text: U.n("w", x.hoist.staticLoad, 1) }), h("span", { text: "high hook static, " + U.unit("w") })),
         h("div", { "class": x.hoist.dynamicOver ? "w" : "" }, h("b", { text: U.n("w", x.hoist.dynamicLoad, 1) }), h("span", { text: "high hook dynamic, " + U.unit("w") + " (x" + fmt(x.hoist.dynamicFactor, 3) + ")" }))));
       if (x.hoist.capacity < 999999) c.appendChild(h("div", { "class": "checks" }, barRow("Workload", x.hoist.staticLoad / x.hoist.capacity, "High hook static / capacity")));
+      if (x.level) c.appendChild(h("div", { "class": "sub" + (x.level.low < 0 ? " hotline" : "") }, "Out of level ±" + U.f("inch", x.level.tol * 12, 2) + " (Rig settings): up to ", h("b", { text: "+" + U.f("w", x.level.add, 0) }), " on this hoist - included in its high hook load; on the low side " + U.f("w", x.level.low, 0) + (x.level.low < 0 ? ", so it could go slack." : ".")));
       if (x.trim) c.appendChild(h("div", { "class": "sub" + (hot ? " hotline" : "") }, "Level sensitivity: ", h("b", { text: "±" + U.f("w", Math.abs(x.trim.self), 0) }), " if this hoist runs 1/4\" (6 mm) high or low" + (x.trim.other ? "; " + x.trim.other.name + " changes by " + U.f("w", x.trim.other.lb, 0) : "") + (hot ? " - more than 10% of its capacity: level it carefully." : ".")));
       var a = TLA.grillage.attribution(S.rig, S.results, S.db(), t.id, s.id);
       if (a) {
         c.appendChild(h("table", { "class": "tbl" }, h("thead", null, h("tr", null, h("th", { text: "Where the load comes from" }), h("th", { "class": "r", text: U.unit("w") }))), h("tbody", null,
           a.parts.filter(function (p) { return Math.abs(p.weight) >= 0.05; }).map(function (p) { return h("tr", null, h("td", { text: p.name + (p.truss === t.id ? " (self weight)" : "") }), h("td", { "class": "r", text: U.n("w", p.weight, 1) })); }),
+          x.level ? h("tr", null, h("td", { text: "Out-of-level allowance (±" + U.f("inch", x.level.tol * 12, 2) + ")" }), h("td", { "class": "r", text: U.n("w", x.level.add, 1) })) : null,
+          x.hoist.added ? h("tr", null, h("td", { text: "Add " + S.rig.settings.addPercent + "%" }), h("td", { "class": "r", text: U.n("w", x.hoist.added, 1) })) : null,
+          (Number(s.hardwareWeight) || 0) ? h("tr", null, h("td", { text: "Hardware" }), h("td", { "class": "r", text: U.n("w", s.hardwareWeight, 1) })) : null,
           h("tr", null, h("td", { text: s.dead ? "Rope" : "Hoist + chain" }), h("td", { "class": "r", text: U.n("w", a.hoistChain, 1) })),
           h("tr", null, h("td", null, h("b", { text: "High hook load (static)" })), h("td", { "class": "r" }, h("b", { text: U.n("w", a.staticLoad, 1) }))))));
         c.appendChild(h("div", { "class": "sub", text: a.model === "load-path" ? "Load-path method (whole-rig analysis not available)." : "Whole-rig analysis, " + TLA.grillage.MODEL_LABEL[a.model] + " (the joint model that loads this hoist most)." }));
@@ -849,6 +853,7 @@
     }
     c = group(root, "hpos", "Position", true, "on " + t.name);
     c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(s, t.length)), field("Hangs from", hangSelect(t, s))));
+    c.appendChild(h("div", { "class": "grid2" }, field("Level offset (" + U.unit("inch") + ")", numInput(Number(s.level) || "", function (v) { s.level = v ? v : undefined; S.commit(); }, { q: "inch", placeholder: "0 = level", title: "Hung on purpose higher (+) or lower (-) than the other hoists' level - a designed trim or rake. The whole-rig analysis solves the rig with this hoist's point moved by that much." }))));
     c.appendChild(h("div", { "class": "sub", text: "= " + U.f("len", s.distance, 3) + " from the start of " + t.name + " (" + U.f("len", t.length, 2) + "). Drag the hoist on the plan to move it in 1\" (2 cm) steps." }));
     var hp = hangInfo(t, s);
     if (hp) c.appendChild(h("div", { "class": "sub" + (hp.off ? " hotline" : "") }, "Hung below ", h("b", { text: hp.name }), ": its chain hooks on " + U.f("len", hp.distance, 2) + " from the start of " + hp.name +
@@ -1087,6 +1092,8 @@
         "An extra percentage on the load and truss weight at every hoist (unknown cable weight, a safety margin), as the original's 'Add Percentage'. Added before the hoist, chain and hardware weight; the truss checks are not changed."),
       row("Hoist stiffness (" + U.unit("stiff") + ")", numInput(Number(st.hoistStiffness) > 0 ? st.hoistStiffness : "", function (v) { st.hoistStiffness = v > 0 ? v : undefined; S.commit(); }, { q: "stiff", placeholder: "rigid" }),
         "How much a hoist and its chain stretch under load (for example " + (U.metric() ? "27 kg/mm" : "1500 lb/in") + " for a 1-ton chain hoist on a long drop - measure or ask the maker). Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive."),
+      row("Out-of-level tolerance ± (" + U.unit("inch") + ")", numInput(Number(st.levelTolerance) > 0 ? st.levelTolerance : "", function (v) { st.levelTolerance = v > 0 ? v : undefined; S.commit(); }, { q: "inch", placeholder: "off" }),
+        "How far any hoist may end up off its level, each on its own (e.g. 1/4\" = 0.25). Each hoist's check then carries the worst it could see: the sum of what every hoist alone running that much high or low does to it (from the whole-rig analysis). Short, stiff spans are very level-sensitive. Blank = off (hoists exactly level). For a hoist trimmed on purpose, use its own Level offset."),
       row("Hoists hung below a truss", h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: st.hungDynamic !== false, onchange: function (e) { st.hungDynamic = e.target.checked ? undefined : false; S.commit(); } }), h("span", { text: "The carrier's hoists also take the hung hoist's dynamic load (on by default)" })),
         "A hoist hung below a truss puts its high hook load on that truss (the carrier). The carrier truss is always checked with the hung hoist's high hook dynamic load. On: the hoists holding the carrier up take it too. Off: they take the hung hoist's static load (their own dynamic factor still applies)."),
       row("Dead hang rope design factor", select([7, 8, 10].map(function (f) { return { value: String(f), label: f + ":1" + (f === TLA.limits.ROPE_DF ? " (default)" : "") }; }), String(TLA.limits.ropeFactor(st)), function (v) { st.ropeDesignFactor = +v === TLA.limits.ROPE_DF ? undefined : +v; S.commit(); }),

@@ -249,7 +249,10 @@
       Object.assign({ key: "chain", label: "Chain / rope (" + U.unit("len") + ")" }, lenCell(function (s) { return (s.dead ? s.ropeLength : s.chainLength) || 0; }, function (s, v) { if (s.dead) s.ropeLength = Math.max(0, v); else s.chainLength = Math.max(0, v); })),
       Object.assign({ key: "dlf", label: "DLF" }, numCell(function (s) { return s.dlf; }, function (s, v) { s.dlf = v > 0 ? v : undefined; }, { blank: 0, ph: function (s) { var x = X(s); return "auto " + (x ? P.fmt(x.hoist.dynamicFactor, 3) : ""); } })),
       Object.assign({ key: "hw", label: "Hardware (" + U.unit("w") + ")" }, wCell(function (s) { return s.hardwareWeight || 0; }, function (s, v) { s.hardwareWeight = v; }, 1)),
-      hangCell()
+      hangCell(),
+      // 1.22.0: designed level offset, inches (mm)
+      { key: "lvl", label: "Level (" + U.unit("inch") + ")", type: "num", r: true, get: function (s) { return Number(s.level) ? U.n("inch", s.level, 2) : ""; }, raw: function (s) { return Number(s.level) ? String(Math.round(U.v("inch", s.level) * 1000) / 1000) : ""; },
+        parse: function (q) { if (String(q).trim() === "") return 0; var v = parseFloat(q); return isFinite(v) ? U.back("inch", v) : undefined; }, set: function (s, v) { s.level = v ? v : undefined; } }
     ];
     if (st.cmp) {
       [["hin", "Hinged*", function (x) { var c = x.byModel && x.byModel.hinged; return c ? U.n("w", c.staticLoad, 1) : "-"; }],
