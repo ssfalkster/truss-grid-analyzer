@@ -603,8 +603,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.25.1";
+  TLA.VERSION = "1.25.2";
   TLA.CHANGES = [
+    ["1.25.2", "2026-09-24", "G.E. Simmons Falk", "File safety: New rig, Open and Load example box are now each one Undo step - before, they cleared the undo history while the autosave overwrote the rig on screen, so it could not be brought back (the New rig prompt said it could). Undo lasts until the page is closed or reloaded. Opening a rig file now adds the file's custom trusses, corner blocks, hoists and fixtures to the ones in this browser instead of replacing them; an entry already here is reused, and one whose id is taken by a different entry here gets a new id (the opened rig is updated to match). New custom entries get the next id after the highest in use, so a deleted entry's id is not handed out again. Calculated results are unchanged."],
     ["1.25.1", "2026-09-24", "G.E. Simmons Falk", "Documentation only: a user manual in docs/manual - a Quick Start PDF and a full User Guide (PDF, and a searchable HTML copy that works offline), written for version 1.24.0, with the sources and scripts that build them. The app and its results are unchanged."],
     ["1.25.0", "2026-09-24", "G.E. Simmons Falk", "Calculation sheet: each truss now shows its deflection drawing (the exaggerated deflected shape from the whole-rig analysis, as in the truss panel's Checks) and a deflection check (new formula F7): each span's sag against its limit L/n, where it is, L/d, workload and status, plus the cantilever tips (reported only). Calculated results are unchanged."],
     ["1.24.0", "2026-09-24", "G.E. Simmons Falk", "Hoists grid (step 3): select several hoists (Shift+click for a range, Ctrl+click one at a time, Shift+arrows, Ctrl+A, or Select on a truss row) and any edit changes all of them - model, chain, DLF, hardware, Hangs from, level offset, reading - but not their positions; Ctrl+D copies the top selected hoist to the rest and Delete removes them all. A new hoist is now set up like the last hoist placed in the rig (model, chain or rope, hardware, DLF; not its name, level offset, Hangs from or reading) instead of always a 1 ton Lodestar. Calculated results are unchanged for existing rigs."],
@@ -3955,11 +3956,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function snapshot() { return JSON.stringify(S.rig); }
   var lastSnap = null;
 
+  function pushUndo(snap) { if (snap == null) return; undoStack.push(snap); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; }
+
   S.commit = function (opts) {
     S.reconnect();
     if (!(opts && opts.noUndo)) {
       var cur = lastSnap;
-      if (cur != null) { undoStack.push(cur); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; }
+      pushUndo(cur);
     }
     lastSnap = snapshot();
     S.persist();
@@ -3997,7 +4000,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     S.commit({ noUndo: true });
   };
 
-  S.newRig = function () { S.setRig(emptyRig()); };
+  /** Put a whole rig in place as ONE Undo step (1.25.2): New rig, Open and Load example box used to clear the undo
+      history (and the autosave then overwrote the old rig), so the rig on screen was lost. `build` (optional) fills
+      the new rig, e.g. the example box; its own commits don't become Undo steps. */
+  S.replaceRig = function (rig, build) {
+    var before = lastSnap, keep = undoStack.slice();
+    S.rig = rig; S.sel = { truss: null, support: null, load: null };
+    if (build) build(S);
+    undoStack.length = 0; Array.prototype.push.apply(undoStack, keep);
+    pushUndo(before);
+    S.commit({ noUndo: true });
+  };
+  S.newRig = function () { S.replaceRig(emptyRig()); };
+  S.loadExample = function () { S.replaceRig(emptyRig(), TLA.samples.box); };
+  S.canUndo = function () { return undoStack.length > 0; };
 
   /** Move the whole rig so the middle of its footprint is at plan 0,0 (1.18.0). Free trusses move; bolted trusses and
    * corner blocks follow them, so the rig keeps its shape. One Undo step. Returns the shift [dx, dy] in ft. */
@@ -4033,8 +4049,54 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var o = JSON.parse(text);
     var rig = o.rig || o;
     if (!rig.trusses) throw new Error("Not a rig file");
-    if (o.userDb) S.userDb = o.userDb;
-    S.setRig(rig);
+    var merged = o.userDb ? S.mergeUserDb(o.userDb, rig) : null;
+    S.replaceRig(rig);
+    return merged;
+  };
+
+  /* ---- custom database (1.25.2) ---- */
+  var USER_KINDS = [{ k: "trusses", base: 1000 }, { k: "hoists", base: 1000 }, { k: "corners", base: 2000 }];
+  function userList(k) { S.userDb = S.userDb || {}; return (S.userDb[k] = S.userDb[k] || []); }
+  /** Next free id for a custom truss (1001+), hoist (1001+) or corner block (2001+): one past the highest in use,
+      so a deleted entry's id is never handed out again. */
+  S.nextUserId = function (k) {
+    var base = k === "corners" ? 2000 : 1000, top = base;
+    userList(k).concat(TLA.data[k] || []).forEach(function (x) { var n = Number(x.id); if (n > top) top = n; });
+    return top + 1;
+  };
+  function canon(v) {
+    if (Array.isArray(v)) return "[" + v.map(canon).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).sort().filter(function (k) { return v[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ":" + canon(v[k]); }).join(",") + "}";
+    return JSON.stringify(v);
+  }
+  function sameEntry(a, b) { var x = Object.assign({}, a), y = Object.assign({}, b); delete x.id; delete y.id; return canon(x) === canon(y); }
+  /** Merge a rig file's custom entries into this browser's database instead of replacing it. An entry that is
+      already here (same data) is reused; a new one keeps its id unless that id is taken, then it gets the next free
+      id. `rig` (the file's rig) is rewritten to point at the ids the entries have here. Returns counts. */
+  S.mergeUserDb = function (inc, rig) {
+    var out = { added: 0, same: 0, renumbered: 0 }, map = { trusses: {}, hoists: {}, corners: {} };
+    USER_KINDS.forEach(function (K) {
+      var mine = userList(K.k), builtIn = TLA.data[K.k] || [];
+      (inc[K.k] || []).forEach(function (e) {
+        var hit = mine.filter(function (x) { return sameEntry(x, e); })[0];
+        if (hit) { out.same++; if (hit.id !== e.id) map[K.k][e.id] = hit.id; return; }
+        var c = JSON.parse(JSON.stringify(e));
+        if (mine.concat(builtIn).some(function (x) { return x.id === e.id; })) { c.id = S.nextUserId(K.k); map[K.k][e.id] = c.id; out.renumbered++; }
+        mine.push(c); out.added++;
+      });
+    });
+    var fx = userList("fixtures");
+    (inc.fixtures || []).forEach(function (e) {
+      if (fx.some(function (x) { return sameEntry(x, e); })) { out.same++; return; }
+      fx.push(JSON.parse(JSON.stringify(e))); out.added++;
+    });
+    function re(m, v) { return Object.prototype.hasOwnProperty.call(m, v) ? m[v] : v; }
+    (rig && rig.trusses || []).forEach(function (t) {
+      if (t.isBlock) { if (t.blockTypeId != null) t.blockTypeId = re(map.corners, t.blockTypeId); }
+      else if (t.trussId != null) t.trussId = re(map.trusses, t.trussId);
+      (t.supports || []).forEach(function (s) { if (s.hoistId != null) s.hoistId = re(map.hoists, s.hoistId); });
+    });
+    return out;
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
@@ -6924,7 +6986,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           if (v.length && v.every(isFinite) && (M ? v.length >= n : v.length === 100)) return M ? v.slice(0, n) : v;
           var o = []; for (var i = 1; i <= n; i++) o.push(i <= Math.ceil(ms) ? (parseFloat(flat.value) || 0) : 0); return o;
         }
-        var id = 1000 + u.trusses.length + 1, wv = parseFloat(f[KW].value) || 0;
+        var id = S.nextUserId("trusses"), wv = parseFloat(f[KW].value) || 0;
         var e = { id: id, manufacturer: f.Manufacturer.value || "Custom", description: f.Model.value, repetitive_use: rep.checked, source: "User", units: M ? "metric" : "imperial" };
         if (M) { e.weight_per_m_kg = wv; e.max_span_m = ms; e.weight_per_ft_lb = U.back("wpl", wv); e.max_span_ft = ms / U.FT_M; e.udl_kg = arr(udlList, f[KU]); e.cpl_kg = arr(cplList, f[KC]); }
         else { e.weight_per_ft_lb = wv; e.max_span_ft = ms; e.udl_lb = arr(udlList, f[KU]); e.cpl_lb = arr(cplList, f[KC]); }
@@ -6941,7 +7003,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       h("button", { "class": "primary", text: "Add block", onclick: function () {
         if (!cf.Name.value) { alert("Enter a name."); return; }
         u.corners = u.corners || [];
-        var nid = 2000 + u.corners.length + 1;
+        var nid = S.nextUserId("corners");
         u.corners.push({ id: nid, custom: true, manufacturer: cf.Maker.value || "Custom", family: cf["Truss family"].value || "Custom", fits: (fitsIn.value || "12x12").toLowerCase().replace(/\s|"/g, ""), name: cf.Name.value, code: "", kind: "corner",
           ways: parseInt(cf.Ways.value, 10) || 6, size_in: parseFloat(cf[CS].value) ? U.back("inch", parseFloat(cf[CS].value)) : null, weight_lb: parseFloat(cf[CW].value) ? U.back("w", parseFloat(cf[CW].value)) : null, variants: null, base_lb: null, per_connection_lb: null, notes: "user-added", source: "" });
         S.commit({ noUndo: true }); render();
@@ -6956,7 +7018,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       h("button", { "class": "primary", text: "Add hoist", onclick: function () {
         if (!g2.Model.value) { alert("Enter a model name."); return; }
         function gv(i, q) { return U.back(q, parseFloat(g2[HK[i]].value) || 0); }
-        u.hoists.push({ id: 1000 + u.hoists.length + 1, brand: g2.Brand.value || "Custom", description: g2.Model.value, capacity_label: g2["Capacity label"].value || fmt(parseFloat(g2[HK[3]].value) || 0, 0) + " " + U.unit("w"), speed_fpm: gv(4, "speed"), weight_lb: gv(5, "w"), chain_weight_per_ft_lb: gv(6, "wpl"), capacity_lb: gv(3, "w") });
+        u.hoists.push({ id: S.nextUserId("hoists"), brand: g2.Brand.value || "Custom", description: g2.Model.value, capacity_label: g2["Capacity label"].value || fmt(parseFloat(g2[HK[3]].value) || 0, 0) + " " + U.unit("w"), speed_fpm: gv(4, "speed"), weight_lb: gv(5, "w"), chain_weight_per_ft_lb: gv(6, "wpl"), capacity_lb: gv(3, "w") });
         S.commit({ noUndo: true }); render();
       } })));
     hc.appendChild(listBlock(u.hoists, function (x) { return x.brand + " " + x.description + " - " + U.f("w", x.capacity_lb, 0) + ", " + U.f("speed", x.speed_fpm, 0); }, function (i) { u.hoists.splice(i, 1); S.commit({ noUndo: true }); render(); }));
@@ -7859,8 +7921,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     $("r-yaw").oninput = function (e) { S.ui.iso.yaw = parseFloat(e.target.value); TLA.iso.render(); };
     $("r-pitch").oninput = function (e) { S.ui.iso.pitch = parseFloat(e.target.value); TLA.iso.render(); };
 
-    $("b-new").onclick = function () { if (confirm("Start a new empty rig? (Undo can bring the current one back.)")) { S.newRig(); ui.step = 1; saveShell(); S.ui.fit = true; S.emit(); } };
-    $("b-sample").onclick = function () { S.newRig(); TLA.samples.box(S); S.commit({ noUndo: true }); S.ui.fit = true; S.emit(); };
+    $("b-new").onclick = function () { if (confirm("Start a new empty rig? (Undo brings the current one back, until you close or reload the page.)")) { S.newRig(); ui.step = 1; saveShell(); S.ui.fit = true; S.emit(); } };
+    $("b-sample").onclick = function () { S.loadExample(); S.ui.fit = true; S.emit(); };
     (function () {
       var main = $("main"), KEY = "tla-layout2", DEF = { w: 400, h: 330 }, lay = { w: DEF.w, h: DEF.h };
       try { var sv = JSON.parse(localStorage.getItem(KEY) || "null"); if (sv) lay = { w: sv.w || DEF.w, h: sv.h || DEF.h }; } catch (e) { /* ignore */ }
