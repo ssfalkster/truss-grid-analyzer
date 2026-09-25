@@ -9,8 +9,8 @@ It runs entirely in the browser. It works offline, needs no install or account, 
 > **A calculation aid, not an engineering approval.** Check results against the manufacturer's current data and
 > have a qualified person review every rig before it flies. See the disclaimer in [LICENSE.md](LICENSE.md).
 
-Truss Grid Analyzer is a web rebuild of *Truss Load Analyzer - EOT*, the Excel workbook by Delbert L. Hall and
-Jon Sogoian.
+Truss Grid Analyzer is an expansion of *Truss Load Analyzer - EOT*, the Excel workbook by Delbert L. Hall and
+Jon Sogoian, for indeterminate grids: trusses bolted into grids and boxes, and trusses on three or more hoists.
 
 ## Getting started
 

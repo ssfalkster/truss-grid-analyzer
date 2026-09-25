@@ -1,7 +1,7 @@
 <section class="chapter">
-<h2 id="views">Plan and 3D views</h2>
+<h2 id="views">Plan and 3D Views</h2>
 
-<h3>Moving around the plan</h3>
+<h3>Moving Around the Plan</h3>
 <table class="compact">
 <tr><th>To</th><th>Do this</th></tr>
 <tr><td>Zoom</td><td>Mouse wheel (zooms around the pointer), or the <span class="ui">+</span> / <span class="ui">−</span> buttons at the bottom right.</td></tr>
@@ -16,7 +16,7 @@
 </table>
 <p>The hint bar at the bottom of the plan is a reminder of these.</p>
 
-<h3>What the plan shows</h3>
+<h3>What the Plan Shows</h3>
 [[img legend.png|The key (legend) in Workload mode.|55]]
 <ul>
 <li><b>Trusses</b> - bars to scale, coloured by the current colour mode, each labelled with its name and length (turned so it never reads upside down).</li>
@@ -28,7 +28,7 @@
 <li><b>X 0 / Y 0</b> - the origin lines.</li>
 </ul>
 
-<h3 id="colour">Colour modes</h3>
+<h3 id="colour">Colour Modes</h3>
 <p>The buttons in the view toolbar choose what the truss colours mean. The key (bottom right of the plan) changes with them.</p>
 <table>
 <tr><th>Mode</th><th>Colours each truss by…</th></tr>
@@ -47,7 +47,7 @@
 [[img plan-status.jpg|Pass/fail.|100]]
 </div>
 
-<h3>The 3D view</h3>
+<h3>The 3D View</h3>
 <p>Click <span class="ui">3D</span> in the top bar to see the rig in 3D, with the hoists' chains rising to their hook points. It is for looking
 and presenting: you edit in the plan and the panels. Colour modes work the same (in Deflection mode the shapes are drawn above the trusses).</p>
 [[img view-3d.jpg|The 3D view.|85]]
@@ -62,18 +62,18 @@ and presenting: you edit in the plan and the panels. Colour modes work the same 
 </section>
 
 <section class="chapter">
-<h2 id="settings">Rig settings</h2>
+<h2 id="settings">Rig Settings</h2>
 <p>Click <span class="ui">⚙ Rig settings</span> (top right, or in the rig panel) to open the settings for the whole rig. They are saved with the rig and
 printed on the calc sheet. Click <b>‹ Back to the rig</b> or press <kbd>Esc</kbd> to return.</p>
 [[img settings.jpg|The Rig settings page.|85]]
 
-<h3>Hoist loads</h3>
+<h3>Hoist Loads</h3>
 <table>
 <tr><th>Setting</th><th>What it does</th><th>Default</th></tr>
 <tr><td class="k">Default dynamic factor</td><td>The dynamic factor for hoists with no listed speed (custom hoists). Hoists with a speed use speed in fpm ÷ 60 + 1; any hoist can have its own.</td><td>1.25</td></tr>
 <tr><td class="k">Add % to hoist loads</td><td>An extra percentage on the load and truss weight at every hoist - for unknown cable weight or a margin (the original workbook's "Add Percentage"). Added before the hoist, chain and hardware weight. It does not change the truss checks.</td><td>0 (off)</td></tr>
 <tr><td class="k">Hoist stiffness</td><td>How much a hoist and its chain stretch under load, lb/in (kg/mm) - e.g. 1500 lb/in for a 1-ton hoist on a long drop; measure it or ask the maker. Blank = rigid hoists, the usual assumption. Springy hoists share load more evenly and are much less level-sensitive.</td><td>rigid</td></tr>
-<tr><td class="k">Out-of-level tolerance ±</td><td>How far any hoist may end up off level, in inches (mm). Each hoist's check then includes the worst it could see. See <a href="#levels">Hoist levels</a>.</td><td>off</td></tr>
+<tr><td class="k">Out-of-level tolerance ±</td><td>How far any hoist may end up off level, in inches (mm). Each hoist's check then includes the worst it could see. See <a href="#levels">Hoist Levels</a>.</td><td>off</td></tr>
 <tr><td class="k">Load cells read</td><td><i>high hook static</i> (cells above the hoists) or <i>low hook</i> (cells between hoist and truss) - what measured readings are compared with.</td><td>high hook</td></tr>
 <tr><td class="k">Hoists hung below a truss</td><td>On: the hoists holding a carrier truss also take a hung hoist's <i>dynamic</i> load. Off: they take its static load (with their own dynamic factor). The carrier truss itself is always checked with the dynamic load.</td><td>on</td></tr>
 <tr><td class="k">Dead hang rope design factor</td><td>7:1, 8:1 or 10:1. A dead hang's WLL = rope breaking strength ÷ this.</td><td>10:1</td></tr>
@@ -87,7 +87,7 @@ printed on the calc sheet. Click <b>‹ Back to the rig</b> or press <kbd>Esc</k
 <tr><td class="k">Load factors</td><td>A multiplier for each load category - Lighting, Audio, Video, Scenic, Rigging hardware, Other / not set. For example 1.1 on Lighting to allow for clamps, safeties and colour frames not listed. Set each load's category in its panel or the Loads grid. The loads keep the weights you typed; the calculation uses the factored weights.</td></tr>
 </table>
 
-<h3>Truss checks</h3>
+<h3>Truss Checks</h3>
 <table>
 <tr><th>Setting</th><th>What it does</th><th>Default</th></tr>
 <tr><td class="k">Repetitive-use factor</td><td>The ANSI repetitive-use rule multiplies table capacities by 0.85 unless the maker's data already includes it. <i>per truss data</i> follows each truss's data (the generic Universal trusses use 0.75); or force <i>always 0.85</i> or <i>none (1.0)</i>.</td><td>per truss data</td></tr>
@@ -103,7 +103,7 @@ loads are set by it). The list under the setting names every truss with a publis
 <p><b>Center on 0,0</b> moves the whole rig so the middle of its footprint is at X 0, Y 0. Bolted trusses and corner blocks move with the trusses
 they hang from. No result changes, and Undo moves it back.</p>
 
-<h3>Display and paper</h3>
+<h3>Display and Paper</h3>
 <table>
 <tr><th>Setting</th><th>What it does</th></tr>
 <tr><td class="k">Theme</td><td>Dark, Light, or Follow the computer's setting. Kept on this computer, not in the rig file.</td></tr>
@@ -114,11 +114,11 @@ they hang from. No result changes, and Undo moves it back.</p>
 </section>
 
 <section class="chapter">
-<h2 id="calcsheet">The calculation sheet</h2>
-<p>The <b>calc sheet</b> is a printable record of the rig's calculation, written so a second person can check it independently - by hand
-if they want. It shows only what the app has calculated; opening it changes nothing.</p>
+<h2 id="calcsheet">The Calculation Sheet</h2>
+<p>The <b>calc sheet</b> is a printable record of the rig's calculation, written for independent review of the software's work: every input,
+formula, table look-up and result is set out so it can be checked by hand or in another program. It shows only what the app has calculated; opening it changes nothing.</p>
 
-<h3>Opening, filling in and printing</h3>
+<h3>Opening, Filling In and Printing</h3>
 <ol class="steps">
 <li>Click <span class="ui">Calc sheet</span> (top right, or the add button in step 4).</li>
 <li>Fill in the boxes along the top: <b>Project / event</b>, <b>Venue / location</b>, <b>Prepared by</b>, <b>Checked by</b> and <b>Notes</b>. They are printed on the sheet and saved with the rig.</li>
@@ -127,7 +127,7 @@ if they want. It shows only what the app has calculated; opening it changes noth
 </ol>
 [[img calcsheet-top.jpg|The top of the calc sheet: the title block and the first sections.|100]]
 
-<h3>What is on it</h3>
+<h3>What Is on It</h3>
 <table>
 <tr><th>Part</th><th>Contents</th></tr>
 <tr><td class="k">Title block</td><td>Rig name, project, venue, the date and time calculated, the software version, units, notes, and an <b>input fingerprint</b> - a short code that changes whenever any input changes. Two sheets with the same fingerprint describe the same rig. A box at the top right shows the number of warnings or failures.</td></tr>
@@ -138,7 +138,7 @@ if they want. It shows only what the app has calculated; opening it changes noth
 <tr><td class="k">5 Equilibrium</td><td>Self-checks: the loads going in balance the reactions coming out.</td></tr>
 <tr><td class="k">6 Trusses</td><td>For each truss: its data, the loads it carries (including from bolted trusses), reactions and balance, the diagrams, each span and cantilever check with the table row read and the arithmetic written out, and the moment and shear check.</td></tr>
 <tr><td class="k">7 Bolted connections and corner blocks</td><td>The forces through the bolts, and each corner block.</td></tr>
-<tr><td class="k">8 How to check this independently</td><td>Guidance for the checker.</td></tr>
+<tr><td class="k">8 How to check this independently</td><td>Guidance for reviewing the results independently.</td></tr>
 <tr><td class="k">9 Warnings and notes</td><td>Everything from the Warnings tab.</td></tr>
 <tr><td class="k">Sign-off</td><td>Space for the names of the person who prepared it and the person who checked it.</td></tr>
 </table>
@@ -147,15 +147,15 @@ if they want. It shows only what the app has calculated; opening it changes noth
 </section>
 
 <section class="chapter">
-<h2 id="files">Files, export and sharing</h2>
+<h2 id="files">Files, Export and Sharing</h2>
 
-<h3>Saving a rig as a file</h3>
+<h3>Saving a Rig as a File</h3>
 <p><span class="path">File › Save</span> downloads the rig as <code><i>rig name</i>.rig.json</code> to your browser's download folder (your browser may
 ask where to save it). The file contains the whole rig - trusses, blocks, loads, hoists, rig settings, calc sheet fields - plus the custom trusses,
 corner blocks, hoists and fixtures you have added, and the version of the app that saved it. It is a small text file: back it up, email it, keep
 it with the show paperwork.</p>
 
-<h3>Opening a rig file</h3>
+<h3>Opening a Rig File</h3>
 <p><span class="path">File › Open…</span> and choose a <code>.rig.json</code> file. It replaces the rig on screen (save that first). If the file
 cannot be read, the app says why and leaves the current rig alone.</p>
 <div class="box warn"><b>Opening a file also replaces your custom trusses, hoists and fixtures</b><p>In version {{VER}} the custom database saved
@@ -166,11 +166,11 @@ it) disappear from the browser. They are still inside any rig file saved while t
 differ between versions where the calculation has changed - the version history (<span class="path">File › About</span>) says which versions changed
 results. Opening a file made by a <i>newer</i> version in an older one may not work.</p></div>
 
-<h3>Sharing a rig</h3>
+<h3>Sharing a Rig</h3>
 <p>Send the <code>.rig.json</code> file. The other person opens it with <span class="path">File › Open…</span> in their copy of the app. For people
 who do not have the app, send the calc sheet as a PDF, a picture of the plan, or the hoist table.</p>
 
-<h3>The Export menu</h3>
+<h3>The Export Menu</h3>
 <table>
 <tr><th>Item</th><th>What it does</th></tr>
 <tr><td class="k">Copy hoist table</td><td>Copies every hoist's loads to the clipboard as CSV text. Paste into Excel or Google Sheets. Columns: Truss, At, Low hook, Hoist &amp; Chain, Added %, the high hook load from each joint model (hinged, semi-rigid min and max, rigid), High hook static, Governing (joint model), Dynamic factor, High hook dynamic, Capacity, Status. The same button is at the top of step 4.</td></tr>
@@ -180,17 +180,17 @@ who do not have the app, send the calc sheet as a PDF, a picture of the plan, or
 </table>
 <p>Each grid also has a <span class="ui">⧉ Copy</span> button that copies the whole grid (tab-separated) for a spreadsheet.</p>
 
-<h3>Using the app on another computer</h3>
+<h3>Using the App on Another Computer</h3>
 <p>Copy the app file and your <code>.rig.json</code> files. Custom trusses, corner blocks, hoists and fixtures travel inside every rig file you
 save, so opening your most recent rig file on the new computer brings them along.</p>
 </section>
 
 <section class="chapter">
-<h2 id="calculators">Calculators and databases</h2>
+<h2 id="calculators">Calculators and Databases</h2>
 <p>The <span class="path">Calculators</span> menu opens standalone tools in place of the rig. Click <b>‹ Back to the rig</b> to return. They do not
 change the rig.</p>
 
-<h3>Circular truss</h3>
+<h3>Circular Truss</h3>
 <p>For a ring of truss hung from evenly spaced pick points. Choose the truss (manufacturer, model), the number of <b>pick points</b> and the
 <b>diameter</b>. It shows the <b>maximum allowable load on a span</b> (between two picks), the span (chord) against the maximum span, the angle of
 arc, the cantilever distance (how far the arc bows out from the straight chord) and its ratio to the span, the base load and the 20%, 35%, 70% and
@@ -203,7 +203,7 @@ imperial trusses only). Not every truss is made in circular form - check with th
 the load on each point. By default it uses the published rounded coefficients; tick <b>Use exact beam-engine coefficients</b> for the exact values.</p>
 [[img tool-udl.jpg|The Simple UDL table.|80]]
 
-<h3>Fixture weights</h3>
+<h3>Fixture Weights</h3>
 <p>The fixture library: 269 fixtures from the original workbook, with weights and (where known) clamp weights. Search by name, or filter by
 manufacturer. To add your own fixture, fill in <b>Manufacturer</b>, <b>Fixture</b>, weight and (optionally) clamp weight at the bottom and click
 <b>Add fixture</b>. Your fixtures appear in every fixture search, are kept in this browser, and are saved inside your rig files.</p>
@@ -220,15 +220,15 @@ Christie Lites and James Thomas Engineering - plus anything you have added.</p>
 <li>The <b>Source</b> column links to the maker's load table (trusses) or product page (corner blocks), or says <i>workbook</i> for data from Hall &amp; Sogoian's workbook. Hover a row for where its numbers come from.</li>
 <li>Corner block weights marked <i>n/a</i> are not published - enter your own on the block in the rig.</li>
 </ul>
-<h4>Adding your own truss</h4>
+<h4>Adding Your Own Truss</h4>
 <p>Open <b>Add your own truss</b>. Enter the manufacturer, model, weight per foot, maximum span, and the maximum UDL (total) and centre point
 load (CPL) - these are used for every span up to the maximum. For values that change with span, paste one number per foot (1 ft to 100 ft; in
 metric, one per metre) into the optional UDL and CPL boxes, separated by commas. Tick <b>Data already includes the repetitive-use factor</b> if the
 maker's table already includes it. Click <b>Add truss</b>. It is saved in the units you entered it in and is marked <i>custom</i> in the pickers.</p>
-<h4>Adding your own corner block</h4>
+<h4>Adding Your Own Corner Block</h4>
 <p>Open <b>Add your own corner block</b>: maker, truss family, name, what it fits (e.g. <code>12x12</code>), number of ways, weight and size. Click
 <b>Add block</b>.</p>
-<h4>Custom chain hoists</h4>
+<h4>Custom Chain Hoists</h4>
 <p>At the bottom of the page: brand, model, capacity label (e.g. <i>1 Ton</i>), capacity, speed, body weight and chain weight per foot. Click
 <b>Add hoist</b>. A hoist with no speed uses the rig's default dynamic factor.</p>
 <p>Custom entries can be deleted with the <b>×</b> on their row. They are kept in this browser and saved inside your rig files.</p>

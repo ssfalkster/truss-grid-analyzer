@@ -4,8 +4,8 @@
 at one position; for eight lights, add eight loads (or four, mirrored).</p>
 [[img dock-loads.jpg|The Loads grid: loads grouped by truss, each group ending with a "+ load on …" row.|100]]
 
-<h3>Three ways to add a load</h3>
-<h4>1. Quick add, in the truss panel</h4>
+<h3>Three Ways to Add a Load</h3>
+<h4>1. Quick Add, in the Truss Panel</h4>
 <p>Select a truss and find the box <i>Add: fixture or weight</i> in its <b>Loads</b> section (or click <span class="ui">+ Load</span> at the top of
 the panel to jump there). Type what and where, and press <kbd>Enter</kbd>:</p>
 <table class="compact">
@@ -17,16 +17,16 @@ the panel to jump there). Type what and where, and press <kbd>Enter</kbd>:</p>
 </table>
 <p>As you type a fixture name a list of matching fixtures appears; pick one, then type <code>@</code> and the position.</p>
 
-<h4>2. The Loads grid</h4>
+<h4>2. The Loads Grid</h4>
 <p>Click a cell in the <i>+ load on …</i> row of the truss's group and type. In the <b>Item / fixture</b> cell, type part of a fixture name to
 search the library - fixtures already used in this rig are listed first - or type a weight (<code>45 lb</code>) for a custom load.</p>
 [[img loads-autocomplete.jpg|Typing "mac aura" in a new load's Item cell. While you work in the grid the plan shrinks to a strip of the truss you are on.|100]]
 
-<h4>3. The add button</h4>
+<h4>3. The Add Button</h4>
 <p>With a truss selected in step 2, <span class="ui">+ Load</span> above the plan adds an empty load in the middle of it and opens it in the
 side panel. Fill in the item and weight there.</p>
 
-<h3>The Loads grid columns</h3>
+<h3>The Loads Grid Columns</h3>
 <table class="compact">
 <tr><th>Column</th><th>Contents</th></tr>
 <tr><td class="k">Truss</td><td>The truss it is on (grey).</td></tr>
@@ -42,22 +42,22 @@ side panel. Fill in the item and weight there.</p>
 <p>Each truss group's header has <b>Mirror all</b> (mirrors every load on that truss), <b>Copy to truss…</b>, <b>Sort</b> (by position) and
 <b>Clear</b> (removes all its loads, after asking), plus the number of loads and their total weight.</p>
 
-<h3>Mirrored loads</h3>
+<h3>Mirrored Loads</h3>
 <p>Rigs are often symmetrical. Tick <b>Mirror</b> on a load and the truss carries the same load at the same distance on the other side of
 its centerline. The twin is not a separate load: change the original's weight or position and the twin follows. A load exactly on the
 centerline has no twin. On the plan the twin's triangle is drawn lighter.</p>
 
-<h3>Copying loads to another truss</h3>
+<h3>Copying Loads to Another Truss</h3>
 <p><b>Copy to truss…</b> (in the grid group header or the truss panel) asks for the name of the truss to copy to, then copies every load
 keeping its distance from the <b>centre</b> - so the pattern stays centred on a truss of a different length. Loads that would fall past the end
 of the other truss are placed at its end, and the app tells you how many.</p>
 
-<h3>Working with the plan strip</h3>
+<h3>Working with the Plan Strip</h3>
 <p>While a cell in the Loads grid is active, the plan shrinks to a strip showing just that truss: its centerline (CL), corner blocks, hoists
 and loads, with the load you are editing highlighted. Click <b>Show plan (Esc)</b> in the strip to bring the full plan back, or untick
 <b>Collapse plan while typing</b> in the grid header to keep the plan full size.</p>
 
-<h3>The load panel</h3>
+<h3>The Load Panel</h3>
 <div class="side">
 <div>
 <p>Click a load in a truss panel's list or in the grid to open it in the side panel:</p>
@@ -73,7 +73,7 @@ and loads, with the load you are editing highlighted. Click <b>Show plan (Esc)</
 [[img load-inspector.jpg|A load's panel.|100]]
 </div>
 
-<h3>Loads in the truss panel</h3>
+<h3>Loads in the Truss Panel</h3>
 [[img truss-grp-loads.jpg|The Loads section of a truss.|60]]
 <p>The truss panel's <b>Loads</b> section lists each load (click one to open it), with the quick-add box and the links <b>Mirror all</b>,
 <b>Copy to truss…</b>, <b>Sort by position</b>, <b>Edit all loads in the grid</b> and <b>Clear all</b>. The line <i>Also carrying</i> lists loads that
@@ -88,7 +88,7 @@ motors on moving trusses and anything else that will hang there: use a category 
 <p>In step 3 you place the hoists (and dead hangs), choose their models and chains, and see their loads live. A new truss has no hoists.</p>
 [[img step3.jpg|Step 3: each hoist on the plan shows its high hook static load and, in italics, its high hook dynamic load. The grid lists every hoist with its results.|100]]
 
-<h3>Adding hoists</h3>
+<h3>Adding Hoists</h3>
 <ul>
 <li><b>In the grid</b>: click the <b>At</b> cell of the <i>+ hoist on …</i> row, type the position and press <kbd>Enter</kbd>. The cursor stays on the new row, so you can type the next position straight away.</li>
 <li><b>With the button</b>: select the truss and click <span class="ui">+ Hoist</span> (above the plan, or at the top of the truss panel). The hoist is added in the middle of the truss; type its position in its panel or drag it.</li>
@@ -98,12 +98,12 @@ motors on moving trusses and anything else that will hang there: use a category 
 <p>A new hoist is set up like the <b>last hoist you placed</b> in the rig - same model, chain (or rope), hardware and dynamic factor - so a rig of
 identical hoists takes no extra typing. The very first hoist in a rig is a 1-ton CM Lodestar with 20 ft of chain.</p>
 
-<h3>Moving a hoist</h3>
+<h3>Moving a Hoist</h3>
 <p>Type its position (<b>At</b> and <b>From</b> in the grid, or <b>Position</b> in its panel), or <b>drag it along its truss on the plan</b>. While you
 drag, the position is shown next to the hoist and the rig is re-solved as it moves. It moves in 1" steps (2 cm in metric), counted from the truss's
 measuring reference, so the distance stays a round number. Clicking a hoist without dragging just selects it.</p>
 
-<h3>The Hoists grid columns</h3>
+<h3>The Hoists Grid Columns</h3>
 <table class="compact">
 <tr><th>Column</th><th>Contents</th></tr>
 <tr><td class="k">Truss, At, From</td><td>Where the hoist is.</td></tr>
@@ -111,11 +111,11 @@ measuring reference, so the distance stays a round number. Clicking a hoist with
 <tr><td class="k">Chain / rope</td><td>Chain length (or, for a dead hang, rope length). Its weight is added to the high hook load.</td></tr>
 <tr><td class="k">DLF</td><td>Dynamic load factor. Blank = automatic (shown grey, e.g. <i>auto 1.267</i>, from the hoist's speed); type a number to override.</td></tr>
 <tr><td class="k">Hardware</td><td>Weight of shackles, spansets, beam clamps and so on at this hoist.</td></tr>
-<tr><td class="k">Hangs from</td><td><i>structure</i> (the usual), or <i>below</i> another truss - see <a href="#hung">Hoists hung below a truss</a>.</td></tr>
-<tr><td class="k">Level (in)</td><td>A designed level offset, + higher - see <a href="#levels">Hoist levels</a>.</td></tr>
+<tr><td class="k">Hangs from</td><td><i>structure</i> (the usual), or <i>below</i> another truss - see <a href="#hung">Hoists Hung Below a Truss</a>.</td></tr>
+<tr><td class="k">Level (in)</td><td>A designed level offset, + higher - see <a href="#levels">Hoist Levels</a>.</td></tr>
 <tr><td class="k">High hook static / dyn.</td><td>Results (grey).</td></tr>
 <tr><td class="k">Workload, Status</td><td>High hook static ÷ capacity, and OK / Overloaded / Slack / Unstable.</td></tr>
-<tr><td class="k">Measured, vs calc.</td><td>A load-cell reading you type, and how far it is from the calculation - see <a href="#measured">Measured loads</a>.</td></tr>
+<tr><td class="k">Measured, vs calc.</td><td>A load-cell reading you type, and how far it is from the calculation - see <a href="#measured">Measured Loads</a>.</td></tr>
 </table>
 <p>The grid header also has:</p>
 <ul>
@@ -125,7 +125,7 @@ measuring reference, so the distance stays a round number. Clicking a hoist with
 [[img hoists-compare.jpg|The Hoists grid with Compare analysis methods ticked.|100]]
 <p>Each truss's group header has <b>Select</b> (select all its hoists), <b>Mirror all</b> and <b>Copy to truss…</b>.</p>
 
-<h3 id="multi">Editing many hoists at once</h3>
+<h3 id="multi">Editing Many Hoists at Once</h3>
 <p>In the Hoists grid you can select several hoists and change them all with one edit:</p>
 <table class="compact">
 <tr><th>To select</th><th>Do this</th></tr>
@@ -141,7 +141,7 @@ same value. Positions (<b>At</b>) are never changed together. <kbd>Ctrl</kbd>+<k
 <kbd>Delete</kbd> removes all of them (after asking). <kbd>Esc</kbd>, <b>Clear selection</b>, or moving with the arrows, <kbd>Tab</kbd> or
 <kbd>Enter</kbd> clears the selection.</p>
 
-<h3>Mirroring and copying hoists</h3>
+<h3>Mirroring and Copying Hoists</h3>
 <ul>
 <li><b>Mirror</b> (in a hoist's panel) adds a hoist at the mirror position on the other side of the truss's centerline.</li>
 <li><b>Mirror all</b> (truss panel, or the grid group header) does this for every hoist on the truss.</li>
@@ -151,7 +151,7 @@ same value. Positions (<b>At</b>) are never changed together. <kbd>Ctrl</kbd>+<k
 factor, hardware, level offset and Hangs from, but not the name or a load-cell reading. No copy is placed on the centerline or where a hoist
 already is; the app tells you what it left out.</p>
 
-<h3>The hoist panel</h3>
+<h3>The Hoist Panel</h3>
 <div class="side">
 <div>
 <p>Click a hoist on the plan (or its row) to open its panel. At the top: its name (type one if you like, e.g. <i>DS-L</i>), its status, model,
@@ -162,7 +162,7 @@ capacity and speed, <b>‹ ›</b> to step through the hoists on the truss, and 
 <li>A <b>Workload</b> bar.</li>
 <li><b>Level sensitivity</b>: <i>±603 lb if this hoist runs 1/4" (6 mm) high or low</i>, and which other hoist changes most. Highlighted when it is more than 10% of the hoist's capacity - level that hoist carefully.</li>
 <li>With an out-of-level tolerance set: how much it adds and whether the hoist could go slack.</li>
-<li><b>Load cell reading</b> - type a measured value (see <a href="#measured">Measured loads</a>).</li>
+<li><b>Load cell reading</b> - type a measured value (see <a href="#measured">Measured Loads</a>).</li>
 <li><b>Where the load comes from</b> - every truss, corner block and load that puts weight on this hoist (its own truss's self weight, neighbouring trusses through the grid - small negative figures mean a neighbour lifts a little off it), then Add %, hardware, hoist + chain, and the <b>high hook load (static)</b>. The note underneath says which joint model it came from.</li>
 </ul>
 <h4>Hoist</h4>
@@ -173,7 +173,7 @@ capacity and speed, <b>‹ ›</b> to step through the hoists on the truss, and 
 [[img hoist-inspector.jpg|A hoist's panel.|100]]
 </div>
 
-<h3>Hoist models and the dynamic factor</h3>
+<h3>Hoist Models and the Dynamic Factor</h3>
 <p>The hoist list has 76 built-in chain hoists from the original workbook (CM, Chainmaster, Stagemaker, Prolyte and others) and any you add under
 <a href="#databases">Databases</a>. Each has a capacity, a speed, a body weight and a chain weight per foot.</p>
 <p>The <b>dynamic factor</b> allows for the extra load while a hoist starts, stops and runs. For a hoist with a listed speed it is
@@ -181,7 +181,7 @@ capacity and speed, <b>‹ ›</b> to step through the hoists on the truss, and 
 <b>Default dynamic factor</b> (1.25 unless you change it in Rig settings). You can type any factor for one hoist in its <b>DLF</b> / <b>Dyn. factor</b>
 box. A hoist's <b>status</b> compares its <i>static</i> high hook load with its capacity; the dynamic load is flagged separately if it exceeds capacity.</p>
 
-<h3 id="deadhang">Dead hangs</h3>
+<h3 id="deadhang">Dead Hangs</h3>
 <p>A <b>dead hang</b> is a support made of wire rope and hardware from the truss to the hang point, with no hoist. To make one, set the hoist's
 <b>Support</b> to <b>Dead hang (wire rope, no hoist)</b>, or type <code>dead</code> in the grid's Hoist cell. Then set:</p>
 <table class="compact">
@@ -196,17 +196,17 @@ box. A hoist's <b>status</b> compares its <i>static</i> high hook load with its 
 assembly WLL. The panel writes out the sum. Breaking strengths are typical catalogue values - <b>check your rope's certificate</b>. A dead hang
 with no rope and no WLL is Overloaded. On the plan a dead hang is a filled dot; on the calc sheet it is DH1, DH2….</p>
 
-<h3 id="hung">Hoists hung below a truss</h3>
+<h3 id="hung">Hoists Hung Below a Truss</h3>
 <p>Sometimes a truss is flown from hoists that hang from another truss rather than from the building. Set such a hoist's <b>Hangs from</b> to
 <b>below</b> the upper truss (the <i>carrier</i>). Then:</p>
 <ul>
 <li>The hoist hooks onto the carrier where the plan puts it - so it must be directly under the carrier on the plan (the panel tells you where it hooks on, and warns if it is off to the side).</li>
 <li>Its chain joins the two trusses in the whole-rig analysis, so the carrier sags with the load and the truss below shares load with its other hoists. The chain can only pull.</li>
-<li>The carrier carries the hung hoist's high hook load, and the carrier (with everything bolted to it) is checked with the hung hoist's <b>high hook dynamic</b> load. So are the hoists holding the carrier up, unless you turn that off in <a href="#settings">Rig settings</a>.</li>
+<li>The carrier carries the hung hoist's high hook load, and the carrier (with everything bolted to it) is checked with the hung hoist's <b>high hook dynamic</b> load. So are the hoists holding the carrier up, unless you turn that off in <a href="#settings">Rig Settings</a>.</li>
 <li>On the plan the hung hoist is a <b>dashed</b> ring. The rig's total high hook load counts only hoists to the structure.</li>
 </ul>
 
-<h3 id="levels">Hoist levels</h3>
+<h3 id="levels">Hoist Levels</h3>
 <p>Two different things:</p>
 <ul>
 <li><b>Level offset</b> (per hoist) - a <i>designed</i> difference: a truss hung raked or trimmed on purpose, or a dead hang whose length is fixed. Type inches (mm), + higher. The whole-rig analysis solves the rig with that point moved, and the loads shift accordingly.</li>
@@ -215,9 +215,12 @@ with no rope and no WLL is Overloaded. On the plan a dead hang is a filled dot; 
 <div class="box warn"><b>Level sensitivity matters on stiff rigs</b><p>On short, stiff spans, and in grids with many hoists, a small level error
 moves a lot of load. The app warns when a 1/4" error would change a hoist's load by more than 10% of its capacity. Level such hoists carefully,
 use load cells, or set an out-of-level tolerance so the checks include it. Giving hoists a stiffness (Rig settings) makes the analysis more
-realistic and much less level-sensitive.</p></div>
+realistic and much less level-sensitive.</p>
+<p>With rigid hoists (the default) the level sensitivity is a worst case: in a real rig the chain, slings, shackles, beam clamps and
+bolted connections all stretch and give a little, which spreads the load and usually makes the real change smaller. Treat the warning
+as a sign that the rig is sensitive to levelling, not as the load you will see.</p></div>
 
-<h3 id="measured">Measured loads (load cells)</h3>
+<h3 id="measured">Measured Loads (Load Cells)</h3>
 <p>If you have load cells, type each reading in the <b>Measured</b> column (or the hoist panel's <b>Load cell reading</b>). The app compares it
 with the calculated high hook static load - or with the low hook load if your cells hang between the hoist and the truss (set <b>Load cells read</b>
 in Rig settings). The <b>vs calc.</b> column shows the difference in percent. The rig panel's <b>Measured vs calculated</b> section totals each
@@ -230,7 +233,7 @@ stiffness) - compare the assembly totals. Readings never change a result.</p>
 <p>Step 4 replaces the grid with the results. You can come here at any time; the results are always up to date.</p>
 [[img step4.jpg|Step 4 with the example box.|100]]
 
-<h3>The summary</h3>
+<h3>The Summary</h3>
 <p>Across the top of the results:</p>
 <ul>
 <li><b>All OK</b> or <b>n to check</b> - the number of hoists and trusses that are not OK (overloaded, too long, slack, unstable or not solved);</li>
@@ -241,7 +244,7 @@ stiffness) - compare the assembly totals. Readings never change a result.</p>
 <p>Below it, the first warning is repeated as a banner, with links: <b>All n warnings</b>, <b>Select truss ›</b> and, for hoist
 problems, <b>Go to hoists (step 3) ›</b>.</p>
 
-<h3>Trusses tab</h3>
+<h3>Trusses Tab</h3>
 [[img results-trusses.jpg|The Trusses tab.|100]]
 <table class="compact">
 <tr><th>Column</th><th>Meaning</th></tr>
@@ -256,24 +259,24 @@ problems, <b>Go to hoists (step 3) ›</b>.</p>
 </table>
 <p>Percentages of 80% or more are amber, over 100% red. The warnings list follows the table. Click a row to select the truss.</p>
 
-<h3>Hoists tab</h3>
+<h3>Hoists Tab</h3>
 [[img results-hoists.jpg|The Hoists tab.|100]]
 <p>One row per hoist: truss, position (from the truss's start), model, chain, <b>Hoist &amp; Chain</b> weight, the high hook static load from
 each joint model (<b>Hinged joints*</b>, <b>Semi-rigid*</b>, <b>Rigid joints*</b>), the <b>High hook static</b> used (the largest, in bold), the
 dynamic factor, the <b>High hook dynamic</b> load, the capacity, the workload and the status. The note under the table explains the joint
-models. <span class="ui">⧉ Copy hoist table</span> copies the table for Excel (see <a href="#files">Files, export and sharing</a>).</p>
+models. <span class="ui">⧉ Copy hoist table</span> copies the table for Excel (see <a href="#files">Files, Export and Sharing</a>).</p>
 
-<h3>Warnings tab</h3>
+<h3>Warnings Tab</h3>
 <p>Every warning, then the <b>notes</b> (smaller, grey: things to be aware of that are not problems, such as parts the app cannot check).
-Click a warning to select the truss it is about. See <a href="#warnings">Warnings and messages</a> for what each one means and what to do.</p>
+Click a warning to select the truss it is about. See <a href="#warnings">Warnings and Messages</a> for what each one means and what to do.</p>
 
-<h3>A rig with problems</h3>
+<h3>A Rig with Problems</h3>
 <p>Here the example box has had a 1,400 lb video wall added to Inner W, 5 ft past its hoist, and a spot light entered with no weight:</p>
 [[img problem-overview.jpg|Inner W is red on the plan; the status reads "1 to check" and "3 warnings"; Check rig lists the load with no weight.|100]]
 [[img problem-results.jpg|The Trusses tab: Inner W's span load is 120% (red).|100]]
 [[img problem-warnings.jpg|The Warnings tab explains each problem.|100]]
 
-<h3 id="checks">A truss's Checks section</h3>
+<h3 id="checks">A Truss's Checks Section</h3>
 <div class="side">
 <div>
 <p>Select a truss and open <b>Checks</b> in its panel to see exactly why it passes or fails. From the top:</p>
@@ -290,7 +293,7 @@ Click a warning to select the truss it is about. See <a href="#warnings">Warning
 [[img problem-checks.jpg|The Checks section of the overloaded truss.|100]]
 </div>
 
-<h3>Check rig</h3>
+<h3>Check Rig</h3>
 <p>Click an empty part of the plan to show the rig panel. Its <b>Check rig</b> section lists input mistakes the calculation would otherwise take
 at face value:</p>
 <ul>
@@ -304,7 +307,7 @@ at face value:</p>
 [[img problem-checkrig.jpg|The rig panel with one Check rig item.|55]]
 <p>Click an item to select what it is about. If nothing is found it says so. Nothing in Check rig changes a result.</p>
 
-<h3>What to do when something fails</h3>
+<h3>What to Do When Something Fails</h3>
 <table class="compact">
 <tr><th>Problem</th><th>Things to try</th></tr>
 <tr><td>A hoist is Overloaded</td><td>Add a hoist nearby, move hoists to share the load, move or lighten loads, use a bigger hoist. Check the hoist's <i>Where the load comes from</i> table.</td></tr>

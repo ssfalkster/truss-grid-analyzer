@@ -1,5 +1,5 @@
 <section class="chapter">
-<h2>About this guide</h2>
+<h2>About This Guide</h2>
 
 <div class="versionbox"><b>Written for Truss Grid Analyzer version {{VER}}</b><br>{{DATE}}</div>
 
@@ -7,18 +7,18 @@
 on it, hang it from hoists, and read and print the results. It is written for riggers, production managers and
 anyone else who plans truss rigs. You do not need to know structural engineering to follow it.</p>
 
-<h3>Which version this guide describes</h3>
+<h3>Which Version This Guide Describes</h3>
 <p>Everything here - the screenshots, button names, menu items and numbers - is taken from version <b>{{VER}}</b>.
 The guide is <b>not</b> updated for every new release, so a later version may add features or look a little
 different. To see which version you are running, look next to the app's name at the top left of the screen, or
 open <span class="path">File › About, method &amp; version history</span>, which also lists what changed in each
 version since this one.</p>
 
-<h3>How to use this guide</h3>
+<h3>How to Use This Guide</h3>
 <ul>
-<li><b>New to the app?</b> Read the <i>Quick Start</i> (a separate short PDF), or chapters 2-6 of this guide, then work through <a href="#box">Building a box, step by step</a>.</li>
+<li><b>New to the app?</b> Read the <i>Quick Start</i> (a separate short PDF), or chapters 2-6 of this guide, then work through <a href="#box">Building a Box, Step by Step</a>.</li>
 <li><b>Looking for one thing?</b> In the HTML copy of this guide, type in the <b>Search</b> box at the top (or press <kbd>/</kbd>). In the PDF, use your PDF reader's search (<kbd>Ctrl</kbd>+<kbd>F</kbd>) or the bookmarks.</li>
-<li><b>Something looks wrong?</b> See <a href="#warnings">Warnings and messages</a> and <a href="#faq">Troubleshooting and questions</a>.</li>
+<li><b>Something looks wrong?</b> See <a href="#warnings">Warnings and Messages</a> and <a href="#faq">Troubleshooting and Questions</a>.</li>
 </ul>
 
 <h3>Conventions</h3>
@@ -31,7 +31,7 @@ version since this one.</p>
 <tr><td><code>12-6</code></td><td>Something you type.</td></tr>
 </table>
 <p>Screenshots use the <b>light</b> theme so they print clearly. The app starts in the <b>dark</b> theme; both show exactly the
-same things (see <a href="#theme">Dark or light</a>). Screenshots use feet and pounds; everything works the same in metres
+same things (see <a href="#theme">Dark or Light</a>). Screenshots use feet and pounds; everything works the same in metres
 and kilograms.</p>
 
 <div class="box"><b>Tip - boxes like this</b><p>Green boxes are tips, amber boxes are things to watch out for, and red boxes are safety points.</p></div>
@@ -50,7 +50,7 @@ manufacturer's published limits. You describe the rig in four steps:</p>
 </ol>
 <p>Everything is recalculated the moment you change anything, so you can try ideas - move a hoist, add a light - and see the effect straight away.</p>
 
-<h3>What it checks</h3>
+<h3>What It Checks</h3>
 <ul>
 <li><b>Hoists:</b> the high hook load (the truss load on the hook plus the hoist, its chain and hardware) against the hoist's rated capacity, and the dynamic load (static × a factor for the hoist's speed).</li>
 <li><b>Truss spans:</b> the point loads on every span against the manufacturer's load table for that span length, with the ANSI repetitive-use factor (0.85) unless the table already includes it.</li>
@@ -61,29 +61,43 @@ manufacturer's published limits. You describe the rig in four steps:</p>
 <li><b>Input mistakes:</b> a load with no weight, two hoists at one point, bolted ends that do not meet, parts from different truss families bolted together, and more.</li>
 </ul>
 
-<h3>What you need to know first</h3>
+<h3>What You Need to Know First</h3>
 <div class="box stop"><b>A calculation aid, not an engineering approval</b>
 <p>This tool is intended for entertainment rigging professionals to help them make rigging decisions. Every attempt has
 been made to be accurate, but the authors are not responsible for errors in the program or the results of its use.
 <b>You are responsible for verifying the results before using them to make rigging decisions.</b> Check results against
 the manufacturer's current data, and have a qualified person review every rig before it flies.</p></div>
 <ul>
-<li>The results are only as good as what you enter. Weigh or look up every load, and include cable, clamps and safeties (the app has allowances for these - see <a href="#settings">Rig settings</a>).</li>
+<li>The results are only as good as what you enter. Weigh or look up every load, and include cable, clamps and safeties (the app has allowances for these - see <a href="#settings">Rig Settings</a>).</li>
 <li>Some figures are <b>estimates</b> and the app says so: truss stiffness, the allowable bending moment and shear, and deflection are worked out from the manufacturers' load tables, not published values.</li>
 <li>The app does not check the structure the hoists hang from (beams, roof steel, a ground-support system) - only the hoists and the trusses.</li>
 </ul>
+<div class="box note"><b>Indeterminate rigs (ANSI E1.6-3)</b>
+<p>ANSI E1.6-3 (<i>Selection and Use of Serially Manufactured Chain Hoists in the Entertainment Industry</i>, section 2.11) calls a
+load system <b>indeterminate</b> when the way its load divides between the hoists depends on the stiffness of the structure as well
+as on where the loads and hoists are. In practice that is any rig on more than two hoists in a straight line, or more than three
+hoists not in a line: a truss on three hoists, and almost every grid or box. On these rigs load can shift between hoists as they run
+or if one is out of level, and the standard warns that stiff indeterminate structures can shift load very quickly.</p>
+<p>Section 7.1 of the standard accepts a load calculation as a way to reduce the risk of overload only when all the weights are
+known and accounted for, an accurate calculation method is used, and any load shifting will not be enough to cause an overload.
+The whole-rig analysis in this app is built for these rigs - it solves the grid with hinged, semi-rigid and rigid joints and uses the
+worst - but it is still an estimate. Allow a margin for load shifting, level hoists carefully, and verify the loads (for example
+with load cells) where the margin is small.</p></div>
 
-<h3>Where it came from</h3>
-<p>Truss Grid Analyzer is a web rebuild, by G.E. Simmons Falk, of <i>Truss Load Analyzer - EOT</i>, the Excel workbook
-created by <b>Delbert L. Hall and Jon Sogoian</b>, who are the originators of the program. It uses their method and their truss,
-hoist and fixture data, adds manufacturers' own load tables, and adds the grid model, the plan and 3D views, and the whole-rig
-analysis. It is free, and must never be sold (see <a href="#credits">Credits, licence and disclaimer</a>).</p>
+
+<h3>Where It Came From</h3>
+<p>Truss Grid Analyzer, by G.E. Simmons Falk, is an expansion of <i>Truss Load Analyzer - EOT</i>, the Excel workbook
+created by <b>Delbert L. Hall and Jon Sogoian</b>, who are the originators of the program, for <b>indeterminate grids</b>. The
+workbook works truss by truss; Truss Grid Analyzer extends it to trusses bolted into grids and boxes and to trusses on three or more
+hoists - rigs whose hoist loads depend on the stiffness of the trusses and joints, not on the load positions alone (see
+<i>Indeterminate rigs</i> above). It uses their method and their truss, hoist and fixture data, adds manufacturers' own load
+tables, and adds the grid model, the whole-rig analysis, and the plan and 3D views. It is free, and must never be sold (see <a href="#credits">Credits, Licence and Disclaimer</a>).</p>
 </section>
 
 <section class="chapter">
-<h2>Getting started</h2>
+<h2>Getting Started</h2>
 
-<h3>What you need</h3>
+<h3>What You Need</h3>
 <ul>
 <li>A computer with a current web browser: Google Chrome, Microsoft Edge, Mozilla Firefox or Apple Safari. A large screen (a laptop or bigger) works best; the app is not designed for phones.</li>
 <li>The app file. The whole app is a single file called <code>index.html</code> - on the project's GitHub page it is <code>dist/index.html</code>. It contains everything: the program, the truss, hoist, corner block and fixture databases.</li>
@@ -91,7 +105,7 @@ analysis. It is free, and must never be sold (see <a href="#credits">Credits, li
 <p>There is nothing to install, no account, and no internet connection is needed. The app never sends your rig anywhere.
 (The only things that go online are the links to manufacturers' data sheets, which open in a new browser tab when you click them.)</p>
 
-<h3>Opening the app</h3>
+<h3>Opening the App</h3>
 <ol class="steps">
 <li>Save <code>index.html</code> somewhere you will find it again, for example a <i>Truss Grid Analyzer</i> folder in Documents. You can rename it (for example <code>Truss Grid Analyzer 1.24.0.html</code>).</li>
 <li>Double-click it. It opens in your default browser. (Or drag it onto an open browser window.)</li>
@@ -101,7 +115,7 @@ analysis. It is free, and must never be sold (see <a href="#credits">Credits, li
 twelve hoists - so you have something to explore. You can bring it back any time with <span class="path">File › Load example box</span>.</p>
 [[img overview-dark.jpg|The app as it first opens: the example box, in the dark theme.|100]]
 
-<h3 id="autosave">Where your work is kept</h3>
+<h3 id="autosave">Where Your Work Is Kept</h3>
 <p>The app saves <b>every change automatically</b> inside the web browser on your computer. Close the browser, come back
 tomorrow, and your rig (and your custom trusses, hoists and fixtures) will be there.</p>
 <div class="box warn"><b>Automatic saving is not a backup</b>
@@ -110,25 +124,25 @@ tomorrow, and your rig (and your custom trusses, hoists and fixtures) will be th
 <li>Clearing the browser's history or "site data" can erase it.</li>
 <li>It holds <b>one rig at a time</b> - the one on screen. Starting a new rig or opening another replaces it.</li>
 </ul>
-<p>So keep every rig you care about as a file with <span class="path">File › Save</span> (see <a href="#files">Files, export and sharing</a>).</p></div>
+<p>So keep every rig you care about as a file with <span class="path">File › Save</span> (see <a href="#files">Files, Export and Sharing</a>).</p></div>
 
-<h3>Starting a new rig</h3>
+<h3>Starting a New Rig</h3>
 <p>Choose <span class="path">File › New rig</span> and click <b>OK</b>. The plan is cleared and you start at step 1.</p>
 <div class="box warn"><b>Save first</b><p>In version {{VER}} the confirmation says Undo can bring the old rig back - it cannot. <span class="path">File › New rig</span>,
 <span class="path">File › Open…</span> and <span class="path">File › Load example box</span> all clear the undo history and replace the rig that was on screen.
 Use <span class="path">File › Save</span> before any of them.</p></div>
 
-<h3>Naming the rig</h3>
+<h3>Naming the Rig</h3>
 <p>Click the rig's name in the top bar (a new rig is called <i>Untitled rig</i>), type a new name and click <b>OK</b>. You can also
 edit it at the top of the rig panel (click an empty part of the plan to show it). The name is used for the saved file, the
 calculation sheet and exported pictures.</p>
 
-<h3 id="theme">Dark or light</h3>
+<h3 id="theme">Dark or Light</h3>
 <p>The app starts in a dark theme, which is easy on the eyes in a dark venue. Choose <span class="path">File › Theme › Light</span>
 for daylight or an office, or <span class="path">Follow system</span> to match your computer's setting. The same choice is in
-<a href="#settings">Rig settings</a>. The theme is remembered on this computer; it is not saved in rig files and does not change any result.</p>
+<a href="#settings">Rig Settings</a>. The theme is remembered on this computer; it is not saved in rig files and does not change any result.</p>
 
-<h3>Undo and redo</h3>
+<h3>Undo and Redo</h3>
 <p>Almost every change can be undone: click <span class="ui">↶</span> / <span class="ui">↷</span> in the top bar, or press
 <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo and <kbd>Ctrl</kbd>+<kbd>Y</kbd> (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>) to redo. The
 app keeps the last 100 changes. A paste or a multi-hoist edit counts as one change. (Undo does not work while you are typing
@@ -136,7 +150,7 @@ in a box - finish the entry first.)</p>
 </section>
 
 <section class="chapter">
-<h2>The screen</h2>
+<h2>The Screen</h2>
 
 <p>The app has one main screen. The picture below shows it with the example box loaded and nothing selected.</p>
 [[pins overview.jpg|The main screen.|100|1@14.9,-2.6;2@23.0,-2.6;3@32.1,-2.6;4@38.4,-2.6;5@44.4,-2.6;6@69.4,-2.6;7@84.9,-2.6;8@90.6,-2.6;9@96.5,-2.6;10@-1.8,7.5;11@37.9,7.4;12@36.4,11.9;13@10,40;14@58,8.7;15@68.4,53.4;16@49.8,61.0;17@101.8,33;18@-1.8,65.4]]
@@ -161,7 +175,7 @@ in a box - finish the entry first.)</p>
 <li>{{pin 18}}<b>Grid</b> - a spreadsheet for the current step.</li>
 </ul>
 
-<h3>The top bar</h3>
+<h3>The Top Bar</h3>
 [[img appbar.png|The top bar.|100]]
 <table>
 <tr><th>Item</th><th>What it does</th></tr>
@@ -170,11 +184,11 @@ in a box - finish the entry first.)</p>
 <tr><td class="k">Rig name</td><td>Click to rename the rig.</td></tr>
 <tr><td class="k">↶ ↷</td><td>Undo and redo.</td></tr>
 <tr><td class="k">Plan | 3D</td><td>Show the rig as a plan (from above, to scale, editable) or in 3D (for looking).</td></tr>
-<tr><td class="k">Calculators ▾</td><td><b>Circular truss</b>, <b>Simple UDL</b>, <b>Fixture weights</b> and <b>Databases</b> (trusses, blocks, hoists). See <a href="#calculators">Calculators and databases</a>.</td></tr>
+<tr><td class="k">Calculators ▾</td><td><b>Circular truss</b>, <b>Simple UDL</b>, <b>Fixture weights</b> and <b>Databases</b> (trusses, blocks, hoists). See <a href="#calculators">Calculators and Databases</a>.</td></tr>
 <tr><td class="k">Status</td><td>A one-line summary: <span class="badge b-ok">● All OK</span> or <span class="badge b-fail">● 2 to check</span>, the number of hoists and the highest hoist workload, and <span class="badge b-warn">▲ n warnings</span>. Click it to go to step 4 (the Warnings tab if there are warnings).</td></tr>
-<tr><td class="k">⚙ Rig settings</td><td>Opens the rig settings page (units, dynamic factor, allowances, deflection limit, paper…). See <a href="#settings">Rig settings</a>.</td></tr>
+<tr><td class="k">⚙ Rig settings</td><td>Opens the rig settings page (units, dynamic factor, allowances, deflection limit, paper…). See <a href="#settings">Rig Settings</a>.</td></tr>
 <tr><td class="k">Export ▾</td><td><b>Copy hoist table</b> (for Excel), <b>Save view as PNG</b>, <b>Export whole-rig model</b>, <b>Print screen</b>.</td></tr>
-<tr><td class="k">Calc sheet</td><td>Opens the printable calculation sheet. See <a href="#calcsheet">The calculation sheet</a>.</td></tr>
+<tr><td class="k">Calc sheet</td><td>Opens the printable calculation sheet. See <a href="#calcsheet">The Calculation Sheet</a>.</td></tr>
 </table>
 <div class="row2">
 [[img menu-file.png|The File menu.|100]]
@@ -182,7 +196,7 @@ in a box - finish the entry first.)</p>
 </div>
 [[img menu-export.png|The Export menu.|45]]
 
-<h3>The steps bar</h3>
+<h3>The Steps Bar</h3>
 [[img steps.png|The steps bar, the add button and the view toolbar.|70]]
 <p>The four steps split the work into manageable parts. Click a step (or press <kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd> or
 <kbd>4</kbd>) to change the grid under the plan and the add button. You can go to any step at any time and in any order -
@@ -194,13 +208,13 @@ step you are on is highlighted.</p>
 <span class="ui">+ Load</span> or <span class="ui">+ Hoist</span> (steps 2 and 3, on the selected truss - if no truss is selected it
 adds a new truss instead), and <span class="ui">Calc sheet</span> (step 4).</p>
 
-<h3>The plan</h3>
+<h3>The Plan</h3>
 <p>The plan shows the rig from above, drawn to scale on a grid, with north at the top. The thin dark lines marked
 <b>X 0</b> and <b>Y 0</b> are the origin. Each truss is drawn as a coloured bar with its name and length; corner blocks are
 dark squares; hoists are rings with cross-hairs, labelled with their loads; loads are small triangles labelled with their
-weight. See <a href="#views">Plan and 3D views</a> for everything you can do on it.</p>
+weight. See <a href="#views">Plan and 3D Views</a> for everything you can do on it.</p>
 
-<h3>The side panel</h3>
+<h3>The Side Panel</h3>
 <p>The panel on the right shows whatever you last clicked:</p>
 <table class="compact">
 <tr><th>You clicked</th><th>The panel shows</th></tr>
@@ -214,28 +228,28 @@ weight. See <a href="#views">Plan and 3D views</a> for everything you can do on 
 name to go back up. Each panel is split into sections you can open and close by clicking their titles; <b>Collapse all</b>
 and <b>Expand all</b> do all of them at once, and the app remembers which ones you like open.</p>
 
-<h3>The grid</h3>
+<h3>The Grid</h3>
 <p>Under the plan is a spreadsheet for the current step: every truss (step 1), every load grouped by truss (step 2), or every
 hoist grouped by truss (step 3), with results updating as you type. Step 4 shows the results tables instead. The grid works like
-Excel - see <a href="#grids">Working in the grids</a>.</p>
+Excel - see <a href="#grids">Working in the Grids</a>.</p>
 
-<h3>Resizing the panels</h3>
+<h3>Resizing the Panels</h3>
 <p>Drag the border between the plan and the side panel, or between the plan and the grid, to make either bigger. Double-click a
 border to put it back. The app remembers your layout on this computer.</p>
 </section>
 
 <section class="chapter">
-<h2 id="concepts">Key ideas</h2>
+<h2 id="concepts">Key Ideas</h2>
 <p>A few words have a specific meaning in the app. The <a href="#glossary">Glossary</a> has the full list.</p>
 
-<h3>Trusses and truss lines</h3>
+<h3>Trusses and Truss Lines</h3>
 <p>In the app, a <b>truss</b> is one straight line of truss - which may be several sections (pieces) bolted end to end, and may
 include corner blocks along it. For example a 32 ft line might be a corner block, 30 ft of truss in 10 ft and 5 ft sticks, and
 another corner block. The app treats the whole line as one continuous beam.</p>
 <p>Each truss has a <b>start</b> and an <b>end</b>. On the plan, the start is at the truss's X, Y position, and the truss runs from
 there in the direction of its angle: 0° runs east (to the right), 90° north (up), 180° west and 270° south.</p>
 
-<h3>Corner blocks and bolting</h3>
+<h3>Corner Blocks and Bolting</h3>
 <p>A <b>corner block</b> is a short block that trusses bolt to at right angles (a 6-way block has six faces: four sides, top and
 bottom). In the app a corner block always <b>belongs to one truss</b> - it is part of that truss line, at its start, its end or
 somewhere along it. Other trusses are then <b>bolted to</b> the block. A bolted truss is positioned by its block: it moves when the
@@ -243,7 +257,7 @@ block's truss moves, and you cannot drag it on its own.</p>
 <p>A truss can be <b>free</b> (you place it by typing its X, Y and angle, or dragging it) or <b>bolted</b> (placed by a corner block).
 A truss can also be <b>stacked</b> on top of another truss or <b>clamped</b> below it at the point where they cross.</p>
 
-<h3>Measuring positions: start, centerline or end</h3>
+<h3>Measuring Positions: Start, Centerline or End</h3>
 <p>Every load and hoist position is a distance along its truss, measured from one of three places:</p>
 <ul>
 <li><b>start</b> - from the start of the whole line (0 = the start end);</li>
@@ -259,9 +273,9 @@ whichever matches the drawing you are working from. Lengths are measured along t
 you make to the original. A <b>UDL</b> (uniformly distributed load) is a weight spread evenly over the whole length of a truss - a drape,
 an LED wall hung along it, or cable.</p>
 
-<h3>Hoists, low hook and high hook</h3>
+<h3>Hoists, Low Hook and High Hook</h3>
 <p>A <b>hoist</b> is a support point where a chain hoist holds the truss (or, as a <b>dead hang</b>, a wire rope with no hoist).
-The app uses the same words as Vectorworks Braceworks and Production Assist:</p>
+The app uses these words throughout:</p>
 <table class="compact">
 <tr><th>Term</th><th>Meaning</th></tr>
 <tr><td class="k">Low hook load</td><td>What the truss hangs on the hoist's hook (sometimes written R, the reaction).</td></tr>
@@ -271,17 +285,17 @@ The app uses the same words as Vectorworks Braceworks and Production Assist:</p>
 <tr><td class="k">Level sensitivity</td><td>How much a hoist's load changes if it runs 1/4" (6 mm) high or low compared with the others.</td></tr>
 </table>
 
-<h3>Spans and cantilevers</h3>
+<h3>Spans and Cantilevers</h3>
 <p>A <b>span</b> is the part of a truss between two supports (hoists or bolted connections). A <b>cantilever</b> is the part past the last
 support at either end. Manufacturers publish how much load each span length can carry; the app reads those tables. A cantilever may be no
 longer than a quarter of the truss's maximum span.</p>
 
-<h3>The whole-rig analysis</h3>
+<h3>The Whole-Rig Analysis</h3>
 <p>When trusses are bolted into a grid, they share load: a truss sags a little, and some of its load moves to neighbouring hoists.
 The app works this out with a <b>whole-rig analysis</b> (a stiffness or finite-element analysis of the grid). Because nobody publishes how
 stiff the joint through a corner block is, the app solves the rig several ways - with the joints <b>hinged</b>, <b>semi-rigid</b> and
 <b>rigid</b> - and every check uses the worst result. You do not need to do anything to make this happen; see
-<a href="#method">How the app calculates</a> if you want to know more.</p>
+<a href="#method">How the App Calculates</a> if you want to know more.</p>
 
 <h3>Statuses</h3>
 <table class="compact">
@@ -298,7 +312,7 @@ stiff the joint through a corner block is, the app solves the rig several ways -
 </section>
 
 <section class="chapter">
-<h2 id="entering">Entering values</h2>
+<h2 id="entering">Entering Values</h2>
 
 <h3>Lengths</h3>
 <p>Any box that takes a length accepts several ways of writing it. In imperial units:</p>
@@ -314,19 +328,19 @@ stiff the joint through a corner block is, the app solves the rig several ways -
 </table>
 <p>In metric units, type metres (<code>3.8</code>), or add a unit: <code>380 cm</code>, <code>3800 mm</code>. Feet-and-inches still work.</p>
 <p>If the app cannot read what you typed, the box flashes red and keeps its old value. How lengths are <i>shown</i> (decimal feet such as
-4.1667, or feet-inches such as 4'-2") is set in <a href="#settings">Rig settings</a> › <b>Show lengths as</b>.</p>
+4.1667, or feet-inches such as 4'-2") is set in <a href="#settings">Rig Settings</a> › <b>Show lengths as</b>.</p>
 
-<h3>Weights and other numbers</h3>
+<h3>Weights and Other Numbers</h3>
 <p>Weights are typed as plain numbers in the rig's units (pounds, or kilograms in metric). In the load grid's <b>Item</b> cell and the
 quick-add box you can include the unit: <code>45 lb</code> or <code>20 kg</code>. Other units the app uses: lb/ft (kg/m) for weight per
 length, inches (mm) for level offsets and truss widths, lb/in (kg/mm) for hoist stiffness, ft/min (m/min) for hoist speed, lb-ft
 (kg·m) for moments.</p>
 
-<h3>Metric or imperial</h3>
-<p>Choose <b>Units</b> in <a href="#settings">Rig settings</a>. Switching changes only what is shown and typed: the rig is stored and
+<h3>Metric or Imperial</h3>
+<p>Choose <b>Units</b> in <a href="#settings">Rig Settings</a>. Switching changes only what is shown and typed: the rig is stored and
 calculated the same way, so no result and no truss or hoist choice changes. The setting is saved with the rig. Trusses whose manufacturer
 data is metric are always checked against their own metric table.</p>
 
-<h3>Committing a value</h3>
+<h3>Committing a Value</h3>
 <p>A value takes effect when you press <kbd>Enter</kbd> or <kbd>Tab</kbd>, or click somewhere else. Results update straight away.</p>
 </section>
