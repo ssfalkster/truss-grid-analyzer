@@ -9,7 +9,7 @@
 <tr><td>See the whole rig</td><td><span class="ui">⤢</span> (bottom right) or press <kbd>F</kbd>.</td></tr>
 <tr><td>Select</td><td>Click a truss, corner block or hoist. Click empty space to select the rig. The selected item glows.</td></tr>
 <tr><td>Move a free truss</td><td>Drag it (half-foot steps; ends snap to other ends within 1.5 ft; hold <kbd>Alt</kbd> for no snapping). Bolted trusses and blocks cannot be dragged.</td></tr>
-<tr><td>Rotate a free truss</td><td><kbd>R</kbd> - 90° anticlockwise about its start.</td></tr>
+<tr><td>Rotate a free truss</td><td><kbd>R</kbd> - 90° counterclockwise about its start.</td></tr>
 <tr><td>Move a hoist</td><td>Drag it along its truss (1" / 2 cm steps).</td></tr>
 <tr><td>Delete</td><td><kbd>Delete</kbd> removes the selected load, hoist or truss (a truss asks first).</td></tr>
 <tr><td>Get details</td><td>Hover over a truss, corner block, hoist or bolt for a tooltip (name, length, what it hangs from; block type, weight and ways used; hoist load, capacity and status).</td></tr>
@@ -19,23 +19,23 @@
 <h3>What the Plan Shows</h3>
 [[img legend.png|The key (legend) in Workload mode.|55]]
 <ul>
-<li><b>Trusses</b> - bars to scale, coloured by the current colour mode, each labelled with its name and length (turned so it never reads upside down).</li>
+<li><b>Trusses</b> - bars to scale, colored by the current color mode, each labeled with its name and length (turned so it never reads upside down).</li>
 <li><b>Corner blocks</b> - dark squares (red if more trusses are bolted to one than it has ways).</li>
 <li><b>Bolted connections</b> - small diamonds; red when the bolted parts do not match (different truss families).</li>
-<li><b>Hoists</b> - a ring with cross-hairs, labelled with the <b>high hook static</b> load and, in italics under it, the <b>high hook dynamic</b> load. The ring is amber when the hoist is high (or its dynamic load is over capacity) and red when it is overloaded or slack. A <b>dashed</b> ring is a hoist hung below a truss; a <b>filled dot</b> is a dead hang.</li>
+<li><b>Hoists</b> - a ring with cross-hairs, labeled with the <b>high hook static</b> load and, in italics under it, the <b>high hook dynamic</b> load. The ring is amber when the hoist is high (or its dynamic load is over capacity) and red when it is overloaded or slack. A <b>dashed</b> ring is a hoist hung below a truss; a <b>filled dot</b> is a dead hang.</li>
 <li><b>Loads</b> - small triangles with their weight (lighter for a mirrored twin). Untick <b>Loads</b> in the view toolbar to hide them.</li>
 <li><b>Labels</b> - untick <b>Labels</b> to hide names and numbers for a cleaner picture.</li>
 <li><b>X 0 / Y 0</b> - the origin lines.</li>
 </ul>
 
-<h3 id="colour">Colour Modes</h3>
-<p>The buttons in the view toolbar choose what the truss colours mean. The key (bottom right of the plan) changes with them.</p>
+<h3 id="color">Color Modes</h3>
+<p>The buttons in the view toolbar choose what the truss colors mean. The key (bottom right of the plan) changes with them.</p>
 <table>
-<tr><th>Mode</th><th>Colours each truss by…</th></tr>
+<tr><th>Mode</th><th>Colors each truss by…</th></tr>
 <tr><td class="k">Workload</td><td>Its highest workload - of its span, cantilever, moment, shear and deflection checks and the hoists on it: green under 80%, amber 80-100%, red over 100%. The default.</td></tr>
 <tr><td class="k">Hot spots</td><td>Local workload <i>along its length</i>, from green through amber to red, peaking under the loads that work it hardest. A glow marks the peak of any truss at 80% or more. Use it to find where on a truss the problem is.</td></tr>
-<tr><td class="k">Deflection</td><td>Its worst span's sag against its limit (green under 80%; amber from 80% or past the rig default; red past the maker's published limit; grey if it has no span to check). The deflected shape is drawn exaggerated beside each truss - a sag is drawn to its right-hand side. Hover a shape for its largest sag.</td></tr>
-<tr><td class="k">Hoists</td><td>The workload of the busiest hoist on it (grey: no hoists).</td></tr>
+<tr><td class="k">Deflection</td><td>Its worst span's sag against its limit (green under 80%; amber from 80% or past the rig default; red past the maker's published limit; gray if it has no span to check). The deflected shape is drawn exaggerated beside each truss - a sag is drawn to its right-hand side. Hover a shape for its largest sag.</td></tr>
+<tr><td class="k">Hoists</td><td>The workload of the busiest hoist on it (gray: no hoists).</td></tr>
 <tr><td class="k">Pass/fail</td><td>Green if everything passes, red if anything fails.</td></tr>
 </table>
 <div class="row2">
@@ -49,7 +49,7 @@
 
 <h3>The 3D View</h3>
 <p>Click <span class="ui">3D</span> in the top bar to see the rig in 3D, with the hoists' chains rising to their hook points. It is for looking
-and presenting: you edit in the plan and the panels. Colour modes work the same (in Deflection mode the shapes are drawn above the trusses).</p>
+and presenting: you edit in the plan and the panels. Color modes work the same (in Deflection mode the shapes are drawn above the trusses).</p>
 [[img view-3d.jpg|The 3D view.|85]]
 <table class="compact">
 <tr><th>To</th><th>Do this</th></tr>
@@ -84,7 +84,7 @@ printed on the calc sheet. Click <b>‹ Back to the rig</b> or press <kbd>Esc</k
 <table>
 <tr><th>Setting</th><th>What it does</th></tr>
 <tr><td class="k">Cable allowance</td><td>Cable weight per foot (lb/ft, kg/m) on every truss, added to its UDL. A truss can have its own in its panel (0 = none).</td></tr>
-<tr><td class="k">Load factors</td><td>A multiplier for each load category - Lighting, Audio, Video, Scenic, Rigging hardware, Other / not set. For example 1.1 on Lighting to allow for clamps, safeties and colour frames not listed. Set each load's category in its panel or the Loads grid. The loads keep the weights you typed; the calculation uses the factored weights.</td></tr>
+<tr><td class="k">Load factors</td><td>A multiplier for each load category - Lighting, Audio, Video, Scenic, Rigging hardware, Other / not set. For example 1.1 on Lighting to allow for clamps, safeties and color frames not listed. Set each load's category in its panel or the Loads grid. The loads keep the weights you typed; the calculation uses the factored weights.</td></tr>
 </table>
 
 <h3>Truss Checks</h3>
@@ -122,7 +122,7 @@ formula, table look-up and result is set out so it can be checked by hand or in 
 <ol class="steps">
 <li>Click <span class="ui">Calc sheet</span> (top right, or the add button in step 4).</li>
 <li>Fill in the boxes along the top: <b>Project / event</b>, <b>Venue / location</b>, <b>Prepared by</b>, <b>Prepared for</b> and <b>Notes</b>. They are printed on the sheet and saved with the rig.</li>
-<li>Click <b>Print / save PDF</b>. In your browser's print dialog, choose a printer, or <i>Save as PDF</i> / <i>Microsoft Print to PDF</i> to make a PDF file. Choose the same paper size as the sheet (Rig settings › <b>Calc sheet paper</b>), and turn off the browser's own <i>Headers and footers</i> - the sheet prints its own.</li>
+<li>Click <b>Print / save PDF</b>. In your browser's print dialog, choose a printer, or <i>Save as PDF</i> / <i>Microsoft Print to PDF</i> to make a PDF file. Choose the same paper size as the sheet (Rig settings &gt; <b>Calc sheet paper</b>), and turn off the browser's own <i>Headers and footers</i> - the sheet prints its own.</li>
 <li>Click <b>Close</b> or press <kbd>Esc</kbd> to go back to the rig. (While the sheet is open, the rig cannot be edited.)</li>
 </ol>
 [[img calcsheet-top.jpg|The top of the calc sheet: the title block and the first sections.|100]]
@@ -131,7 +131,7 @@ formula, table look-up and result is set out so it can be checked by hand or in 
 <table>
 <tr><th>Part</th><th>Contents</th></tr>
 <tr><td class="k">Title block</td><td>Rig name, project, venue, the date and time calculated, the software version, units, notes, and an <b>input fingerprint</b> - a short code that changes whenever any input changes. Two sheets with the same fingerprint describe the same rig. A box at the top right shows the number of warnings or failures.</td></tr>
-<tr><td class="k">Estimate notice</td><td>Under the title block: the sheet is an estimate, not an engineering certification. On an indeterminate rig (one whose hoist loads depend on the stiffness of the trusses and rigging, such as most grids and boxes) it cites ANSI E1.6-3-2019 section 2.11, with 7.1, 6.2.12, 5.1 and 5.2, and says the sheet certifies no standard.</td></tr>
+<tr><td class="k">Estimate notice</td><td>Under the title block: the sheet is an estimate, not an engineering approval. On an indeterminate rig (one whose hoist loads depend on the stiffness of the trusses and rigging, such as most grids and boxes) it cites ANSI E1.6-3-2019 section 2.11, with 7.1, 6.2.12, 5.1 and 5.2, and says the sheet certifies no standard.</td></tr>
 <tr><td class="k">1 Summary of results</td><td>The method, counts, total weight carried, total high hook static and dynamic loads, the highest hoist and truss workloads, and the number of warnings.</td></tr>
 <tr><td class="k">2 Basis of calculation</td><td>The assumptions, and every formula used (F1 span, F2 cantilever, F3 moment and shear, …) written with real fractions and symbols.</td></tr>
 <tr><td class="k">3 Plan</td><td>A plan drawn to scale with the hoists numbered H1, H2… (dead hangs DH1…).</td></tr>
@@ -153,30 +153,30 @@ formula, table look-up and result is set out so it can be checked by hand or in 
 <h2 id="files">Files, Export and Sharing</h2>
 
 <h3>Saving a Rig as a File</h3>
-<p><span class="path">File › Save</span> downloads the rig as <code><i>rig name</i>.rig.json</code> to your browser's download folder (your browser may
+<p><span class="path">File &gt; Save</span> downloads the rig as <code><i>rig name</i>.rig.json</code> to your browser's download folder (your browser may
 ask where to save it). The file contains the whole rig - trusses, blocks, loads, hoists, rig settings, calc sheet fields - plus the custom trusses,
 corner blocks, hoists and fixtures you have added, and the version of the app that saved it. It is a small text file: back it up, email it, keep
 it with the show paperwork.</p>
 
 <h3>Opening a Rig File</h3>
-<p><span class="path">File › Open…</span> and choose a <code>.rig.json</code> file. It replaces the rig on screen (Undo brings that back until you close or reload the page; save it first to keep a copy). If the file
+<p><span class="path">File &gt; Open…</span> and choose a <code>.rig.json</code> file. It replaces the rig on screen (Undo brings that back until you close or reload the page; save it first to keep a copy). If the file
 cannot be read, the app says why and leaves the current rig alone.</p>
 <div class="box"><b>Custom Trusses, Hoists and Fixtures in the File</b><p>Opening a file <i>adds</i> the custom trusses, corner blocks, hoists and
 fixtures saved in it to the ones already in this browser; nothing of yours is removed. An entry that is already here is reused. If the file's entry
 has the same id as a different entry here, it is given a new id and the opened rig is updated to match.</p></div>
 <div class="box"><b>Files from other versions</b><p>Rig files record the version that made them. A newer version of the app opens older files. Results may
-differ between versions where the calculation has changed - the version history (<span class="path">File › About</span>) says which versions changed
+differ between versions where the calculation has changed - the version history (<span class="path">File &gt; About</span>) says which versions changed
 results. Opening a file made by a <i>newer</i> version in an older one may not work.</p></div>
 
 <h3>Sharing a Rig</h3>
-<p>Send the <code>.rig.json</code> file. The other person opens it with <span class="path">File › Open…</span> in their copy of the app. For people
+<p>Send the <code>.rig.json</code> file. The other person opens it with <span class="path">File &gt; Open…</span> in their copy of the app. For people
 who do not have the app, send the calc sheet as a PDF, a picture of the plan, or the hoist table.</p>
 
 <h3>The Export Menu</h3>
 <table>
 <tr><th>Item</th><th>What it does</th></tr>
 <tr><td class="k">Copy hoist table</td><td>Copies every hoist's loads to the clipboard as CSV text. Paste into Excel or Google Sheets. Columns: Truss, At, Low hook, Hoist &amp; Chain, Added %, the high hook load from each joint model (hinged, semi-rigid min and max, rigid), High hook static, Governing (joint model), Dynamic factor, High hook dynamic, Capacity, Status. The same button is at the top of step 4.</td></tr>
-<tr><td class="k">Save view as PNG</td><td>Downloads a picture of the plan (or the 3D view, if showing) at twice screen resolution, named after the rig. Set up the colour mode, labels and zoom first.</td></tr>
+<tr><td class="k">Save view as PNG</td><td>Downloads a picture of the plan (or the 3D view, if showing) at twice screen resolution, named after the rig. Set up the color mode, labels and zoom first.</td></tr>
 <tr><td class="k">Export whole-rig model</td><td>Downloads the rig's whole-rig analysis model with the app's results (<code>.grillage.json</code>), for an engineer to cross-check in PyNite (the 3D frame engine behind CalcForge) using the project's <code>tools/pynite_check.py</code>. Most users will not need this.</td></tr>
 <tr><td class="k">Print screen</td><td>Prints the current screen through the browser. For a proper record, use the calc sheet.</td></tr>
 </table>
@@ -212,7 +212,7 @@ manufacturer. To add your own fixture, fill in <b>Manufacturer</b>, <b>Fixture</
 [[img tool-fixtures.jpg|The fixture library.|80]]
 
 <h3 id="databases">Databases</h3>
-<p><span class="path">Calculators › Databases</span> lists every truss and corner block the app knows - 277 trusses from 17 makers (60 from the
+<p><span class="path">Calculators &gt; Databases</span> lists every truss and corner block the app knows - 277 trusses from 17 makers (60 from the
 manufacturers' own current tables, the rest from the Truss Load Analyzer workbooks; 101 with native metric tables) and 51 corner blocks from
 Christie Lites and James Thomas Engineering - plus anything you have added.</p>
 [[img tool-databases.jpg|The Databases page.|100]]
@@ -223,9 +223,9 @@ Christie Lites and James Thomas Engineering - plus anything you have added.</p>
 <li>Corner block weights marked <i>n/a</i> are not published - enter your own on the block in the rig.</li>
 </ul>
 <h4>Adding Your Own Truss</h4>
-<p>Open <b>Add your own truss</b>. Enter the manufacturer, model, weight per foot, maximum span, and the maximum UDL (total) and centre point
+<p>Open <b>Add your own truss</b>. Enter the manufacturer, model, weight per foot, maximum span, and the maximum UDL (total) and center point
 load (CPL) - these are used for every span up to the maximum. For values that change with span, paste one number per foot (1 ft to 100 ft; in
-metric, one per metre) into the optional UDL and CPL boxes, separated by commas. Tick <b>Data already includes the repetitive-use factor</b> if the
+metric, one per meter) into the optional UDL and CPL boxes, separated by commas. Tick <b>Data already includes the repetitive-use factor</b> if the
 maker's table already includes it. Click <b>Add truss</b>. It is saved in the units you entered it in and is marked <i>custom</i> in the pickers.</p>
 <h4>Adding Your Own Corner Block</h4>
 <p>Open <b>Add your own corner block</b>: maker, truss family, name, what it fits (e.g. <code>12x12</code>), number of ways, weight and size. Click

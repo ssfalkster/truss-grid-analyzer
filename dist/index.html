@@ -586,7 +586,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       <button id="b-add" class="primary">+ Truss</button>
       <span class="grow"></span>
       <div class="box">
-        <div class="segc" id="s-color" title="What the truss colours show">
+        <div class="segc" id="s-color" title="What the truss colors show">
           <button data-color="util">Workload</button><button data-color="hot" title="Shade each truss along its length by local workload, to find where it is loaded most">Hot spots</button><button data-color="defl" title="Colour each truss by its sag against its deflection limit, and draw its deflected shape (exaggerated) - beside it on the plan, above it in 3D">Deflection</button><button data-color="hoist">Hoists</button><button data-color="status">Pass/fail</button>
         </div>
         <label class="chk"><input type="checkbox" id="c-loads" checked> Loads</label>
@@ -622,8 +622,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.26.4";
+  TLA.VERSION = "1.26.5";
   TLA.CHANGES = [
+    ["1.26.5", "2026-09-25", "G.E. Simmons Falk", "Wording only, no result changes. The calc sheet notice now reads 'Estimate only - not an engineering approval' (was 'certification'), to match the README and manuals. LICENSE.md, the README and the User Guide credits call the app an expansion of Truss Load Analyzer - EOT (not 'based on'). US spelling in the app's text and the docs (center, color, gray, meter, license, catalog, counterclockwise), and menus written File > About in the manuals. Out-of-date text fixed: the README (load-path method is the fallback, not kept for reference; truss data from the workbook or the maker's own tables; workload, level sensitivity, UDL and whole-rig analysis instead of utilization, trim, wall weight and stiffness solve), LICENSE.md (whole-rig analysis), the User Guide (what the test suite checks; the license terms are in LICENSE.md), the Quick Start (Undo lasts until the page is closed or reloaded) and the hoist DLF tooltip (the default is in Rig settings). The user manual PDFs and HTML are rebuilt from the corrected text (still written for 1.26.0)."],
     ["1.26.4", "2026-09-25", "G.E. Simmons Falk", "Manufacturer warnings link to the maker's document that says so, opened in a new tab: the Christie Lites corner-block warnings (a box must be supported at every corner; an unsupported block joining 4 or more sections gets only part of the capacity) link to Christie's corner-block load table, and the warning that a workbook row allows more than the maker's table links to that maker's load table. The link is shown in the warnings list and banner; the calculation sheet writes out the address so it survives printing. Warning text and results are unchanged."],
     ["1.26.3", "2026-09-25", "G.E. Simmons Falk", "Truss view: the reactions diagram's labels no longer overlap - where an end bolt sits next to a hoist, the labels that would collide stack in lanes with a dashed leader line, as in the truss drawing (1.25.5). Display only; results unchanged."],
     ["1.26.2", "2026-09-25", "G.E. Simmons Falk", "Documentation only: the User Guide's calculation sheet screenshot now fills in Prepared for (its capture script still set the old Checked by field, so the box was blank). The manual's text, the app and its results are unchanged."],
@@ -4693,7 +4694,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function numInput(value, onchange, opts) {
     opts = opts || {};
     if (opts.ft) {
-      var ti = h("input", { type: "text", inputmode: "text", value: lenText(value), "class": "num " + (opts.cls || ""), title: (opts.title ? opts.title + ". " : "") + (U.metric() ? "Type metres (2.5), or 250 cm / 2500 mm; feet-inches (8'2\") also work" : "Type decimal feet (4.1667) or feet-inches (4-2, 4'2\", 4' 2 1/2\")"), placeholder: opts.placeholder, autocomplete: "off" });
+      var ti = h("input", { type: "text", inputmode: "text", value: lenText(value), "class": "num " + (opts.cls || ""), title: (opts.title ? opts.title + ". " : "") + (U.metric() ? "Type meters (2.5), or 250 cm / 2500 mm; feet-inches (8'2\") also work" : "Type decimal feet (4.1667) or feet-inches (4-2, 4'2\", 4' 2 1/2\")"), placeholder: opts.placeholder, autocomplete: "off" });
       ti.addEventListener("change", function () {
         var v = parseShownLen(ti.value);
         if (!isFinite(v)) { ti.value = lenText(value); ti.classList.add("bad"); setTimeout(function () { ti.classList.remove("bad"); }, 800); return; }
@@ -5029,7 +5030,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (s.kind === "hoist") {
         var hd0 = db.hoists.filter(function (q) { return q.id === s.hoistId; })[0], auto = sr && sr.hoist ? sr.hoist.dynamicFactor : 1.25;
         detail.appendChild(h("span", { "class": "mini", text: "DLF" }));
-        detail.appendChild(numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: fmt(auto, 3), title: "Dynamic load factor. Blank = from the hoist speed (speed in fpm / 60 + 1; 16 fpm = 4.9 m/min = 1.267), or the default in the results bar if the speed is unknown. Now " + fmt(auto, 3) }));
+        detail.appendChild(numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: fmt(auto, 3), title: "Dynamic load factor. Blank = from the hoist speed (speed in fpm / 60 + 1; 16 fpm = 4.9 m/min = 1.267), or the default in Rig settings if the speed is unknown. Now " + fmt(auto, 3) }));
       }
       detail.appendChild(h("span", { "class": "mini", text: "+" + U.unit("w") }));
       detail.appendChild(numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { cls: "w50", q: "w", title: "Hardware weight at this connection" }));
@@ -5068,7 +5069,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     box.appendChild(tags);
     var chips = h("div", { "class": "pchips" });
     lengths.forEach(function (len) { chips.appendChild(h("button", { "class": "chip-btn", text: "+" + fmtLen(len), title: "Add a " + fmtLen(len) + " stick", onclick: function () { api.add(len); } })); });
-    var custom = h("input", { type: "text", "class": "num w50", placeholder: U.unit("len"), title: U.metric() ? "A stick of another length: metres (1.5), cm or mm" : "A stick of another length: decimal feet or feet-inches (2-6)" });
+    var custom = h("input", { type: "text", "class": "num w50", placeholder: U.unit("len"), title: U.metric() ? "A stick of another length: meters (1.5), cm or mm" : "A stick of another length: decimal feet or feet-inches (2-6)" });
     chips.appendChild(custom);
     chips.appendChild(h("button", { "class": "chip-btn", text: "+ add", onclick: function () { var v = parseShownLen(custom.value); if (v > 0) { S.rememberPiece(v); api.add(v); } else if (custom.value.trim()) alert("Could not read that length. Use 2.5 or 2-6."); } }));
     box.appendChild(chips);
@@ -5100,7 +5101,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       }
       card.appendChild(h("div", { "class": "notation", text: parts.join(" + ") + "  =  " + U.f("len", t.length, 3) }));
     }
-    var atVal = h("input", { type: "text", "class": "num w60", placeholder: U.unit("len"), title: U.metric() ? "Distance of the block center: metres (3.8), cm or mm" : "Distance of the block center: decimal feet or feet-inches (4-2)" });
+    var atVal = h("input", { type: "text", "class": "num w60", placeholder: U.unit("len"), title: U.metric() ? "Distance of the block center: meters (3.8), cm or mm" : "Distance of the block center: decimal feet or feet-inches (4-2)" });
     var atFrom = select([{ value: "start", label: "from start" }, { value: "center", label: "from centerline" }, { value: "end", label: "from end" }], "start", function () {});
     card.appendChild(h("div", { "class": "row-btns" }, h("span", { "class": "mini", text: "Corner block at" }), atVal, atFrom,
       h("button", { text: "Add there", title: "Put a corner block exactly here; the run of truss is split at this point", onclick: function () {
@@ -5445,7 +5446,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
     c.appendChild(h("div", { "class": "row-btns" }, h("button", { text: "+ Hoist", onclick: function () { var sp = S.addHoist(t.id); if (sp) sel({ truss: t.id, support: sp.id }); } }),
       nH ? h("button", { "class": "lnk", text: "Mirror all", title: "Add a hoist at the mirrored spot of every hoist on this truss (about its centerline), with the same model, chain, hardware and level offset", onclick: function () { mirrorHoistsUi(t); } }) : null,
-      nH ? h("button", { "class": "lnk", text: "Copy to truss…", title: "Copy every hoist on this truss to another truss, keeping each one's distance from the centre", onclick: function () { copyHoistsPrompt(t); } }) : null,
+      nH ? h("button", { "class": "lnk", text: "Copy to truss…", title: "Copy every hoist on this truss to another truss, keeping each one's distance from the center", onclick: function () { copyHoistsPrompt(t); } }) : null,
       h("button", { "class": "lnk", text: "Edit all hoists in the grid", onclick: function () { if (TLA.app) TLA.app.setStep(3); } })));
     if (nB) { c.appendChild(h("h4", { text: "Bolted connections" })); supportsTable(c, t, res, db, "truss"); }
 
@@ -5495,7 +5496,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function copyLoadsPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
     if (!others.length) { alert("There is no other truss to copy to."); return; }
-    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the centre)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the center)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
     if (!name) return;
     var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
     if (!dst) { alert("No truss called \"" + name + "\"."); return; }
@@ -5515,7 +5516,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
     if (!others.length) { alert("There is no other truss to copy to."); return; }
     var n = ids && ids.length ? ids.length : t.supports.filter(function (s) { return s.kind === "hoist"; }).length;
-    var name = prompt("Copy " + (n === 1 && ids && ids.length ? "this hoist" : "all " + n + " hoists") + " from " + t.name + " to which truss? (keeps each hoist's distance from the centre, its model, chain, hardware and level offset)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    var name = prompt("Copy " + (n === 1 && ids && ids.length ? "this hoist" : "all " + n + " hoists") + " from " + t.name + " to which truss? (keeps each hoist's distance from the center, its model, chain, hardware and level offset)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
     if (!name) return;
     var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
     if (!dst) { alert("No truss called \"" + name + "\"."); return; }
@@ -5537,7 +5538,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
        h("button", { "class": "icon", text: "›", title: "Next hoist on this truss", disabled: k >= hoists.length - 1, onclick: function () { sel({ truss: t.id, support: hoists[k + 1].id }); } }),
        h("span", { "class": "grow" }),
        h("button", { "class": "ghost", text: "Mirror", title: "Add the same " + noun.toLowerCase() + " at " + posLabel({ distance: t.length - s.distance, from: s.from }, t) + " (mirrored about the centerline)", onclick: function () { var a = mirrorHoistsUi(t, [s.id]); if (a.length) sel({ truss: t.id, support: a[0].id }); } }),
-       h("button", { "class": "ghost", text: "Copy to…", title: "Copy this " + noun.toLowerCase() + " to another truss, keeping its distance from the centre", onclick: function () { copyHoistsPrompt(t, [s.id]); } }),
+       h("button", { "class": "ghost", text: "Copy to…", title: "Copy this " + noun.toLowerCase() + " to another truss, keeping its distance from the center", onclick: function () { copyHoistsPrompt(t, [s.id]); } }),
        h("button", { "class": "ghost danger", text: "Delete hoist", onclick: function () { S.removeSupport(t.id, s.id); } })]));
     var c = group(root, "hres", "Result", true, x && x.hoist.capacity < 999999 ? fmt(x.hoist.staticLoad / x.hoist.capacity * 100, 0) + "% workload" : "");
     if (x) {
@@ -5580,7 +5581,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       c.appendChild(h("div", { "class": "grid3" },
         field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: "1.000 static", title: "A dead hang does not move: 1.0 unless you type a factor" }))));
       var rp = TLA.limits.rope(s.rope);
-      c.appendChild(h("div", { "class": "sub" + (wll > 0 ? "" : " hotline") }, wll > 0 ? "WLL " + U.f("w", wll, 0) + (rp ? " = min(" + rp.name + " breaking strength " + U.f("w", rp.mbs_lb, 0) + " / " + sf + (Number(s.wll) > 0 ? ", assembly " + U.f("w", s.wll, 0) : "") + ")" : " (typed)") + ". Design factor " + sf + ":1 is set in Rig settings; breaking strengths are typical catalogue values - check your rope's certificate."
+      c.appendChild(h("div", { "class": "sub" + (wll > 0 ? "" : " hotline") }, wll > 0 ? "WLL " + U.f("w", wll, 0) + (rp ? " = min(" + rp.name + " breaking strength " + U.f("w", rp.mbs_lb, 0) + " / " + sf + (Number(s.wll) > 0 ? ", assembly " + U.f("w", s.wll, 0) : "") + ")" : " (typed)") + ". Design factor " + sf + ":1 is set in Rig settings; breaking strengths are typical catalog values - check your rope's certificate."
         : "Pick the rope or type the assembly WLL - without one this dead hang is Overloaded."));
     } else {
       var hsel = select(db.hoists.map(function (q) { return { value: q.id, label: hoistName(q) + (U.metric() && q.capacity_lb < 999999 ? " (" + U.f("w", q.capacity_lb, 0) + ")" : "") + " " + U.f("speed", q.speed_fpm, 0) }; }), s.hoistId, function (v) { s.hoistId = parseInt(v, 10); S.commit(); });
@@ -5899,12 +5900,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     body.appendChild(card("Plan", "Where the rig sits on the plan. Moving it changes no result.", [
       row("Center the rig on 0,0", h("div", { "class": "row-btns", style: "margin:0" }, h("button", { text: "Center on 0,0", onclick: function () {
         var d = S.centerRig(); S.ui.fit = true;
-        cmsg.textContent = !d ? "No trusses yet." : d[0] || d[1] ? "Moved " + U.f("len", d[0], 3) + " in X and " + U.f("len", d[1], 3) + " in Y (Undo moves it back)." : "Already centred.";
+        cmsg.textContent = !d ? "No trusses yet." : d[0] || d[1] ? "Moved " + U.f("len", d[0], 3) + " in X and " + U.f("len", d[1], 3) + " in Y (Undo moves it back)." : "Already centered.";
       } }), cmsg), "Moves the whole rig so the middle of its footprint is at X 0, Y 0. Bolted trusses and corner blocks move with the trusses they hang from, so the rig keeps its shape.")]));
     var th = (function () { try { return localStorage.getItem("tla-theme") || "dark"; } catch (e) { return "dark"; } })();
     body.appendChild(card("Display and paper", "Only what is shown and typed changes: the rig and every result stay the same.", [
       row("Theme", select([{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }, { value: "system", label: "Follow the computer's setting" }], th, function (v) { if (TLA.app && TLA.app.setTheme) TLA.app.setTheme(v); }), "Dark suits a dark venue; light is easier in daylight and closer to the printed calc sheet. Kept on this computer, not in the rig file."),
-      row("Units", select([{ value: "imperial", label: "imperial (ft, lb)" }, { value: "metric", label: "metric (m, kg)" }], U.metric() ? "metric" : "imperial", function (v) { st.units = v === "metric" ? "metric" : undefined; S.commit(); }), "Feet and pounds, or metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm)."),
+      row("Units", select([{ value: "imperial", label: "imperial (ft, lb)" }, { value: "metric", label: "metric (m, kg)" }], U.metric() ? "metric" : "imperial", function (v) { st.units = v === "metric" ? "metric" : undefined; S.commit(); }), "Feet and pounds, or meters and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm)."),
       U.metric() ? null : row("Show lengths as", select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); }), "You can type either way in any length box."),
       row("Calc sheet paper", select(["letter", "a4"].map(function (p) { return { value: p, label: TLA.report.PAPER[p].label }; }), TLA.report.paper(), function (v) { (S.rig.report || (S.rig.report = {})).paper = v; S.commit(); }), "Paper size the calculation sheet is laid out and printed on.")]));
     container.appendChild(body);
@@ -5970,7 +5971,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function footnote(container) {
     var r = S.results;
     container.appendChild(h("p", { "class": "ghint" }, r.primary === "grillage"
-      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set."
+      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modeled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set."
       : "* Whole-rig analysis not available" + (r.compat && r.compat.note ? " (" + U.text(r.compat.note) + ")" : "") + ": loads are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid."));
   }
   /** Step 4: summary figures, the first warning, then Trusses / Hoists / Warnings. */
@@ -6191,7 +6192,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     cols[12].key = "status"; cols[12].label = "Status";
     var rows = S.rig.trusses.filter(function (t) { return !t.isBlock; }).map(function (t) { return { key: "T:" + t.id, obj: t, truss: t, sel: { truss: t.id } }; });
     rows.push({ key: "NT", kind: "new", label: "new truss… (type a name)", create: function () { var t = S.makeTruss({ hoists: [] }); S.rig.trusses.push(t); return { key: "T:" + t.id, obj: t, truss: t }; } });
-    return { cols: cols, rows: rows, hint: "Type straight from the plot: X / Y / angle for free trusses; a truss bolted to a corner block is placed by the block (bolt it with \"Bolt to…\" in the inspector). Pieces = truss sections before corner blocks. Grey columns are results." };
+    return { cols: cols, rows: rows, hint: "Type straight from the plot: X / Y / angle for free trusses; a truss bolted to a corner block is placed by the block (bolt it with \"Bolt to…\" in the inspector). Pieces = truss sections before corner blocks. Gray columns are results." };
   }
 
   /* ---------------- step 2: loads ---------------- */
@@ -6233,7 +6234,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
     if (!others.length) return;
-    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the centre)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the center)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
     if (!name) return;
     var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
     if (!dst) { alert("No truss called \"" + name + "\"."); return; }
@@ -6298,7 +6299,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
       rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.newHoist(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, multi: true, noun: "hoists", fixed: ["at"], hint: "Select several hoists with Shift+click (a range), Ctrl+click (one at a time), Shift+arrows, Ctrl+A or Select on a truss row; then any edit changes all of them (not the position). New hoists copy the last hoist placed. Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
+    return { cols: cols, rows: rows, multi: true, noun: "hoists", fixed: ["at"], hint: "Select several hoists with Shift+click (a range), Ctrl+click (one at a time), Shift+arrows, Ctrl+A or Select on a truss row; then any edit changes all of them (not the position). New hoists copy the last hoist placed. Results (gray) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the center. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
@@ -7068,10 +7069,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     equipment(card);
 
     var ta = h("details", { "class": "grp" }, h("summary", { text: "Add your own truss" }),
-      h("p", { "class": "sub", text: "For a truss that is not in the table. Enter the max uniformly distributed load (UDL, total) and max center point load (CPL) in " + (M ? "kilograms" : "pounds") + "; they are applied for every span up to the max span. For different values per length, paste one number per " + (M ? "metre (1 m, 2 m, ...)" : "foot (1 ft to 100 ft)") + " instead. The truss is saved in the units you enter it in (" + (M ? "metric" : "imperial") + ")." }));
+      h("p", { "class": "sub", text: "For a truss that is not in the table. Enter the max uniformly distributed load (UDL, total) and max center point load (CPL) in " + (M ? "kilograms" : "pounds") + "; they are applied for every span up to the max span. For different values per length, paste one number per " + (M ? "meter (1 m, 2 m, ...)" : "foot (1 ft to 100 ft)") + " instead. The truss is saved in the units you enter it in (" + (M ? "metric" : "imperial") + ")." }));
     var KW = M ? "kg/m" : "lb/ft", KS = M ? "Max span (m)" : "Max span (ft)", KU = M ? "UDL (kg)" : "UDL (lb)", KC = M ? "CPL (kg)" : "CPL (lb)";
     var f = {}; ["Manufacturer", "Model", KW, KS, KU, KC].forEach(function (k) { f[k] = h("input", { type: k === "Manufacturer" || k === "Model" ? "text" : "number", step: "any", "class": k === "Manufacturer" || k === "Model" ? "" : "num", placeholder: k }); });
-    var udlList = h("input", { type: "text", placeholder: "Optional: UDL per " + (M ? "metre" : "foot") + ", comma separated" }), cplList = h("input", { type: "text", placeholder: "Optional: CPL per " + (M ? "metre" : "foot") + ", comma separated" });
+    var udlList = h("input", { type: "text", placeholder: "Optional: UDL per " + (M ? "meter" : "foot") + ", comma separated" }), cplList = h("input", { type: "text", placeholder: "Optional: CPL per " + (M ? "meter" : "foot") + ", comma separated" });
     var rep = h("input", { type: "checkbox" });
     ta.appendChild(h("div", { "class": "formrow" }, f.Manufacturer, f.Model, f[KW], f[KS], f[KU], f[KC]));
     ta.appendChild(h("div", { "class": "formrow" }, udlList, cplList));
@@ -7276,7 +7277,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       "E1.6-3 accepts a load calculation as a way to reduce the risk of overload only when every weight is known and accounted for, the calculation method is accurate, and any load shifting will not cause an overload (7.1), and warns that stiff indeterminate structures can shift load very quickly (6.2.12). "
       : "The figures on this sheet are estimates from a simplified model and the manufacturers' published load tables. ";
     body += "A competent person must assess the risks before any lifting operation, and a qualified person where the hazards call for one (" + (lay.indeterminate ? "E1.6-3, " : E + ", ") + "5.1 and 5.2). This sheet does not certify compliance with ANSI E1.6-3, ANSI E1.2 or any other standard.";
-    return h("div", { "class": "notice" }, h("b", { text: "Estimate only - not an engineering certification. " }), body);
+    return h("div", { "class": "notice" }, h("b", { text: "Estimate only - not an engineering approval. " }), body);
   }
 
   /* ================================================================ sheet */
@@ -7350,7 +7351,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       allowNote() ? h("li", { text: allowNote() }) : null,
       tot.hung ? h("li", { text: "Hoists hung below a truss (marked 'below' in section 4): the hoist's chain joins the two trusses, so the truss above (the carrier) sags with the load and the truss below shares load with its other hoists. The carrier carries the hung hoist's high hook load; the carrier - and every truss bolted to it - is also checked with the hung hoist's high hook DYNAMIC load as a point load (columns marked 'hung dyn.'), and the worse result is used. " +
         (st.hungDynamic === false ? "Rig setting: the carrier's own hoists take the hung hoist's static load." : "The carrier's own hoists take the dynamic load too (rig setting, on by default).") + " Hung hoists are not added into the totals: their load reaches the structure through the carrier's hoists." }) : null,
-      h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
+      h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole meter for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
     /** Allowances (1.22.0): cable per length and load factors by category. */
     function allowNote() {
@@ -7529,7 +7530,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           var key = i ? "preparedFor" : "preparedBy";
           return h("div", { "class": "signname" }, h("span", { "class": "sl", text: who }), h("span", { "class": "sv" + (rep[key] ? "" : " blank"), "data-field": key, text: rep[key] || "" }));
         })),
-      h("p", { "class": "disc", text: "This sheet shows how the loads and checks were calculated so they can be verified. It is not a substitute for the judgement of a qualified person: the user is responsible for verifying the results, the rig as built, the hardware ratings and the rigging points before using them to make rigging decisions. Capacities are only as good as the truss and hoist data entered, and allowable moment and shear are estimates from the manufacturer's tables." }),
+      h("p", { "class": "disc", text: "This sheet shows how the loads and checks were calculated so they can be verified. It is not a substitute for the judgment of a qualified person: the user is responsible for verifying the results, the rig as built, the hardware ratings and the rigging points before using them to make rigging decisions. Capacities are only as good as the truss and hoist data entered, and allowable moment and shear are estimates from the manufacturer's tables." }),
       h("p", { "class": "disc", text: "Truss Grid Analyzer v" + TLA.VERSION + " by G.E. Simmons Falk - an expansion, for indeterminate grids, of Truss Load Analyzer - EOT by Delbert L. Hall and Jon Sogoian, the originators of the program. Free software; see the About dialog for the version history and license." })));
 
     /* ---- A. hoist schedule (1.25.5): one page for the crew, on a page of its own at the end ---- */

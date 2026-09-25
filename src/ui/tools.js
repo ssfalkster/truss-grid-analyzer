@@ -166,10 +166,10 @@
     equipment(card);
 
     var ta = h("details", { "class": "grp" }, h("summary", { text: "Add your own truss" }),
-      h("p", { "class": "sub", text: "For a truss that is not in the table. Enter the max uniformly distributed load (UDL, total) and max center point load (CPL) in " + (M ? "kilograms" : "pounds") + "; they are applied for every span up to the max span. For different values per length, paste one number per " + (M ? "metre (1 m, 2 m, ...)" : "foot (1 ft to 100 ft)") + " instead. The truss is saved in the units you enter it in (" + (M ? "metric" : "imperial") + ")." }));
+      h("p", { "class": "sub", text: "For a truss that is not in the table. Enter the max uniformly distributed load (UDL, total) and max center point load (CPL) in " + (M ? "kilograms" : "pounds") + "; they are applied for every span up to the max span. For different values per length, paste one number per " + (M ? "meter (1 m, 2 m, ...)" : "foot (1 ft to 100 ft)") + " instead. The truss is saved in the units you enter it in (" + (M ? "metric" : "imperial") + ")." }));
     var KW = M ? "kg/m" : "lb/ft", KS = M ? "Max span (m)" : "Max span (ft)", KU = M ? "UDL (kg)" : "UDL (lb)", KC = M ? "CPL (kg)" : "CPL (lb)";
     var f = {}; ["Manufacturer", "Model", KW, KS, KU, KC].forEach(function (k) { f[k] = h("input", { type: k === "Manufacturer" || k === "Model" ? "text" : "number", step: "any", "class": k === "Manufacturer" || k === "Model" ? "" : "num", placeholder: k }); });
-    var udlList = h("input", { type: "text", placeholder: "Optional: UDL per " + (M ? "metre" : "foot") + ", comma separated" }), cplList = h("input", { type: "text", placeholder: "Optional: CPL per " + (M ? "metre" : "foot") + ", comma separated" });
+    var udlList = h("input", { type: "text", placeholder: "Optional: UDL per " + (M ? "meter" : "foot") + ", comma separated" }), cplList = h("input", { type: "text", placeholder: "Optional: CPL per " + (M ? "meter" : "foot") + ", comma separated" });
     var rep = h("input", { type: "checkbox" });
     ta.appendChild(h("div", { "class": "formrow" }, f.Manufacturer, f.Model, f[KW], f[KS], f[KU], f[KC]));
     ta.appendChild(h("div", { "class": "formrow" }, udlList, cplList));

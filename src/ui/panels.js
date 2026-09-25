@@ -61,7 +61,7 @@
   function numInput(value, onchange, opts) {
     opts = opts || {};
     if (opts.ft) {
-      var ti = h("input", { type: "text", inputmode: "text", value: lenText(value), "class": "num " + (opts.cls || ""), title: (opts.title ? opts.title + ". " : "") + (U.metric() ? "Type metres (2.5), or 250 cm / 2500 mm; feet-inches (8'2\") also work" : "Type decimal feet (4.1667) or feet-inches (4-2, 4'2\", 4' 2 1/2\")"), placeholder: opts.placeholder, autocomplete: "off" });
+      var ti = h("input", { type: "text", inputmode: "text", value: lenText(value), "class": "num " + (opts.cls || ""), title: (opts.title ? opts.title + ". " : "") + (U.metric() ? "Type meters (2.5), or 250 cm / 2500 mm; feet-inches (8'2\") also work" : "Type decimal feet (4.1667) or feet-inches (4-2, 4'2\", 4' 2 1/2\")"), placeholder: opts.placeholder, autocomplete: "off" });
       ti.addEventListener("change", function () {
         var v = parseShownLen(ti.value);
         if (!isFinite(v)) { ti.value = lenText(value); ti.classList.add("bad"); setTimeout(function () { ti.classList.remove("bad"); }, 800); return; }
@@ -397,7 +397,7 @@
       if (s.kind === "hoist") {
         var hd0 = db.hoists.filter(function (q) { return q.id === s.hoistId; })[0], auto = sr && sr.hoist ? sr.hoist.dynamicFactor : 1.25;
         detail.appendChild(h("span", { "class": "mini", text: "DLF" }));
-        detail.appendChild(numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: fmt(auto, 3), title: "Dynamic load factor. Blank = from the hoist speed (speed in fpm / 60 + 1; 16 fpm = 4.9 m/min = 1.267), or the default in the results bar if the speed is unknown. Now " + fmt(auto, 3) }));
+        detail.appendChild(numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { cls: "w50", placeholder: fmt(auto, 3), title: "Dynamic load factor. Blank = from the hoist speed (speed in fpm / 60 + 1; 16 fpm = 4.9 m/min = 1.267), or the default in Rig settings if the speed is unknown. Now " + fmt(auto, 3) }));
       }
       detail.appendChild(h("span", { "class": "mini", text: "+" + U.unit("w") }));
       detail.appendChild(numInput(s.hardwareWeight || 0, function (v) { s.hardwareWeight = v; S.commit(); }, { cls: "w50", q: "w", title: "Hardware weight at this connection" }));
@@ -436,7 +436,7 @@
     box.appendChild(tags);
     var chips = h("div", { "class": "pchips" });
     lengths.forEach(function (len) { chips.appendChild(h("button", { "class": "chip-btn", text: "+" + fmtLen(len), title: "Add a " + fmtLen(len) + " stick", onclick: function () { api.add(len); } })); });
-    var custom = h("input", { type: "text", "class": "num w50", placeholder: U.unit("len"), title: U.metric() ? "A stick of another length: metres (1.5), cm or mm" : "A stick of another length: decimal feet or feet-inches (2-6)" });
+    var custom = h("input", { type: "text", "class": "num w50", placeholder: U.unit("len"), title: U.metric() ? "A stick of another length: meters (1.5), cm or mm" : "A stick of another length: decimal feet or feet-inches (2-6)" });
     chips.appendChild(custom);
     chips.appendChild(h("button", { "class": "chip-btn", text: "+ add", onclick: function () { var v = parseShownLen(custom.value); if (v > 0) { S.rememberPiece(v); api.add(v); } else if (custom.value.trim()) alert("Could not read that length. Use 2.5 or 2-6."); } }));
     box.appendChild(chips);
@@ -468,7 +468,7 @@
       }
       card.appendChild(h("div", { "class": "notation", text: parts.join(" + ") + "  =  " + U.f("len", t.length, 3) }));
     }
-    var atVal = h("input", { type: "text", "class": "num w60", placeholder: U.unit("len"), title: U.metric() ? "Distance of the block center: metres (3.8), cm or mm" : "Distance of the block center: decimal feet or feet-inches (4-2)" });
+    var atVal = h("input", { type: "text", "class": "num w60", placeholder: U.unit("len"), title: U.metric() ? "Distance of the block center: meters (3.8), cm or mm" : "Distance of the block center: decimal feet or feet-inches (4-2)" });
     var atFrom = select([{ value: "start", label: "from start" }, { value: "center", label: "from centerline" }, { value: "end", label: "from end" }], "start", function () {});
     card.appendChild(h("div", { "class": "row-btns" }, h("span", { "class": "mini", text: "Corner block at" }), atVal, atFrom,
       h("button", { text: "Add there", title: "Put a corner block exactly here; the run of truss is split at this point", onclick: function () {
@@ -813,7 +813,7 @@
     }
     c.appendChild(h("div", { "class": "row-btns" }, h("button", { text: "+ Hoist", onclick: function () { var sp = S.addHoist(t.id); if (sp) sel({ truss: t.id, support: sp.id }); } }),
       nH ? h("button", { "class": "lnk", text: "Mirror all", title: "Add a hoist at the mirrored spot of every hoist on this truss (about its centerline), with the same model, chain, hardware and level offset", onclick: function () { mirrorHoistsUi(t); } }) : null,
-      nH ? h("button", { "class": "lnk", text: "Copy to truss…", title: "Copy every hoist on this truss to another truss, keeping each one's distance from the centre", onclick: function () { copyHoistsPrompt(t); } }) : null,
+      nH ? h("button", { "class": "lnk", text: "Copy to truss…", title: "Copy every hoist on this truss to another truss, keeping each one's distance from the center", onclick: function () { copyHoistsPrompt(t); } }) : null,
       h("button", { "class": "lnk", text: "Edit all hoists in the grid", onclick: function () { if (TLA.app) TLA.app.setStep(3); } })));
     if (nB) { c.appendChild(h("h4", { text: "Bolted connections" })); supportsTable(c, t, res, db, "truss"); }
 
@@ -863,7 +863,7 @@
   function copyLoadsPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
     if (!others.length) { alert("There is no other truss to copy to."); return; }
-    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the centre)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the center)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
     if (!name) return;
     var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
     if (!dst) { alert("No truss called \"" + name + "\"."); return; }
@@ -883,7 +883,7 @@
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
     if (!others.length) { alert("There is no other truss to copy to."); return; }
     var n = ids && ids.length ? ids.length : t.supports.filter(function (s) { return s.kind === "hoist"; }).length;
-    var name = prompt("Copy " + (n === 1 && ids && ids.length ? "this hoist" : "all " + n + " hoists") + " from " + t.name + " to which truss? (keeps each hoist's distance from the centre, its model, chain, hardware and level offset)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    var name = prompt("Copy " + (n === 1 && ids && ids.length ? "this hoist" : "all " + n + " hoists") + " from " + t.name + " to which truss? (keeps each hoist's distance from the center, its model, chain, hardware and level offset)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
     if (!name) return;
     var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
     if (!dst) { alert("No truss called \"" + name + "\"."); return; }
@@ -905,7 +905,7 @@
        h("button", { "class": "icon", text: "›", title: "Next hoist on this truss", disabled: k >= hoists.length - 1, onclick: function () { sel({ truss: t.id, support: hoists[k + 1].id }); } }),
        h("span", { "class": "grow" }),
        h("button", { "class": "ghost", text: "Mirror", title: "Add the same " + noun.toLowerCase() + " at " + posLabel({ distance: t.length - s.distance, from: s.from }, t) + " (mirrored about the centerline)", onclick: function () { var a = mirrorHoistsUi(t, [s.id]); if (a.length) sel({ truss: t.id, support: a[0].id }); } }),
-       h("button", { "class": "ghost", text: "Copy to…", title: "Copy this " + noun.toLowerCase() + " to another truss, keeping its distance from the centre", onclick: function () { copyHoistsPrompt(t, [s.id]); } }),
+       h("button", { "class": "ghost", text: "Copy to…", title: "Copy this " + noun.toLowerCase() + " to another truss, keeping its distance from the center", onclick: function () { copyHoistsPrompt(t, [s.id]); } }),
        h("button", { "class": "ghost danger", text: "Delete hoist", onclick: function () { S.removeSupport(t.id, s.id); } })]));
     var c = group(root, "hres", "Result", true, x && x.hoist.capacity < 999999 ? fmt(x.hoist.staticLoad / x.hoist.capacity * 100, 0) + "% workload" : "");
     if (x) {
@@ -948,7 +948,7 @@
       c.appendChild(h("div", { "class": "grid3" },
         field("Dyn. factor", numInput(s.dlf || "", function (v) { s.dlf = v > 0 ? v : undefined; S.commit(); }, { placeholder: "1.000 static", title: "A dead hang does not move: 1.0 unless you type a factor" }))));
       var rp = TLA.limits.rope(s.rope);
-      c.appendChild(h("div", { "class": "sub" + (wll > 0 ? "" : " hotline") }, wll > 0 ? "WLL " + U.f("w", wll, 0) + (rp ? " = min(" + rp.name + " breaking strength " + U.f("w", rp.mbs_lb, 0) + " / " + sf + (Number(s.wll) > 0 ? ", assembly " + U.f("w", s.wll, 0) : "") + ")" : " (typed)") + ". Design factor " + sf + ":1 is set in Rig settings; breaking strengths are typical catalogue values - check your rope's certificate."
+      c.appendChild(h("div", { "class": "sub" + (wll > 0 ? "" : " hotline") }, wll > 0 ? "WLL " + U.f("w", wll, 0) + (rp ? " = min(" + rp.name + " breaking strength " + U.f("w", rp.mbs_lb, 0) + " / " + sf + (Number(s.wll) > 0 ? ", assembly " + U.f("w", s.wll, 0) : "") + ")" : " (typed)") + ". Design factor " + sf + ":1 is set in Rig settings; breaking strengths are typical catalog values - check your rope's certificate."
         : "Pick the rope or type the assembly WLL - without one this dead hang is Overloaded."));
     } else {
       var hsel = select(db.hoists.map(function (q) { return { value: q.id, label: hoistName(q) + (U.metric() && q.capacity_lb < 999999 ? " (" + U.f("w", q.capacity_lb, 0) + ")" : "") + " " + U.f("speed", q.speed_fpm, 0) }; }), s.hoistId, function (v) { s.hoistId = parseInt(v, 10); S.commit(); });
@@ -1267,12 +1267,12 @@
     body.appendChild(card("Plan", "Where the rig sits on the plan. Moving it changes no result.", [
       row("Center the rig on 0,0", h("div", { "class": "row-btns", style: "margin:0" }, h("button", { text: "Center on 0,0", onclick: function () {
         var d = S.centerRig(); S.ui.fit = true;
-        cmsg.textContent = !d ? "No trusses yet." : d[0] || d[1] ? "Moved " + U.f("len", d[0], 3) + " in X and " + U.f("len", d[1], 3) + " in Y (Undo moves it back)." : "Already centred.";
+        cmsg.textContent = !d ? "No trusses yet." : d[0] || d[1] ? "Moved " + U.f("len", d[0], 3) + " in X and " + U.f("len", d[1], 3) + " in Y (Undo moves it back)." : "Already centered.";
       } }), cmsg), "Moves the whole rig so the middle of its footprint is at X 0, Y 0. Bolted trusses and corner blocks move with the trusses they hang from, so the rig keeps its shape.")]));
     var th = (function () { try { return localStorage.getItem("tla-theme") || "dark"; } catch (e) { return "dark"; } })();
     body.appendChild(card("Display and paper", "Only what is shown and typed changes: the rig and every result stay the same.", [
       row("Theme", select([{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }, { value: "system", label: "Follow the computer's setting" }], th, function (v) { if (TLA.app && TLA.app.setTheme) TLA.app.setTheme(v); }), "Dark suits a dark venue; light is easier in daylight and closer to the printed calc sheet. Kept on this computer, not in the rig file."),
-      row("Units", select([{ value: "imperial", label: "imperial (ft, lb)" }, { value: "metric", label: "metric (m, kg)" }], U.metric() ? "metric" : "imperial", function (v) { st.units = v === "metric" ? "metric" : undefined; S.commit(); }), "Feet and pounds, or metres and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm)."),
+      row("Units", select([{ value: "imperial", label: "imperial (ft, lb)" }, { value: "metric", label: "metric (m, kg)" }], U.metric() ? "metric" : "imperial", function (v) { st.units = v === "metric" ? "metric" : undefined; S.commit(); }), "Feet and pounds, or meters and kilograms (moments in kg·m, hoist speed in m/min, sizes in mm)."),
       U.metric() ? null : row("Show lengths as", select([{ value: "decimal", label: "decimal feet (4.1667)" }, { value: "ftin", label: "feet-inches (4'-2\")" }], st.lengthFormat === "ftin" ? "ftin" : "decimal", function (v) { st.lengthFormat = v; S.commit(); }), "You can type either way in any length box."),
       row("Calc sheet paper", select(["letter", "a4"].map(function (p) { return { value: p, label: TLA.report.PAPER[p].label }; }), TLA.report.paper(), function (v) { (S.rig.report || (S.rig.report = {})).paper = v; S.commit(); }), "Paper size the calculation sheet is laid out and printed on.")]));
     container.appendChild(body);
@@ -1338,7 +1338,7 @@
   function footnote(container) {
     var r = S.results;
     container.appendChild(h("p", { "class": "ghint" }, r.primary === "grillage"
-      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modelled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set."
+      ? "* Hoist loads come from a whole-rig analysis, which lets the trusses bend, shear and twist and share load, with the corner blocks modeled as hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L) and rigid (bending and torsion pass through). High hook static and dynamic, % and status use the largest. Low hook = what the truss hangs on the hoist's hook; high hook = low hook + Add % + hoist, chain and hardware weight (what the structure above carries). Each truss's bending, shear and torsion stiffness is estimated from its manufacturer's tables unless the truss data gives real chord and diagonal sizes (scale it with Stiffness x). Hoists are rigid unless a hoist stiffness is set."
       : "* Whole-rig analysis not available" + (r.compat && r.compat.note ? " (" + U.text(r.compat.note) + ")" : "") + ": loads are from the load-path method alone, which treats every carrying truss as unyielding and can under-estimate hoists in a grid."));
   }
   /** Step 4: summary figures, the first warning, then Trusses / Hoists / Warnings. */

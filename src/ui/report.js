@@ -129,7 +129,7 @@
       "E1.6-3 accepts a load calculation as a way to reduce the risk of overload only when every weight is known and accounted for, the calculation method is accurate, and any load shifting will not cause an overload (7.1), and warns that stiff indeterminate structures can shift load very quickly (6.2.12). "
       : "The figures on this sheet are estimates from a simplified model and the manufacturers' published load tables. ";
     body += "A competent person must assess the risks before any lifting operation, and a qualified person where the hazards call for one (" + (lay.indeterminate ? "E1.6-3, " : E + ", ") + "5.1 and 5.2). This sheet does not certify compliance with ANSI E1.6-3, ANSI E1.2 or any other standard.";
-    return h("div", { "class": "notice" }, h("b", { text: "Estimate only - not an engineering certification. " }), body);
+    return h("div", { "class": "notice" }, h("b", { text: "Estimate only - not an engineering approval. " }), body);
   }
 
   /* ================================================================ sheet */
@@ -203,7 +203,7 @@
       allowNote() ? h("li", { text: allowNote() }) : null,
       tot.hung ? h("li", { text: "Hoists hung below a truss (marked 'below' in section 4): the hoist's chain joins the two trusses, so the truss above (the carrier) sags with the load and the truss below shares load with its other hoists. The carrier carries the hung hoist's high hook load; the carrier - and every truss bolted to it - is also checked with the hung hoist's high hook DYNAMIC load as a point load (columns marked 'hung dyn.'), and the worse result is used. " +
         (st.hungDynamic === false ? "Rig setting: the carrier's own hoists take the hung hoist's static load." : "The carrier's own hoists take the dynamic load too (rig setting, on by default).") + " Hung hoists are not added into the totals: their load reaches the structure through the carrier's hoists." }) : null,
-      h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole metre for native metric tables), multiplied by the repetitive-use factor k." })));
+      h("li", { text: "Capacities come from the manufacturer's (or the Truss Load Analyzer workbook's) span tables, reading the row at the span rounded UP to the next whole foot (whole meter for native metric tables), multiplied by the repetitive-use factor k." })));
     var sw = TLA.limits.countSelfWeight(st), ap = Number(st.addPercent) > 0;
     /** Allowances (1.22.0): cable per length and load factors by category. */
     function allowNote() {
@@ -382,7 +382,7 @@
           var key = i ? "preparedFor" : "preparedBy";
           return h("div", { "class": "signname" }, h("span", { "class": "sl", text: who }), h("span", { "class": "sv" + (rep[key] ? "" : " blank"), "data-field": key, text: rep[key] || "" }));
         })),
-      h("p", { "class": "disc", text: "This sheet shows how the loads and checks were calculated so they can be verified. It is not a substitute for the judgement of a qualified person: the user is responsible for verifying the results, the rig as built, the hardware ratings and the rigging points before using them to make rigging decisions. Capacities are only as good as the truss and hoist data entered, and allowable moment and shear are estimates from the manufacturer's tables." }),
+      h("p", { "class": "disc", text: "This sheet shows how the loads and checks were calculated so they can be verified. It is not a substitute for the judgment of a qualified person: the user is responsible for verifying the results, the rig as built, the hardware ratings and the rigging points before using them to make rigging decisions. Capacities are only as good as the truss and hoist data entered, and allowable moment and shear are estimates from the manufacturer's tables." }),
       h("p", { "class": "disc", text: "Truss Grid Analyzer v" + TLA.VERSION + " by G.E. Simmons Falk - an expansion, for indeterminate grids, of Truss Load Analyzer - EOT by Delbert L. Hall and Jon Sogoian, the originators of the program. Free software; see the About dialog for the version history and license." })));
 
     /* ---- A. hoist schedule (1.25.5): one page for the crew, on a page of its own at the end ---- */

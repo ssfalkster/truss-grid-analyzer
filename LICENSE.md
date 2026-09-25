@@ -2,7 +2,7 @@
 
 Truss Grid Analyzer, copyright (c) 2026 **G.E. Simmons Falk**.
 
-Based on **Truss Load Analyzer - EOT** by **Delbert L. Hall and Jon Sogoian**, who are the originators of the program.
+An expansion of **Truss Load Analyzer - EOT** by **Delbert L. Hall and Jon Sogoian**, who are the originators of the program.
 Developed with the knowledge and permission of Delbert L. Hall (2026).
 
 ## 1. Origin and the original program's terms
@@ -10,8 +10,8 @@ Developed with the knowledge and permission of Delbert L. Hall (2026).
 Truss Grid Analyzer is an expansion of *Truss Load Analyzer - EOT* (Excel workbooks, versions 1.0 - 2.1,
 2020 - 2021) by Delbert L. Hall and Jon Sogoian, for indeterminate grids. It uses that program's method (Clapeyron's three-moment equation,
 manufacturer-table span and cantilever checks), its truss, chain hoist and fixture data, and its results as test
-references. Truss Grid Analyzer is new code, and it adds the truss-grid model, plan and 3D views, and the stiffness
-(grillage) check.
+references. Truss Grid Analyzer is new code, and it adds the truss-grid model, plan and 3D views, and the whole-rig
+analysis.
 
 The original workbook is open-source freeware. It may be distributed for free, and it sets three conditions on
 anyone who modifies it (quoted from the workbook):
@@ -37,7 +37,7 @@ Anyone may use, copy, modify and distribute Truss Grid Analyzer **free of charge
 ## 3. Data
 
 The truss, chain hoist and fixture data come from the manufacturers' published tables, as compiled in the original
-workbook. Corner block data comes from the Christie Lites and James Thomas Engineering catalogues. The data and the
+workbook. Corner block data comes from the Christie Lites and James Thomas Engineering catalogs. The data and the
 product names belong to their respective owners. Their inclusion does not mean those owners endorse this program.
 Check data against the manufacturer's current publications before relying on it.
 

@@ -12,7 +12,7 @@ the panel to jump there). Type what and where, and press <kbd>Enter</kbd>:</p>
 <tr><th>You type</th><th>You get</th></tr>
 <tr><td><code>MAC Aura @ 4</code></td><td>A Martin MAC Aura (library weight and clamp) at 4 ft, measured the truss's way (from its centerline, start or end).</td></tr>
 <tr><td><code>120 lb @ -6</code></td><td>A 120 lb load 6 ft before the centerline.</td></tr>
-<tr><td><code>20 kg @ 2.5</code></td><td>A 20 kg load at 2.5 (metres in metric, feet in imperial).</td></tr>
+<tr><td><code>20 kg @ 2.5</code></td><td>A 20 kg load at 2.5 (meters in metric, feet in imperial).</td></tr>
 <tr><td><code>MAC Aura</code></td><td>The fixture in the middle of the truss.</td></tr>
 </table>
 <p>As you type a fixture name a list of matching fixtures appears; pick one, then type <code>@</code> and the position.</p>
@@ -29,13 +29,13 @@ side panel. Fill in the item and weight there.</p>
 <h3>The Loads Grid Columns</h3>
 <table class="compact">
 <tr><th>Column</th><th>Contents</th></tr>
-<tr><td class="k">Truss</td><td>The truss it is on (grey).</td></tr>
+<tr><td class="k">Truss</td><td>The truss it is on (gray).</td></tr>
 <tr><td class="k">At, From</td><td>Its position, and whether measured from the start, the centerline (CL) or the end.</td></tr>
 <tr><td class="k">Item / fixture</td><td>The fixture name, or your own description. <span class="badge b-mut">custom</span> means it is not a library fixture.</td></tr>
 <tr><td class="k">Weight</td><td>The fixture or item weight (each).</td></tr>
 <tr><td class="k">Clamp</td><td>The clamp weight, filled in from the library where it has one. Add your own.</td></tr>
-<tr><td class="k">Total</td><td>Weight + clamp (grey). <span class="badge b-mut">×2</span> means it is mirrored, so the truss carries it twice.</td></tr>
-<tr><td class="k">Mirror about CL</td><td>Tick to add the same load at the mirror position; the grey text says where (<i>at +11 ft from CL</i>).</td></tr>
+<tr><td class="k">Total</td><td>Weight + clamp (gray). <span class="badge b-mut">×2</span> means it is mirrored, so the truss carries it twice.</td></tr>
+<tr><td class="k">Mirror about CL</td><td>Tick to add the same load at the mirror position; the gray text says where (<i>at +11 ft from CL</i>).</td></tr>
 <tr><td class="k">Note</td><td>Anything you like (e.g. <i>SR 1/2</i>, <i>cable pick</i>). Printed on the calc sheet.</td></tr>
 <tr><td class="k">Category</td><td>Lighting, Audio, Video, Scenic, Rigging hardware or Other. Sets the load factor (see <a href="#allowances">Allowances</a>); the cell shows e.g. <i>Lighting ×1.1</i> when a factor applies. Library fixtures are Lighting.</td></tr>
 </table>
@@ -49,7 +49,7 @@ centerline has no twin. On the plan the twin's triangle is drawn lighter.</p>
 
 <h3>Copying Loads to Another Truss</h3>
 <p><b>Copy to truss…</b> (in the grid group header or the truss panel) asks for the name of the truss to copy to, then copies every load
-keeping its distance from the <b>centre</b> - so the pattern stays centred on a truss of a different length. Loads that would fall past the end
+keeping its distance from the <b>center</b> - so the pattern stays centered on a truss of a different length. Loads that would fall past the end
 of the other truss are placed at its end, and the app tells you how many.</p>
 
 <h3>Working with the Plan Strip</h3>
@@ -109,11 +109,11 @@ measuring reference, so the distance stays a round number. Clicking a hoist with
 <tr><td class="k">Truss, At, From</td><td>Where the hoist is.</td></tr>
 <tr><td class="k">Hoist</td><td>The model. Type to search: <code>lode 1t</code>, <code>prostar</code>, <code>2 ton</code>. Type <code>dead</code> for a dead hang.</td></tr>
 <tr><td class="k">Chain / rope</td><td>Chain length (or, for a dead hang, rope length). Its weight is added to the high hook load.</td></tr>
-<tr><td class="k">DLF</td><td>Dynamic load factor. Blank = automatic (shown grey, e.g. <i>auto 1.267</i>, from the hoist's speed); type a number to override.</td></tr>
+<tr><td class="k">DLF</td><td>Dynamic load factor. Blank = automatic (shown gray, e.g. <i>auto 1.267</i>, from the hoist's speed); type a number to override.</td></tr>
 <tr><td class="k">Hardware</td><td>Weight of shackles, spansets, beam clamps and so on at this hoist.</td></tr>
 <tr><td class="k">Hangs from</td><td><i>structure</i> (the usual), or <i>below</i> another truss - see <a href="#hung">Hoists Hung Below a Truss</a>.</td></tr>
 <tr><td class="k">Level (in)</td><td>A designed level offset, + higher - see <a href="#levels">Hoist Levels</a>.</td></tr>
-<tr><td class="k">High hook static / dyn.</td><td>Results (grey).</td></tr>
+<tr><td class="k">High hook static / dyn.</td><td>Results (gray).</td></tr>
 <tr><td class="k">Workload, Status</td><td>High hook static ÷ capacity, and OK / Overloaded / Slack / Unstable.</td></tr>
 <tr><td class="k">Measured, vs calc.</td><td>A load-cell reading you type, and how far it is from the calculation - see <a href="#measured">Measured Loads</a>.</td></tr>
 </table>
@@ -145,7 +145,7 @@ same value. Positions (<b>At</b>) are never changed together. <kbd>Ctrl</kbd>+<k
 <ul>
 <li><b>Mirror</b> (in a hoist's panel) adds a hoist at the mirror position on the other side of the truss's centerline.</li>
 <li><b>Mirror all</b> (truss panel, or the grid group header) does this for every hoist on the truss.</li>
-<li><b>Copy to…</b> (hoist panel) and <b>Copy to truss…</b> (truss panel, grid) copy hoists to another truss - you type its name - keeping each one's distance from the centre. Hoists past the end are placed at the end.</li>
+<li><b>Copy to…</b> (hoist panel) and <b>Copy to truss…</b> (truss panel, grid) copy hoists to another truss - you type its name - keeping each one's distance from the center. Hoists past the end are placed at the end.</li>
 </ul>
 <p>Unlike mirrored loads, each copy is a <b>real, separate hoist</b> you can edit on its own. It gets the same model, chain or rope, dynamic
 factor, hardware, level offset and Hangs from, but not the name or a load-cell reading. No copy is placed on the centerline or where a hoist
@@ -163,7 +163,7 @@ capacity and speed, <b>‹ ›</b> to step through the hoists on the truss, and 
 <li><b>Level sensitivity</b>: <i>±603 lb if this hoist runs 1/4" (6 mm) high or low</i>, and which other hoist changes most. Highlighted when it is more than 10% of the hoist's capacity - level that hoist carefully.</li>
 <li>With an out-of-level tolerance set: how much it adds and whether the hoist could go slack.</li>
 <li><b>Load cell reading</b> - type a measured value (see <a href="#measured">Measured Loads</a>).</li>
-<li><b>Where the load comes from</b> - every truss, corner block and load that puts weight on this hoist (its own truss's self weight, neighbouring trusses through the grid - small negative figures mean a neighbour lifts a little off it), then Add %, hardware, hoist + chain, and the <b>high hook load (static)</b>. The note underneath says which joint model it came from.</li>
+<li><b>Where the load comes from</b> - every truss, corner block and load that puts weight on this hoist (its own truss's self weight, neighboring trusses through the grid - small negative figures mean a neighbor lifts a little off it), then Add %, hardware, hoist + chain, and the <b>high hook load (static)</b>. The note underneath says which joint model it came from.</li>
 </ul>
 <h4>Hoist</h4>
 <p><b>Support</b> (Chain hoist or Dead hang), <b>Model</b>, <b>Chain</b> length, <b>Dyn. factor</b> (blank = automatic) and <b>Hardware</b>.</p>
@@ -193,7 +193,7 @@ box. A hoist's <b>status</b> compares its <i>static</i> high hook load with its 
 <tr><td class="k">Dyn. factor</td><td>1.0 (static) unless you type one - a dead hang does not move.</td></tr>
 </table>
 <p>The WLL is the rope's minimum breaking strength ÷ the <b>design factor</b> (10:1 by default; 7:1 or 8:1 in Rig settings), capped by the
-assembly WLL. The panel writes out the sum. Breaking strengths are typical catalogue values - <b>check your rope's certificate</b>. A dead hang
+assembly WLL. The panel writes out the sum. Breaking strengths are typical catalog values - <b>check your rope's certificate</b>. A dead hang
 with no rope and no WLL is Overloaded. On the plan a dead hang is a filled dot; on the calc sheet it is DH1, DH2….</p>
 
 <h3 id="hung">Hoists Hung Below a Truss</h3>
@@ -264,7 +264,7 @@ dynamic factor, the <b>High hook dynamic</b> load, the capacity, the workload an
 models. <span class="ui">⧉ Copy hoist table</span> copies the table for Excel (see <a href="#files">Files, Export and Sharing</a>).</p>
 
 <h3>Warnings Tab</h3>
-<p>Every warning, then the <b>notes</b> (smaller, grey: things to be aware of that are not problems, such as parts the app cannot check).
+<p>Every warning, then the <b>notes</b> (smaller, gray: things to be aware of that are not problems, such as parts the app cannot check).
 Click a warning to select the truss it is about. See <a href="#warnings">Warnings and Messages</a> for what each one means and what to do.</p>
 
 <h3>A Rig with Problems</h3>
@@ -278,7 +278,7 @@ Click a warning to select the truss it is about. See <a href="#warnings">Warning
 <div>
 <p>Select a truss and open <b>Checks</b> in its panel to see exactly why it passes or fails. From the top:</p>
 <ol>
-<li><b>Elevation</b> - the truss from the side. Each span and cantilever is labelled with its length and coloured (green OK, red failing, with the failure named). Loads are triangles with their weights (lighter: a mirrored twin; a different colour: a load passed in from a bolted truss). Supports are triangles underneath with their reaction, what they are (<i>hoist</i> or <i>bolted to …</i>) and their position.</li>
+<li><b>Elevation</b> - the truss from the side. Each span and cantilever is labeled with its length and colored (green OK, red failing, with the failure named). Loads are triangles with their weights (lighter: a mirrored twin; a different color: a load passed in from a bolted truss). Supports are triangles underneath with their reaction, what they are (<i>hoist</i> or <i>bolted to …</i>) and their position.</li>
 <li><b>Where it works hardest</b> - a strip shaded by local workload (green through amber to red), with the peak marked and named.</li>
 <li><b>Reactions</b> - arrows to scale at each support. At hoists this is the low hook load; at bolts the force passed to the carrier. A red downward arrow means the truss is pushing up there.</li>
 <li><b>Shear and Moment</b> diagrams - with the estimated allowable as dashed lines and the maximum against it.</li>
@@ -310,7 +310,7 @@ at face value:</p>
 <tr><td>A hoist is Overloaded</td><td>Add a hoist nearby, move hoists to share the load, move or lighten loads, use a bigger hoist. Check the hoist's <i>Where the load comes from</i> table.</td></tr>
 <tr><td>A span is Overloaded</td><td>Add a hoist in the span (shorter span, more capacity), move point loads toward supports, use a stronger truss.</td></tr>
 <tr><td>A span or cantilever is Too long</td><td>Add a support or shorten the overhang (cantilever ≤ max span ÷ 4).</td></tr>
-<tr><td>Moment or shear over</td><td>Usually a heavy load right next to a support, or bending over a support from a loaded neighbouring span: move the load or add a hoist.</td></tr>
+<tr><td>Moment or shear over</td><td>Usually a heavy load right next to a support, or bending over a support from a loaded neighboring span: move the load or add a hoist.</td></tr>
 <tr><td>Deflection over</td><td>Shorten the span or lighten it.</td></tr>
 <tr><td>A hoist is Slack</td><td>It would be pushed up - usually next to a heavy cantilever or span. Move it, or move the load; the other hoists carry more meanwhile.</td></tr>
 <tr><td>Unstable</td><td>The truss or assembly has too few supports or they are in a line. Add hoists.</td></tr>

@@ -29,17 +29,17 @@ load cells) where the margin is small.</p></div>
 
 <div class="box warn"><b>Your work is kept in this browser only</b>
 <p>Every change is saved automatically inside the browser on this computer. Clearing the browser's data, or opening
-the file in a different browser, gives you a different (or empty) workspace. Use <span class="path">File › Save</span>
+the file in a different browser, gives you a different (or empty) workspace. Use <span class="path">File &gt; Save</span>
 to keep a rig as a <code>.rig.json</code> file you can back up, email and open again.</p></div>
 
 <h3>The Screen</h3>
-[[pins overview.jpg|The app with the example box loaded (light theme; the app starts in the dark theme - change it under <span class="path">File › Theme</span>).|100|1@14.9,-2.6;2@32.1,-2.6;3@38.4,-2.6;4@69.4,-2.6;5@84.9,-2.6;6@96.5,-2.6;7@-1.8,7.5;8@10,40;9@101.8,33;10@-1.8,65.4]]
+[[pins overview.jpg|The app with the example box loaded (light theme; the app starts in the dark theme - change it under <span class="path">File &gt; Theme</span>).|100|1@14.9,-2.6;2@32.1,-2.6;3@38.4,-2.6;4@69.4,-2.6;5@84.9,-2.6;6@96.5,-2.6;7@-1.8,7.5;8@10,40;9@101.8,33;10@-1.8,65.4]]
 <ul class="pinkey">
 <li>{{pin 1}}<b>File</b> - new rig, open, save, the example box, theme, About.</li>
 <li>{{pin 2}}<b>Undo / Redo</b> - <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd>.</li>
 <li>{{pin 3}}<b>Plan / 3D</b> - switch between the plan and a 3D view.</li>
 <li>{{pin 4}}<b>Status</b> - "All OK" or how many things to check, the busiest hoist, warnings. Click it for the results.</li>
-<li>{{pin 5}}<b>Rig settings</b> - dynamic factor, units (feet or metres), allowances and more.</li>
+<li>{{pin 5}}<b>Rig settings</b> - dynamic factor, units (feet or meters), allowances and more.</li>
 <li>{{pin 6}}<b>Calc sheet</b> - a printable calculation, for independent review of the software's work.</li>
 <li>{{pin 7}}<b>The four steps</b> - 1 Structure, 2 Loads, 3 Hoists, 4 Results. Use them in any order, any time.</li>
 <li>{{pin 8}}<b>The plan</b> - the rig to scale. Click anything to select it; drag trusses and hoists.</li>
@@ -55,7 +55,7 @@ minutes. Every number below is what the app shows for version {{VER}}.</p>
 
 <h3>Step 1 - Structure: Add the Truss</h3>
 <ol class="steps">
-<li>Choose <span class="path">File › New rig</span> and click <b>OK</b>. (A new rig replaces the one on screen. Undo brings it back until you close the page, but save anything you want to keep first.)</li>
+<li>Choose <span class="path">File &gt; New rig</span> and click <b>OK</b>. (A new rig replaces the one on screen. Undo brings it back until you close or reload the page, but save anything you want to keep first.)</li>
 <li>Click the rig name at the top (<i>Untitled rig</i>) and type <b>My first rig</b>.</li>
 <li>Click <span class="ui">+ Truss</span>. A 20 ft truss called <i>Truss 1</i> appears on the plan and in the side panel.</li>
 <li>In the side panel, under <b>Truss</b>, pick the <b>Manufacturer</b> and <b>Model</b> you use. This example keeps the default, <b>JTE 12x12 Plated</b>.</li>
@@ -65,7 +65,7 @@ minutes. Every number below is what the app shows for version {{VER}}.</p>
 
 <div class="box tip"><b>Typing lengths</b>
 <p>Type decimal feet (<code>12.5</code>) or feet and inches (<code>12-6</code>, <code>12'6"</code>, <code>12' 6 1/2"</code>,
-<code>12 ft 6 in</code>). In metric (<span class="path">Rig settings › Units</span>) type metres (<code>3.8</code>),
+<code>12 ft 6 in</code>). In metric (<span class="path">Rig settings &gt; Units</span>) type meters (<code>3.8</code>),
 <code>380 cm</code> or <code>3800 mm</code>.</p></div>
 
 <h3>Step 2 - Loads: Hang Six Lights</h3>
@@ -107,7 +107,7 @@ selected truss - with no truss selected it adds a new truss instead), then drag 
 
 <h3>Save It and Print the Calculation</h3>
 <ol class="steps">
-<li><span class="path">File › Save</span> downloads <code>My first rig.rig.json</code>. Keep it - <span class="path">File › Open…</span> brings it back on any computer.</li>
+<li><span class="path">File &gt; Save</span> downloads <code>My first rig.rig.json</code>. Keep it - <span class="path">File &gt; Open…</span> brings it back on any computer.</li>
 <li>Click <span class="ui">Calc sheet</span> (top right). Fill in the project, venue, prepared by and prepared for boxes at the top, then click <b>Print / save PDF</b> and choose <i>Save as PDF</i> (or a printer). Press <kbd>Esc</kbd> or <b>Close</b> to return.</li>
 </ol>
 [[img qs-5-calcsheet.jpg|The calculation sheet: every input, formula, table look-up and check, set out so the software's work can be reviewed independently.|90]]
@@ -116,9 +116,9 @@ selected truss - with no truss selected it adds a new truss instead), then drag 
 <section class="chapter">
 <h2>Reading the Results</h2>
 
-<h3>Colours and Statuses</h3>
+<h3>Colors and Statuses</h3>
 <table class="compact">
-<tr><th>Colour / status</th><th>Meaning</th><th>What to do</th></tr>
+<tr><th>Color / status</th><th>Meaning</th><th>What to do</th></tr>
 <tr><td><span class="sw" style="background:#1a8a4a"></span><span class="badge b-ok">OK</span></td><td>Under 80% of what the manufacturer allows.</td><td>Nothing.</td></tr>
 <tr><td><span class="sw" style="background:#c07a00"></span><span class="badge b-warn">High</span></td><td>80-100%. Within limits but little margin.</td><td>Consider it; check your weights are right.</td></tr>
 <tr><td><span class="sw" style="background:#d02f2f"></span><span class="badge b-fail">Overloaded</span></td><td>Over 100% of a limit (a hoist's capacity, a span or cantilever table, bending moment, shear, or the maker's deflection limit).</td><td>Must be fixed: move or lighten loads, add or move hoists, or use a stronger truss or hoist.</td></tr>
@@ -157,7 +157,7 @@ The app warns when that is more than 10% of a hoist's capacity - the example box
 <p>Trusses join at <b>corner blocks</b>. A corner block belongs to one truss (add it in that truss's
 <b>Corner blocks</b> section: <span class="ui">+ Corner block at start</span>, <span class="ui">+ Corner block at end</span>, or at a
 distance). Then select another truss, click <span class="ui">Bolt to…</span> and click the corner block on the plan. The bolted
-truss moves to the block and follows it from then on. <span class="path">File › Load example box</span> shows a complete box built this way.
+truss moves to the block and follows it from then on. <span class="path">File &gt; Load example box</span> shows a complete box built this way.
 See the User Guide, chapter <i>Step 1 - Structure</i>, for the details.</p>
 
 <h3>Menus You Will Use</h3>
@@ -166,7 +166,7 @@ See the User Guide, chapter <i>Step 1 - Structure</i>, for the details.</p>
 <li><span class="path">Export</span> - copy the hoist table for Excel, save the view as a picture, print the screen.</li>
 <li><span class="ui">⚙ Rig settings</span> - units, dynamic factor, <i>Add %</i>, cable allowance, load factors, deflection limit, calc sheet paper size.</li>
 <li><span class="path">Help</span> - this Quick Start and the full User Guide.</li>
-<li><span class="path">File › About, method &amp; version history</span> - how the app calculates, the licence, and what changed in each version.</li>
+<li><span class="path">File &gt; About, method &amp; version history</span> - how the app calculates, the license, and what changed in each version.</li>
 </ul>
 
 <h3>Credits</h3>
