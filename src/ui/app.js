@@ -280,6 +280,15 @@
       r.onload = function () { try { S.importJSON(r.result); S.ui.fit = true; S.emit(); } catch (err) { alert("Could not open file: " + err.message); } };
       r.readAsText(f); e.target.value = "";
     };
+    // Help: the manuals in docs/manual (next to index.html, or one folder up from dist/index.html); opened from a
+    // lone copy of the single-file build they aren't there, so "All manuals online" goes to the GitHub folder.
+    Array.prototype.forEach.call(document.querySelectorAll("[data-doc]"), function (b) {
+      b.onclick = function () {
+        var f = b.getAttribute("data-doc"), up = /\/dist\/[^\/]*$/.test(location.pathname) ? "../" : "";
+        window.open(f ? up + "docs/manual/" + encodeURIComponent("Truss Grid Analyzer - " + f)
+          : "https://github.com/ssfalkster/truss-grid-analyzer/tree/main/docs/manual", "_blank", "noopener");
+      };
+    });
     $("b-docs").onclick = function () { var d = $("docs"); d.innerHTML = DOCS; d.showModal(); $("docs-close").onclick = function () { d.close(); }; };
     $("appver").textContent = "v" + TLA.VERSION;
     $("rigname").onclick = function () { var n = prompt("Rig name", S.rig.name); if (n) { S.rig.name = n; S.commit(); } };
