@@ -4,8 +4,9 @@
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.26.2";
+  TLA.VERSION = "1.26.3";
   TLA.CHANGES = [
+    ["1.26.3", "2026-09-25", "G.E. Simmons Falk", "Truss view: the reactions diagram's labels no longer overlap - where an end bolt sits next to a hoist, the labels that would collide stack in lanes with a dashed leader line, as in the truss drawing (1.25.5). Display only; results unchanged."],
     ["1.26.2", "2026-09-25", "G.E. Simmons Falk", "Documentation only: the User Guide's calculation sheet screenshot now fills in Prepared for (its capture script still set the old Checked by field, so the box was blank). The manual's text, the app and its results are unchanged."],
     ["1.26.1", "2026-09-24", "G.E. Simmons Falk", "Documentation only: the user manual (Quick Start PDF, User Guide PDF and searchable HTML) is updated for version 1.26.0 - the Help menu, Undo after New rig / Open / Load example box, custom entries added (not replaced) when a rig file is opened, and the calculation sheet changes of 1.25.0 and 1.25.5 (estimate notice, Prepared for, deflection check F7, hoist schedule); new screenshots. The Help menu links to the new file names. Calculated results are unchanged."],
     ["1.26.0", "2026-09-24", "G.E. Simmons Falk", "New Help menu after Calculators: opens the Quick Start (PDF) and the User Guide (searchable HTML or PDF) from docs/manual in a new tab, or the manuals folder on GitHub (for a copy of the single-file build without the docs folder). Calculated results are unchanged."],

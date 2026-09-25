@@ -312,17 +312,37 @@
     return svg;
   }
   /** Reactions at each support: arrows to scale, low hook load at hoists and the force passed at bolted connections. */
+  /** 1.26.3: labels that would overlap (an end bolt next to a hoist) stack in lanes with a leader line, as in the
+   * elevation (1.25.5) - upward reactions' labels above the axis, downward ones' below. */
   function reactionsDiagram(t, res) {
-    var W = 420, pad = 26, L = res.beam.length || 1, X = function (x) { return pad + x * (W - pad * 2) / L; }, yb = 50, svg = svgBox(W, 100), add = svg.add;
+    var W = 420, pad = 26, L = res.beam.length || 1, X = function (x) { return pad + x * (W - pad * 2) / L; }, STEP = 24;
     var mx = res.supports.reduce(function (m, sr) { return Math.max(m, Math.abs(sr.reaction || 0)); }, 0) || 1;
+    var labs = res.supports.map(function (sr) {
+      var r = sr.reaction || 0, val = U.n("w", r, 0), name = sr.support.kind === "hoist" ? "hoist" : ((S.truss(sr.support.onTruss) || {}).name || "bolt");
+      var w = Math.max(textW(val, 11), textW(name, 9)), x0 = X(sr.support.distance);
+      return { sr: sr, r: r, up: r >= 0, val: val, name: name, x0: x0, w: w, x: Math.min(W - 2 - w / 2, Math.max(2 + w / 2, x0)) };
+    });
+    labs.forEach(function (o) { o.len = 8 + 28 * Math.abs(o.r) / mx; });
+    var nUp = lanes(labs.filter(function (o) { return o.up; }), 6), nDn = lanes(labs.filter(function (o) { return !o.up; }), 6);
+    // each side's labels sit on the side the other kind of arrow points to: clear any such arrow they would cross
+    function base(side) {
+      var b = side ? 14 : 16;
+      labs.forEach(function (o) { if (o.up !== side) return; labs.forEach(function (a) { if (a.up !== side && Math.abs(o.x - a.x0) < o.w / 2 + 4) b = Math.max(b, a.len + 16); }); });
+      return b;
+    }
+    var bUp = base(true), bDn = base(false);
+    var yb = Math.max(50, 26 + bUp + STEP * Math.max(0, nUp - 1)), H = Math.max(yb + 44, nDn ? yb + bDn + 17 + STEP * (nDn - 1) : 0);
+    var svg = svgBox(W, H), add = svg.add;
     add("text", { x: pad - 22, y: 10, "class": "et small" }, "Reactions (" + U.unit("w") + "): hoists = low hook load, bolts = force passed to the carrier");
     add("line", { x1: X(0), x2: X(L), y1: yb, y2: yb, "class": "axis" });
-    res.supports.forEach(function (sr) {
-      var x = X(sr.support.distance), r = sr.reaction || 0, len = 8 + 28 * Math.abs(r) / mx, isH = sr.support.kind === "hoist", up = r >= 0, col = isH ? "var(--accent)" : "var(--ink-2)";
-      if (up) { add("line", { x1: x, x2: x, y1: yb + 8, y2: yb + 2 + len, stroke: col, "stroke-width": 2 }); add("path", { d: "M" + x + " " + (yb + 2) + " l -4 7 l 8 0 z", fill: col }); }
+    labs.forEach(function (o) {
+      var x = o.x0, len = o.len, isH = o.sr.support.kind === "hoist", col = isH ? "var(--accent)" : "var(--ink-2)";
+      if (o.up) { add("line", { x1: x, x2: x, y1: yb + 8, y2: yb + 2 + len, stroke: col, "stroke-width": 2 }); add("path", { d: "M" + x + " " + (yb + 2) + " l -4 7 l 8 0 z", fill: col }); }
       else { add("line", { x1: x, x2: x, y1: yb - 8, y2: yb - 2 - len, stroke: "var(--fail)", "stroke-width": 2 }); add("path", { d: "M" + x + " " + (yb - 2) + " l -4 -7 l 8 0 z", fill: "var(--fail)" }); }
-      add("text", { x: x, y: up ? yb - 14 : yb + 16, "text-anchor": "middle", "class": "et strong" + (r < 0 ? " fail" : "") }, U.n("w", r, 0));
-      add("text", { x: x, y: up ? yb - 4 : yb + 27, "text-anchor": "middle", "class": "et small" }, isH ? "hoist" : ((S.truss(sr.support.onTruss) || {}).name || "bolt"));
+      var yv = o.up ? yb - bUp - STEP * o.lane : yb + bDn + STEP * o.lane, yn = o.up ? yv + 10 : yv + 11;
+      if (o.lane || Math.abs(o.x - x) > 1 || (o.up ? bUp > 14 : bDn > 16)) add("line", { x1: x, x2: o.x, y1: o.up ? yb - 2 : yb + 4, y2: o.up ? yn + 2 : yv - 10, "class": "dim lead" });
+      add("text", { x: o.x, y: yv, "text-anchor": "middle", "class": "et strong" + (o.r < 0 ? " fail" : "") }, o.val);
+      add("text", { x: o.x, y: yn, "text-anchor": "middle", "class": "et small" }, o.name);
     });
     return svg;
   }
