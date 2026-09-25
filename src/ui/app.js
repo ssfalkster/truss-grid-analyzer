@@ -5,8 +5,8 @@
 
   var DOCS = [
     "<h2>Truss Grid Analyzer " + TLA.VERSION + "</h2>",
-    "<p>A rebuild of <b>Truss Load Analyzer - EOT</b>, created by <b>Delbert L. Hall and Jon Sogoian</b> (open-source freeware, based on their original program by Delbert Hall). The truss, chain hoist and fixture data come from their workbook. This version adds a truss-grid model where trusses are bolted to each other and hung from hoists.</p>",
-    "<h3>Disclaimer</h3><p>This tool is intended for use by entertainment rigging professionals to assist them in making rigging decisions. Every attempt has been made to be accurate. However, the authors of the original program and of this rebuild are not responsible for errors in the program or the results of its use. <b>Users are responsible for verifying the results before using them to make rigging decisions.</b></p>",
+    "<p>An expansion, for indeterminate grids, of <b>Truss Load Analyzer - EOT</b>, created by <b>Delbert L. Hall and Jon Sogoian</b> (open-source freeware, based on their original program by Delbert Hall). The truss, chain hoist and fixture data come from their workbook. This version adds a truss-grid model where trusses are bolted to each other and hung from hoists.</p>",
+    "<h3>Disclaimer</h3><p>This tool is intended for use by entertainment rigging professionals to assist them in making rigging decisions. Every attempt has been made to be accurate. However, the authors of the original program and of this expansion are not responsible for errors in the program or the results of its use. <b>Users are responsible for verifying the results before using them to make rigging decisions.</b></p>",
     "<h3>Method and assumptions</h3><ul>",
     "<li>Each truss is a continuous beam with cantilevers, solved with Clapeyron's three-moment equation; reactions at supports are exact for the entered loads.</li>",
     "<li>Where a truss is bolted to another truss, its end reaction at that connection (plus any hardware weight, such as a corner block) is passed to the connected truss as a point load. Trusses are solved in order along the load path down to the hoists. Loops (A bolted to B and B bolted to A) are flagged, not solved. This matches how the original workbooks linked trusses. Since 1.3.0 the whole-rig analysis below is the result used; since 1.21.0 the load-path numbers are no longer shown, except as the fallback when the whole-rig analysis can't run.</li>",
@@ -42,7 +42,7 @@
     "<li><b>Calc sheet</b>: a printable record of the calculation for a second person to check - every input, the formulas with the numbers put in, the table row each capacity is read from, each check, each hoist's load worked out part by part, and the equilibrium self-checks - with signature boxes for the person who prepared it and the person who checked it. Print it or save it as PDF.</li></ul>",
     "<h3>Version history</h3><ul>" + TLA.CHANGES.map(function (c) { return "<li><b>" + c[0] + "</b> (" + c[1] + ", " + c[2] + "): " + c[3] + "</li>"; }).join("") + "</ul>",
     "<h3>License terms of the original</h3><p>Free to distribute. Anyone distributing a modified version must give credit to Delbert L. Hall and Jon Sogoian as the originators, update the history to show what was changed, and not charge for new versions. The person modifying the program is responsible for the results of those modifications.</p>",
-    "<h3>History</h3><ul><li>Original Truss Load Analyzer - EOT v1.0 - 2.1 (2020-2021), Hall &amp; Sogoian.</li><li>Truss Grid Analyzer (this rebuild): offline web version with truss-grid load paths, plan view, mirrored loads.</li></ul>",
+    "<h3>History</h3><ul><li>Original Truss Load Analyzer - EOT v1.0 - 2.1 (2020-2021), Hall &amp; Sogoian.</li><li>Truss Grid Analyzer (this expansion, for indeterminate grids): offline web version with truss-grid load paths, plan view, mirrored loads.</li></ul>",
     "<p><button id=\"docs-close\">Close</button></p>"
   ].join("");
 
