@@ -592,11 +592,14 @@
    *                    warned about (one warning per box);
    *   unsupported    - [[sections, factor], ...]: the maker allows only that share of the truss table capacity where an
    *                    unsupported block joins that many truss sections or more (1/2 at 4 sections; hubs 1/3 at 6).
-   * Owner's call (2026-09-23): these only WARN that the rig is outside the maker's corner-block rules - every check and
+   *   url            - the maker's document the rules come from; the warnings carry it as `link` (1.26.4).
+ * Owner's call (2026-09-23): these only WARN that the rig is outside the maker's corner-block rules - every check and
    * result is shown exactly as without them.
    * "At" the block: a hoist on the block, on the truss it sits in within its footprint + 6", or on a bolted truss within
    * 6" of the bolted end. */
   var AT_BLOCK = 0.5;
+  /** A warning's `link` (1.26.4): the maker's document that says so, opened by the UI in a new tab. */
+  function ruleLink(c) { return c && c.rules && c.rules.url ? { url: c.rules.url, text: c.manufacturer + " corner-block data" } : undefined; }
   function cornerRules(rig, db, ways) {
     var byId = {}, adj = {}, out = { warnings: [] };
     rig.trusses.forEach(function (t) { byId[t.id] = t; adj[t.id] = []; });
@@ -642,20 +645,20 @@
       if (supported) return;
       if (rules.boxEveryCorner && onLoop(b.id)) {
         var key = componentKey(b.id);
-        if (!boxes[key]) { boxes[key] = []; order.push(key); }
+        if (!boxes[key]) { boxes[key] = []; boxes[key].rules = c; order.push(key); }
         boxes[key].push(b);
       }
       var n = ways[b.id] || 0, f = 1;
       (rules.unsupported || []).forEach(function (r) { if (n >= r[0]) f = Math.min(f, r[1]); });
       if (f < 1) {
-        out.warnings.push({ truss: b.id, kind: "corner", level: "corner", message: b.name + ": " + c.name + " joining " + n + " truss sections with no hoist at it. The maker's corner-block data (" + c.manufacturer +
+        out.warnings.push({ truss: b.id, kind: "corner", level: "corner", link: ruleLink(c), message: b.name + ": " + c.name + " joining " + n + " truss sections with no hoist at it. The maker's corner-block data (" + c.manufacturer +
           ") allows only " + (Math.abs(f - 0.5) < 1e-9 ? "half" : Math.abs(f - 1 / 3) < 1e-9 ? "a third" : Math.round(f * 100) + "%") +
           " of the truss table capacity for the trusses meeting it there - the checks shown here use the full table capacity. Put a hoist at the block, or have it reviewed by a qualified person." });
       }
     });
     order.forEach(function (k) {
       var bl = boxes[k];
-      out.warnings.push({ truss: bl[0].id, kind: "corner", level: "corner", message: "Box truss: outside the manufacturer's corner-block rules - a box built with 90-degree corner blocks must be supported at every corner, and " +
+      out.warnings.push({ truss: bl[0].id, kind: "corner", level: "corner", link: ruleLink(bl.rules), message: "Box truss: outside the manufacturer's corner-block rules - a box built with 90-degree corner blocks must be supported at every corner, and " +
         bl.length + " of its corner blocks " + (bl.length === 1 ? "has" : "have") + " no hoist at " + (bl.length === 1 ? "it" : "them") + " (" + bl.map(function (b) { return b.name; }).join(", ") +
         "). The results shown do not account for this. Hang a hoist at each corner block, or have the rig reviewed by a qualified person." });
     });
@@ -691,7 +694,7 @@
       });
       if (!worst) return;
       var sg = worst.seg, where = (sg.type === "span" ? "span " + sg.index : sg.type === "cantilever-left" ? "left cantilever" : "right cantilever") + " (" + (Math.round(sg.length * 10) / 10) + " ft)";
-      out.push({ truss: t.id, kind: "data", level: "data", message: t.name + ": its truss data is from the Truss Load Analyzer workbook, and the manufacturer's own table (" +
+      out.push({ truss: t.id, kind: "data", level: "data", link: worst.m.url ? { url: worst.m.url, text: worst.m.manufacturer + " load table" } : undefined, message: t.name + ": its truss data is from the Truss Load Analyzer workbook, and the manufacturer's own table (" +
         worst.m.description + ") allows less on its " + where + ": " + (worst.kind === "udl" ? "uniform load " : "point load ") + Math.round(worst.b) + " lb against the workbook's " +
         Math.round(worst.a) + " lb. The checks still use the workbook's numbers - switch this truss to the manufacturer's row." });
     });

@@ -4,8 +4,9 @@
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.26.3";
+  TLA.VERSION = "1.26.4";
   TLA.CHANGES = [
+    ["1.26.4", "2026-09-25", "G.E. Simmons Falk", "Manufacturer warnings link to the maker's document that says so, opened in a new tab: the Christie Lites corner-block warnings (a box must be supported at every corner; an unsupported block joining 4 or more sections gets only part of the capacity) link to Christie's corner-block load table, and the warning that a workbook row allows more than the maker's table links to that maker's load table. The link is shown in the warnings list and banner; the calculation sheet writes out the address so it survives printing. Warning text and results are unchanged."],
     ["1.26.3", "2026-09-25", "G.E. Simmons Falk", "Truss view: the reactions diagram's labels no longer overlap - where an end bolt sits next to a hoist, the labels that would collide stack in lanes with a dashed leader line, as in the truss drawing (1.25.5). Display only; results unchanged."],
     ["1.26.2", "2026-09-25", "G.E. Simmons Falk", "Documentation only: the User Guide's calculation sheet screenshot now fills in Prepared for (its capture script still set the old Checked by field, so the box was blank). The manual's text, the app and its results are unchanged."],
     ["1.26.1", "2026-09-24", "G.E. Simmons Falk", "Documentation only: the user manual (Quick Start PDF, User Guide PDF and searchable HTML) is updated for version 1.26.0 - the Help menu, Undo after New rig / Open / Load example box, custom entries added (not replaced) when a rig file is opened, and the calculation sheet changes of 1.25.0 and 1.25.5 (estimate notice, Prepared for, deflection check F7, hoist schedule); new screenshots. The Help menu links to the new file names. Calculated results are unchanged."],

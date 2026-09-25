@@ -135,6 +135,16 @@
     eq(/Speed/.test(text), true, "hoist speed column");
   });
 
+  add("calc sheet (1.26.4): a warning from a maker's document names it and writes out its address", function () {
+    example();
+    var url = "https://www.christielites.com/file_uploads/Spec_288_Load%20Table%20-%20Corner%20Blocks%20-%20CL.pdf";
+    S.results.warnings.push({ kind: "corner", level: "corner", message: "Box truss: test warning", link: { url: url, text: "Christie Lites corner-block data" } });
+    var el = TLA.report.build(), li = Array.prototype.filter.call(el.querySelectorAll(".warns li"), function (x) { return /test warning/.test(x.textContent); })[0];
+    eq(!!li, true, "the warning is listed");
+    eq(/Source: Christie Lites corner-block data, https:/.test(li.textContent), true, li.textContent);
+    var a = li.querySelector("a"); eq(a && a.getAttribute("href"), url, "linked"); eq(a.getAttribute("target"), "_blank", "new tab");
+    S.commit({ noUndo: true });
+  });
   add("calc sheet (1.25.5): a truss on two hoists is not called indeterminate; three in a line are", function () {
     S.newRig(); TLA.panels.mount(S); TLA.report.mount(S);
     var t = S.addTruss({ name: "Pipe", x: 0, y: 0, angle: 0, length: 30, hoists: [2, 28] }); S.commit();

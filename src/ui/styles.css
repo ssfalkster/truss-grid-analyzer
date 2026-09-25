@@ -390,7 +390,7 @@ a.mklink, .setlinks a { color: var(--accent); text-decoration: none; white-space
 .sheet .mv { font-style: italic; font-family: "Times New Roman", Georgia, serif; font-size: 1.1em; } .sheet .mv sub { font-size: 0.7em; font-style: italic; }
 .sheet .fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 2px; font-size: 0.95em; }
 .sheet .fr > .nu { border-bottom: 1px solid currentColor; padding: 0 3px 1px; } .sheet .fr > .de { padding: 1px 3px 0; }
-.sheet ul.basis, .sheet ol.basis { margin: 3px 0; padding-left: 18px; } .sheet .warns { margin: 3px 0; padding-left: 20px; color: var(--fail); } .sheet .warns.notes { color: #555; }
+.sheet ul.basis, .sheet ol.basis { margin: 3px 0; padding-left: 18px; } .sheet .warns { margin: 3px 0; padding-left: 20px; color: var(--fail); } .sheet .warns.notes { color: #555; } .sheet .warns .wsrc { color: #444; font-size: 0.92em; overflow-wrap: anywhere; } .sheet .warns .wsrc a { color: inherit; }
 .sheet .tblock { margin: 8px 0 12px; } .sheet .tstat { float: right; font-size: 8.5pt; } .sheet .tstat.ok { color: var(--ok); } .sheet .tstat.fail { color: var(--fail); }
 .sheet .rfig { border: 1px solid #ccc; margin: 4px 0; padding: 2px; } .sheet .rfig svg { display: block; width: 100%; height: auto; } .sheet .rfig .elev { max-width: 125mm; margin: 0 auto; overflow: visible; }
 .sheet .rfig.plan svg { max-height: 150mm; }
