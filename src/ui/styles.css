@@ -196,6 +196,7 @@ h4 { margin: 14px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-sp
 .elev .el { fill: var(--ink); } .elev .el.ghost { opacity: .5; } .elev .el.inj { fill: var(--accent); }
 .elev .es.hoist { fill: var(--l3); } .elev .es.bear { fill: var(--ink); }
 .elev-wrap + .elev-wrap { margin-top: 6px; }
+.elev .dim { stroke: var(--muted); stroke-width: .8; fill: none; } .elev .dim.lead { stroke-dasharray: 2 2; }   /* 1.25.5: span dimensions, label leaders */
 .forces .axis { stroke: var(--muted); stroke-width: 1; } .forces .limit { stroke: var(--fail); stroke-width: 1; stroke-dasharray: 4 3; opacity: .7; }
 .forces .fd { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: var(--accent); stroke-width: 1.2; }
 .forces .fd.over { fill: color-mix(in srgb, var(--fail) 22%, transparent); stroke: var(--fail); }
@@ -374,9 +375,9 @@ a.mklink, .setlinks a { color: var(--accent); text-decoration: none; white-space
 .sheet table.rt { width: 100%; border-collapse: collapse; margin: 3px 0; font-variant-numeric: tabular-nums; }
 .sheet .rt th, .sheet .rt td { border: 1px solid #bbb; padding: 1.5px 4px; text-align: left; vertical-align: top; } .sheet .rt th { background: #eef0f3; font-weight: 600; }
 .sheet .rt th.r, .sheet .rt td.r { text-align: right; } .sheet .rt td.r { white-space: nowrap; } .sheet .rt th { hyphens: manual; }
-.sheet .rt td .sub2 { display: block; font-size: 7pt; color: #666; white-space: nowrap; } .sheet .rt tfoot td { font-weight: 600; background: #f6f7f9; }
+.sheet .rt td .sub2 { display: block; font-size: 7pt; color: #666; white-space: nowrap; } .sheet .rt tr.tot td { font-weight: 600; background: #f6f7f9; }
 .sheet .rt.small { font-size: 8pt; } .sheet .rt.kv td:first-child { width: 34%; color: #333; } .sheet .rt.fx td:first-child { width: 3em; } .sheet .rt.fx td:nth-child(2) { width: 9em; }
-.sheet .rt td.st, .sheet .rt td.nw { font-weight: 700; white-space: nowrap; } .sheet .rt td.nw { font-weight: 400; } .sheet .rt.kv.wide td:first-child { width: 48%; }
+.sheet .rt td.st, .sheet .rt td.nw { font-weight: 700; white-space: nowrap; } .sheet .rt td.st { display: table-cell; } .sheet .rt td.st::before { content: none; } .sheet .rt td.nw { font-weight: 400; } .sheet .rt.kv.wide td:first-child { width: 48%; }
 .sheet .work { font: 8pt/1.35 ui-monospace, Consolas, monospace; margin: 2px 0 2px 8px; padding-left: 6px; border-left: 2px solid #ccc; }
 @media screen { .sheet.paper-letter { width: 8.5in; } .sheet.paper-a4 { width: 210mm; } }   /* paper preview; print uses @page size */
 /* typeset working (1.17.0): formula = numbers = result */
@@ -396,6 +397,10 @@ a.mklink, .setlinks a { color: var(--accent); text-decoration: none; white-space
 .sheet .signs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; } .sheet .signname { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: end; }
 .sheet .signname .sl { color: #555; } .sheet .signname .sv { min-height: 1.5em; font-weight: 600; } .sheet .signname .sv.blank { border-bottom: 1px solid #888; min-width: 0; display: block; }
 .sheet .disc { font-size: 7.5pt; color: #444; margin-top: 6px; }
+/* 1.25.5: the estimate notice under the title block, the crew's hoist schedule, the print hint */
+.sheet .notice { border: 1.5px solid #111; background: #f6f7f9; padding: 5px 8px; margin: 0 0 8px; font-size: 8pt; line-height: 1.35; break-inside: avoid; }
+.sheet .sched { break-before: page; } .sheet .sched .rfig.plan svg { max-height: 80mm; } .sheet .rt.sch { font-size: 8.5pt; } .sheet .rt.sch td { padding: 2px 4px; } .sheet .rt td.chk { width: 5.5em; }
+#report .rbar .rhint { font-size: 11px; color: var(--muted); }
 @media print {
   body.report-open { display: block; height: auto; background: #fff; }
   body.report-open > :not(#report) { display: none !important; }
@@ -403,6 +408,7 @@ a.mklink, .setlinks a { color: var(--accent); text-decoration: none; white-space
   #report .rbar { display: none; }
   .sheet { width: auto; max-width: none; margin: 0; padding: 0; box-shadow: none; }
   .sheet .rsec h2, .sheet h3 { break-after: avoid; } .sheet .rt tr, .sheet .rfig, .sheet .work, .sheet .signs { break-inside: avoid; }
+  .sheet .cap, .sheet .sub { break-after: avoid; } .sheet .rt.keep { break-inside: avoid; }   /* 1.25.5: a caption or sub-heading stays with what follows it */
   @page { margin: 12mm 11mm 14mm; }
 }
 
@@ -487,5 +493,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .sheet .rplan text { font: 15px system-ui, sans-serif; fill: #111; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
 .sheet .rplan .hn { font-weight: 700; fill: #1f5fd1; } .sheet .rplan .hn.fail { fill: #c62828; } .sheet .rplan .tn { font-weight: 600; font-size: 16px; }
 .sheet .rplan .sb { stroke: #111; stroke-width: 2; } .sheet .rplan .sbt { font-size: 13px; fill: #444; }
+.sheet .rplan .hk { fill: #fff; stroke: #1f5fd1; stroke-width: 3; } .sheet .rplan .zn { font-weight: 700; font-size: 14px; }
+.sheet .rplan .dm { stroke: #666; stroke-width: 1.2; } .sheet .rplan .dmt { font-size: 14px; fill: #333; }   /* 1.25.5: truss start, dimensions */
 .lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
 .deflg .defl, .iso .defl { fill: none; stroke: var(--tc, var(--accent)); stroke-width: 2; stroke-linejoin: round; } .deflg { --tc: var(--ok); pointer-events: visibleStroke; } .deflg.c-warn { --tc: var(--warn); } .deflg.c-fail { --tc: var(--fail); } .deflg.c-neutral { --tc: var(--neutral); } .deflg.dim { opacity: .25; }
