@@ -1,5 +1,5 @@
 <section class="chapter">
-<h2>Before you start</h2>
+<h2>Before You Start</h2>
 
 <p><b>Truss Grid Analyzer</b> works out the load on every chain hoist and checks every truss in an entertainment
 truss rig, from a single truss on two hoists up to a grid of trusses bolted together at corner blocks. You draw the
@@ -10,7 +10,17 @@ is within the manufacturer's limits.</p>
 <p>Check the results against the manufacturer's current data, and have a qualified person review every rig before
 it flies. You are responsible for checking the results before you use them to make rigging decisions.</p></div>
 
-<h3>Open the app</h3>
+<div class="box note"><b>Indeterminate rigs (ANSI E1.6-3)</b>
+<p>ANSI E1.6-3 (<i>Selection and Use of Serially Manufactured Chain Hoists in the Entertainment Industry</i>) calls a rig
+<b>indeterminate</b> when it hangs from more than two hoists in a straight line, or more than three hoists not in a line - a
+truss on three hoists, or almost any grid or box. On an indeterminate rig the load on each hoist depends on how stiff the trusses,
+the rigging and the structure above are, and load can shift between hoists as they run. The standard (section 7.1) accepts a
+load calculation as a way to reduce the risk of overload only when every weight is known and accounted for, the calculation
+method is accurate, and any load shifting will not be enough to cause an overload. This app's whole-rig analysis is built for
+these rigs, but it is an estimate: allow for load shifting, level the hoists carefully, and verify loads (for example with
+load cells) where the margin is small.</p></div>
+
+<h3>Open the App</h3>
 <ol class="steps">
 <li>The whole app is one file, <code>index.html</code> (on GitHub it is <code>dist/index.html</code>). Save it anywhere on your computer.</li>
 <li>Double-click it. It opens in your web browser (Chrome, Edge, Firefox or Safari). No install, no account, no internet connection needed, and nothing is sent anywhere.</li>
@@ -22,7 +32,7 @@ it flies. You are responsible for checking the results before you use them to ma
 the file in a different browser, gives you a different (or empty) workspace. Use <span class="path">File › Save</span>
 to keep a rig as a <code>.rig.json</code> file you can back up, email and open again.</p></div>
 
-<h3>The screen</h3>
+<h3>The Screen</h3>
 [[pins overview.jpg|The app with the example box loaded (light theme; the app starts in the dark theme - change it under <span class="path">File › Theme</span>).|100|1@14.9,-2.6;2@32.1,-2.6;3@38.4,-2.6;4@69.4,-2.6;5@84.9,-2.6;6@96.5,-2.6;7@-1.8,7.5;8@10,40;9@101.8,33;10@-1.8,65.4]]
 <ul class="pinkey">
 <li>{{pin 1}}<b>File</b> - new rig, open, save, the example box, theme, About.</li>
@@ -30,7 +40,7 @@ to keep a rig as a <code>.rig.json</code> file you can back up, email and open a
 <li>{{pin 3}}<b>Plan / 3D</b> - switch between the plan and a 3D view.</li>
 <li>{{pin 4}}<b>Status</b> - "All OK" or how many things to check, the busiest hoist, warnings. Click it for the results.</li>
 <li>{{pin 5}}<b>Rig settings</b> - dynamic factor, units (feet or metres), allowances and more.</li>
-<li>{{pin 6}}<b>Calc sheet</b> - a printable calculation for a second person to check.</li>
+<li>{{pin 6}}<b>Calc sheet</b> - a printable calculation, for independent review of the software's work.</li>
 <li>{{pin 7}}<b>The four steps</b> - 1 Structure, 2 Loads, 3 Hoists, 4 Results. Use them in any order, any time.</li>
 <li>{{pin 8}}<b>The plan</b> - the rig to scale. Click anything to select it; drag trusses and hoists.</li>
 <li>{{pin 9}}<b>Side panel</b> - everything about what you clicked: the rig, a truss, a hoist, a load or a corner block.</li>
@@ -39,11 +49,11 @@ to keep a rig as a <code>.rig.json</code> file you can back up, email and open a
 </section>
 
 <section class="chapter">
-<h2>Your first rig</h2>
+<h2>Your First Rig</h2>
 <p>This walk-through builds a <b>30 ft truss hung on two 1-ton hoists, with six moving lights</b>. It takes about ten
 minutes. Every number below is what the app shows for version {{VER}}.</p>
 
-<h3>Step 1 - Structure: add the truss</h3>
+<h3>Step 1 - Structure: Add the Truss</h3>
 <ol class="steps">
 <li>Choose <span class="path">File › New rig</span> and click <b>OK</b>. (Save anything you want to keep first - a new rig replaces the one on screen.)</li>
 <li>Click the rig name at the top (<i>Untitled rig</i>) and type <b>My first rig</b>.</li>
@@ -58,7 +68,7 @@ minutes. Every number below is what the app shows for version {{VER}}.</p>
 <code>12 ft 6 in</code>). In metric (<span class="path">Rig settings › Units</span>) type metres (<code>3.8</code>),
 <code>380 cm</code> or <code>3800 mm</code>.</p></div>
 
-<h3>Step 2 - Loads: hang six lights</h3>
+<h3>Step 2 - Loads: Hang Six Lights</h3>
 <p>A new truss measures positions from its <b>centerline</b> (CL): <code>-12</code> is 12 ft before the middle,
 <code>+12</code> is 12 ft after it.</p>
 <ol class="steps">
@@ -71,7 +81,7 @@ minutes. Every number below is what the app shows for version {{VER}}.</p>
 <p class="small">For a load that is not in the library, type its weight instead: <b>120 lb @ 6</b>. You can also type straight into the
 <b>Loads</b> grid: the <i>Item / fixture</i> cell searches the library as you type.</p>
 
-<h3>Step 3 - Hoists: hang it up</h3>
+<h3>Step 3 - Hoists: Hang It Up</h3>
 <ol class="steps">
 <li>Click step <span class="ui">3 Hoists</span> (or press <kbd>3</kbd>).</li>
 <li>In the grid under the plan, find the row <i>+ hoist on Truss 1 (type its position)</i> and click its <b>At (ft)</b> cell. Type <b>-13</b> and press <kbd>Enter</kbd>. A hoist appears 13 ft left of the centerline (2 ft in from the end).</li>
@@ -82,7 +92,7 @@ minutes. Every number below is what the app shows for version {{VER}}.</p>
 <div class="box tip"><b>Other ways to add hoists</b><p>Select the truss, click <span class="ui">+ Hoist</span> above the plan (it adds one in the middle of the
 selected truss - with no truss selected it adds a new truss instead), then drag it along the truss on the plan - it moves in 1-inch steps and shows its position as you drag.</p></div>
 
-<h3>Step 4 - Results: read them</h3>
+<h3>Step 4 - Results: Read Them</h3>
 <p>Click step <span class="ui">4 Results</span> (or press <kbd>4</kbd>, or click the status at the top).</p>
 [[img qs-4-results.jpg|<b>Step 4.</b> All OK. Each hoist carries 433.7 lb static and 549.4 lb dynamic, 20% of its 2,200 lb capacity.|100]]
 <p>What the numbers mean for this rig:</p>
@@ -95,18 +105,18 @@ selected truss - with no truss selected it adds a new truss instead), then drag 
 <tr><td>Workload</td><td>20%</td><td>High hook static ÷ capacity (2,200 lb).</td></tr>
 </table>
 
-<h3>Save it and print the calculation</h3>
+<h3>Save It and Print the Calculation</h3>
 <ol class="steps">
 <li><span class="path">File › Save</span> downloads <code>My first rig.rig.json</code>. Keep it - <span class="path">File › Open…</span> brings it back on any computer.</li>
 <li>Click <span class="ui">Calc sheet</span> (top right). Fill in the project, venue, prepared by and checked by boxes at the top, then click <b>Print / save PDF</b> and choose <i>Save as PDF</i> (or a printer). Press <kbd>Esc</kbd> or <b>Close</b> to return.</li>
 </ol>
-[[img qs-5-calcsheet.jpg|The calculation sheet: every input, formula, table look-up and check, ready for a second person to verify.|90]]
+[[img qs-5-calcsheet.jpg|The calculation sheet: every input, formula, table look-up and check, set out so the software's work can be reviewed independently.|90]]
 </section>
 
 <section class="chapter">
-<h2>Reading the results</h2>
+<h2>Reading the Results</h2>
 
-<h3>Colours and statuses</h3>
+<h3>Colours and Statuses</h3>
 <table class="compact">
 <tr><th>Colour / status</th><th>Meaning</th><th>What to do</th></tr>
 <tr><td><span class="sw" style="background:#1a8a4a"></span><span class="badge b-ok">OK</span></td><td>Under 80% of what the manufacturer allows.</td><td>Nothing.</td></tr>
@@ -118,7 +128,7 @@ selected truss - with no truss selected it adds a new truss instead), then drag 
 <tr><td><span class="badge b-mut">Not solved</span></td><td>The truss has no supports yet, or depends on something missing.</td><td>Add hoists or bolt it to another truss.</td></tr>
 </table>
 
-<h3>Where to look</h3>
+<h3>Where to Look</h3>
 <ul>
 <li><b>The status at the top</b> sums up the whole rig. Click it to jump to the results.</li>
 <li><b>Step 4 Results</b> has three tabs: <b>Trusses</b> (every check for every truss), <b>Hoists</b> (every hoist's loads), and <b>Warnings</b> (everything the app wants you to look at). Click a row to select that truss or hoist.</li>
@@ -131,7 +141,7 @@ The app warns when that is more than 10% of a hoist's capacity - the example box
 </section>
 
 <section class="chapter">
-<h2>Handy to know</h2>
+<h2>Handy to Know</h2>
 
 <h3>Keyboard</h3>
 <table class="compact">
@@ -143,14 +153,14 @@ The app warns when that is more than 10% of a hoist's capacity - the example box
 <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>In a grid: paste rows from Excel</td><td>Mouse wheel</td><td>Zoom the plan; drag empty space to pan</td></tr>
 </table>
 
-<h3>Building a grid or a box</h3>
+<h3>Building a Grid or a Box</h3>
 <p>Trusses join at <b>corner blocks</b>. A corner block belongs to one truss (add it in that truss's
 <b>Corner blocks</b> section: <span class="ui">+ Corner block at start</span>, <span class="ui">+ Corner block at end</span>, or at a
 distance). Then select another truss, click <span class="ui">Bolt to…</span> and click the corner block on the plan. The bolted
 truss moves to the block and follows it from then on. <span class="path">File › Load example box</span> shows a complete box built this way.
 See the User Guide, chapter <i>Step 1 - Structure</i>, for the details.</p>
 
-<h3>Menus you will use</h3>
+<h3>Menus You Will Use</h3>
 <ul>
 <li><span class="path">Calculators</span> - circular truss, simple UDL, fixture weights, and the databases of trusses, corner blocks and hoists (where you can add your own).</li>
 <li><span class="path">Export</span> - copy the hoist table for Excel, save the view as a picture, print the screen.</li>
@@ -159,6 +169,6 @@ See the User Guide, chapter <i>Step 1 - Structure</i>, for the details.</p>
 </ul>
 
 <h3>Credits</h3>
-<p class="small">Truss Grid Analyzer is by G.E. Simmons Falk. It is a rebuild of <i>Truss Load Analyzer - EOT</i> by Delbert L. Hall and
-Jon Sogoian, who are the originators of the program. It is free and must never be sold.</p>
+<p class="small">Truss Grid Analyzer is by G.E. Simmons Falk. It is an expansion of <i>Truss Load Analyzer - EOT</i> by Delbert L. Hall and
+Jon Sogoian, who are the originators of the program, for indeterminate grids. It is free and must never be sold.</p>
 </section>

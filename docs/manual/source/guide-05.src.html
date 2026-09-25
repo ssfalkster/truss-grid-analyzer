@@ -1,11 +1,11 @@
 <section class="chapter">
-<h2 id="method">How the app calculates</h2>
+<h2 id="method">How the App Calculates</h2>
 <p>You do not need this chapter to use the app, but it helps to know what the numbers mean and where they come from. The full technical
 description is in <span class="path">File › About, method &amp; version history</span> and on the calc sheet (section 2, <i>Basis of calculation</i>).</p>
 
-<h3>From loads to hoist loads</h3>
+<h3>From Loads to Hoist Loads</h3>
 <ol>
-<li>Every truss is a beam carrying its point loads, its own weight (spread along it), its UDL and cable allowance, and anything passed in from
+<li>Every truss is a beam carrying its point loads, its self weight (spread along it), its UDL and cable allowance, and anything passed in from
 trusses bolted to it or its corner blocks. Load factors (by category) and the <i>Add %</i> are applied as set in Rig settings.</li>
 <li>The <b>whole-rig analysis</b> solves all the trusses together as beams meeting at the corner blocks - a direct-stiffness (finite element)
 analysis of the grid, often called a grillage. Trusses bend (through their chords), shear (through their diagonals) and twist; their stiffness is
@@ -23,7 +23,7 @@ hardware. The <b>high hook dynamic</b> load = static × the dynamic factor.</li>
 method</b> - each truss solved on its own as a continuous beam (Clapeyron's three-moment equation), passing its reactions down the chain of bolted
 trusses to the hoists - and warns that it may under-estimate hoists in a grid.</p>
 
-<h3>Truss checks</h3>
+<h3>Truss Checks</h3>
 <table>
 <tr><th>Check</th><th>Rule</th></tr>
 <tr><td class="k">Span</td><td>The span length is rounded <b>up</b> to the next whole foot (metre, for metric tables) and that row of the maker's table is read. Capacity = the table's centre point load (CPL) × the repetitive-use factor k, reduced by the share of the uniform-load capacity already used by any UDL. The point loads on the span must not exceed it, and the span must not be longer than the table's maximum.</td></tr>
@@ -33,22 +33,22 @@ trusses to the hoists - and warns that it may under-estimate hoists in a grid.</
 <tr><td class="k">Repetitive use</td><td>Capacities × 0.85 (ANSI) unless the data already includes it; the generic Universal trusses use 0.75.</td></tr>
 </table>
 
-<h3>Hoist checks</h3>
+<h3>Hoist Checks</h3>
 <p>A hoist's <b>status</b> compares its <b>static</b> high hook load with its rated capacity (as the original workbook does). Its dynamic load is flagged
 separately when it exceeds capacity. A dead hang is checked against its WLL.</p>
 
-<h3>Checked against</h3>
+<h3>Checked Against</h3>
 <p>The app's methods are checked in its test suite against the original workbook's results, the worked examples in Delbert L. Hall's <i>Rigging Math
-Made Simple</i>, an independent 3D frame analysis (PyNite) and Production Assist's calculation of the same grid.</p>
+Made Simple</i>, and an independent 3D frame analysis of the same rigs in PyNite, the engine behind CalcForge.</p>
 </section>
 
 <section class="chapter">
-<h2 id="warnings">Warnings and messages</h2>
+<h2 id="warnings">Warnings and Messages</h2>
 <p>Warnings appear in step 4's Warnings tab, in the Trusses tab, in the banner, on the calc sheet and (for input mistakes) in Check rig. Most name
 the truss (and hoist) they are about - click the warning to select it. <i>Notes</i> are shown in grey and are not counted as warnings. In the
 messages below, <i>&lt;Truss&gt;</i> stands for the truss's name.</p>
 
-<h3>Truss checks</h3>
+<h3>Truss Checks</h3>
 <table class="long">
 <tr><th>Message (example)</th><th>Meaning</th><th>What to do</th></tr>
 <tr><td><i>&lt;Truss&gt;: Span 2 - Overloaded (rigid joints)</i></td><td>The point loads on that span are more than the table allows. The joint model in brackets is the one that loads it hardest.</td><td>Shorten the span (add a hoist), move loads toward supports, or use a stronger truss.</td></tr>
@@ -77,7 +77,7 @@ messages below, <i>&lt;Truss&gt;</i> stands for the truss's name.</p>
 <tr><td><i>… no hoist model - its load is not checked against a capacity</i> (note)</td><td>The hoist's model is "None".</td><td>Pick a model.</td></tr>
 </table>
 
-<h3>Bolting, corner blocks and geometry</h3>
+<h3>Bolting, Corner Blocks and Geometry</h3>
 <table class="long">
 <tr><th>Message (example)</th><th>Meaning</th><th>What to do</th></tr>
 <tr><td><i>North (JTE …) is bolted to West CB1 (Christie …): different manufacturers' truss parts don't bolt together …</i></td><td>Bolted parts from different makers or truss families (the bolt is drawn red).</td><td>Use matching parts, or stack / clamp instead of bolting.</td></tr>
@@ -91,7 +91,7 @@ messages below, <i>&lt;Truss&gt;</i> stands for the truss's name.</p>
 <tr><td><i>&lt;Truss&gt;: truss type not found in database</i> / <i>corner block type not found</i></td><td>The rig uses a custom entry this browser does not have.</td><td>Open a rig file that contains it, or add it again in Databases, then pick it.</td></tr>
 </table>
 
-<h3>Check rig (input mistakes)</h3>
+<h3>Check Rig (Input Mistakes)</h3>
 <table class="long">
 <tr><th>Message (example)</th><th>What to do</th></tr>
 <tr><td><i>&lt;Truss&gt;: the load 'Spot' at 4 ft has no weight - enter it, or delete the load.</i></td><td>Type the weight, or delete the load.</td></tr>
@@ -101,7 +101,7 @@ messages below, <i>&lt;Truss&gt;</i> stands for the truss's name.</p>
 <tr><td><i>X and Y cross on the plan with no joint between them …</i> (note)</td><td>Bolt or stack them if they are joined; ignore if one runs above the other.</td></tr>
 </table>
 
-<h3>Other messages</h3>
+<h3>Other Messages</h3>
 <table class="long">
 <tr><th>Message (example)</th><th>Meaning</th></tr>
 <tr><td><i>Whole-rig analysis not available (…): hoist loads and truss checks are from the load-path method alone …</i></td><td>The fallback method is in use; hoist loads in a grid may be under-estimated. Simplify the rig or remove the loop mentioned.</td></tr>
@@ -112,64 +112,64 @@ messages below, <i>&lt;Truss&gt;</i> stands for the truss's name.</p>
 </section>
 
 <section class="chapter">
-<h2 id="faq">Troubleshooting and questions</h2>
+<h2 id="faq">Troubleshooting and Questions</h2>
 
-<h4>My rig has disappeared.</h4>
-<p>The app keeps the rig in this browser on this computer (see <a href="#autosave">Where your work is kept</a>). It is not there if you are in another
+<h4>My Rig Has Disappeared.</h4>
+<p>The app keeps the rig in this browser on this computer (see <a href="#autosave">Where Your Work Is Kept</a>). It is not there if you are in another
 browser, a private window, on another computer, or if the browser's data was cleared - or if you started a new rig or opened another file. Open your last
 saved <code>.rig.json</code> with <span class="path">File › Open…</span>.</p>
 
-<h4>I pressed New rig by mistake. Can I undo it?</h4>
+<h4>I Pressed New Rig by Mistake. Can I Undo It?</h4>
 <p>No - in version {{VER}} Undo cannot bring back the rig replaced by New rig, Open or Load example box, even though the New rig message says it can. Open
 your last saved file.</p>
 
-<h4>A truss says "Not solved".</h4>
+<h4>A Truss Says "Not Solved".</h4>
 <p>It has no support yet (add hoists or bolt it to a corner block), or it depends on something that is missing or on a loop of bolted trusses. The
 warning says which.</p>
 
-<h4>I can't drag a truss.</h4>
+<h4>I Can't Drag a Truss.</h4>
 <p>Bolted trusses (and corner blocks) are placed by their block: move the truss that owns the block, or <b>Unbolt</b> it first.</p>
 
-<h4>"Bolt to…" is greyed out.</h4>
+<h4>"Bolt to…" Is Greyed Out.</h4>
 <p>There are no corner blocks on other trusses yet. Add a corner block to the truss you want to bolt <i>to</i> (its <b>Corner blocks</b> section).</p>
 
-<h4>The truss bolted to the wrong side or the wrong end.</h4>
+<h4>The Truss Bolted to the Wrong Side or the Wrong End.</h4>
 <p>Use <b>Flip side</b> or <b>Bolt other end</b> in its Placement section, or <b>Unbolt</b> and bolt again with the options set (<b>its start / its end
 meets the block</b>, <b>extends north/south/east/west</b>).</p>
 
-<h4>A load or hoist is at the wrong position.</h4>
+<h4>A Load or Hoist Is at the Wrong Position.</h4>
 <p>Check its <b>From</b>: the same number means a different place from the start, the centerline or the end. On a centerline-measured truss, positions
 before the middle are negative.</p>
 
-<h4>Clicking + Hoist added a truss.</h4>
+<h4>Clicking + Hoist Added a Truss.</h4>
 <p>The add button adds to the <i>selected</i> truss; with nothing selected it adds a truss. Undo, select the truss, and click again.</p>
 
-<h4>The hoist loads don't add up to what I expect.</h4>
+<h4>The Hoist Loads Don't Add Up to What I Expect.</h4>
 <p>Open the hoist and look at <b>Where the load comes from</b>. In a grid, hoists share load through the trusses, so a hoist carries some weight from
 neighbouring trusses (or has a little lifted off it). The joint model used is named underneath. <b>Compare analysis methods</b> in step 3 shows how much
 the joint assumption matters.</p>
 
-<h4>Why are hoist loads so different when I move a hoist a little?</h4>
-<p>Short, stiff spans are level-sensitive. See <a href="#levels">Hoist levels</a>. Giving hoists a stiffness in Rig settings makes the analysis more realistic.</p>
+<h4>Why Are Hoist Loads So Different When I Move a Hoist a Little?</h4>
+<p>Short, stiff spans are level-sensitive. See <a href="#levels">Hoist Levels</a>. Giving hoists a stiffness in Rig settings makes the analysis more realistic.</p>
 
-<h4>My load cells don't match the app.</h4>
+<h4>My Load Cells Don't Match the App.</h4>
 <p>Check you are comparing like with like (<b>Load cells read</b> in Rig settings: high hook or low hook), that every weight is entered (cable, clamps),
 and compare assembly totals rather than single hoists - levels and stiffness move load between hoists.</p>
 
-<h4>A manufacturer link doesn't open.</h4>
+<h4>A Manufacturer Link Doesn't Open.</h4>
 <p>Links go to the maker's website and need an internet connection. Makers sometimes move their documents.</p>
 
-<h4>The app looks different from this guide.</h4>
+<h4>The App Looks Different from This Guide.</h4>
 <p>You are probably running a later version. This guide is for version {{VER}}. See <span class="path">File › About</span> for what has changed.</p>
 
-<h4>Where do I report a problem?</h4>
+<h4>Where Do I Report a Problem?</h4>
 <p>Save the rig as a file and send it, with a description, to the app's author (see <a href="#credits">Credits</a>).</p>
 </section>
 
 <section class="chapter">
-<h2 id="keys">Keyboard and mouse reference</h2>
+<h2 id="keys">Keyboard and Mouse Reference</h2>
 
-<h3>Anywhere (not while typing in a box)</h3>
+<h3>Anywhere (Not While Typing in a Box)</h3>
 <table class="compact">
 <tr><th>Key</th><th>Does</th></tr>
 <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></td><td>Go to step 1 Structure, 2 Loads, 3 Hoists, 4 Results.</td></tr>
@@ -181,7 +181,7 @@ and compare assembly totals rather than single hoists - levels and stiffness mov
 <tr><td><kbd>Esc</kbd></td><td>Cancel "Bolt to…"; close Rig settings, a menu or the calc sheet.</td></tr>
 </table>
 
-<h3>In a grid</h3>
+<h3>In a Grid</h3>
 <table class="compact">
 <tr><th>Key</th><th>Does</th></tr>
 <tr><td>Arrow keys</td><td>Move.</td></tr>
@@ -197,10 +197,10 @@ and compare assembly totals rather than single hoists - levels and stiffness mov
 <tr><td><kbd>Shift</kbd>+click, <kbd>Ctrl</kbd>+click, <kbd>Shift</kbd>+<kbd>↑</kbd><kbd>↓</kbd>, <kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Hoists grid: select several hoists.</td></tr>
 </table>
 
-<h3>In a search list</h3>
+<h3>In a Search List</h3>
 <p><kbd>↑</kbd> <kbd>↓</kbd> choose, <kbd>Enter</kbd> pick, <kbd>Tab</kbd> pick and move on, <kbd>Esc</kbd> close.</p>
 
-<h3>Mouse on the plan</h3>
+<h3>Mouse on the Plan</h3>
 <table class="compact">
 <tr><th>Action</th><th>Does</th></tr>
 <tr><td>Click</td><td>Select a truss, corner block or hoist; empty space selects the rig.</td></tr>
@@ -214,7 +214,7 @@ and compare assembly totals rather than single hoists - levels and stiffness mov
 <h3>Mouse in 3D</h3>
 <p>Drag = orbit, <kbd>Shift</kbd>+drag or right-drag = pan, wheel = zoom, click = select.</p>
 
-<h3>Help and search in this guide (HTML copy)</h3>
+<h3>Help and Search in This Guide (HTML Copy)</h3>
 <p><kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> jumps to the search box; <kbd>Enter</kbd> opens the first match; <kbd>Esc</kbd> clears the search.</p>
 </section>
 
@@ -226,7 +226,7 @@ and compare assembly totals rather than single hoists - levels and stiffness mov
 <tr><td class="k">Allowable (moment, shear)</td><td>The bending moment or shear a truss may carry, estimated in this app from the maker's load tables.</td></tr>
 <tr><td class="k">Assembly</td><td>A group of trusses joined together by bolts, stacking or corner blocks.</td></tr>
 <tr><td class="k">Bolted</td><td>Joined to another truss through a corner block (or bolted end to a truss). A bolted truss is positioned by its block.</td></tr>
-<tr><td class="k">Calc sheet</td><td>The printable calculation for independent checking.</td></tr>
+<tr><td class="k">Calc sheet</td><td>The printable calculation, for independent review of the software's work.</td></tr>
 <tr><td class="k">Cantilever</td><td>The part of a truss past its outermost support. Max length = max span ÷ 4.</td></tr>
 <tr><td class="k">Carrier</td><td>A truss that other hoists hang below.</td></tr>
 <tr><td class="k">Centerline (CL)</td><td>The middle of a truss line; positions measured from it are negative toward the start.</td></tr>
@@ -267,12 +267,12 @@ and compare assembly totals rather than single hoists - levels and stiffness mov
 </section>
 
 <section class="chapter">
-<h2 id="credits">Credits, licence and disclaimer</h2>
+<h2 id="credits">Credits, Licence and Disclaimer</h2>
 
 <h3>Credits</h3>
 <p><b>Truss Grid Analyzer</b>, copyright © 2026 <b>G.E. Simmons Falk</b>.</p>
-<p>Based on <b>Truss Load Analyzer - EOT</b> by <b>Delbert L. Hall and Jon Sogoian</b>, who are the originators of the program, and rebuilt with the
-knowledge and permission of Delbert L. Hall. Its method and its truss, chain hoist and fixture data come from their workbook. Manufacturer data is from
+<p>Based on <b>Truss Load Analyzer - EOT</b> by <b>Delbert L. Hall and Jon Sogoian</b>, who are the originators of the program, and developed with the
+knowledge and permission of Delbert L. Hall. Truss Grid Analyzer expands their program to indeterminate grids. Its method and its truss, chain hoist and fixture data come from their workbook. Manufacturer data is from
 Christie Lites, James Thomas Engineering, Tomcat, Tyler Truss and the other makers named in the Databases page. Thanks to <b>Issy Stadler</b> for testing help.</p>
 
 <h3>Licence</h3>
@@ -283,9 +283,9 @@ with the app, and are summarised in <span class="path">File › About, method &a
 
 <h3>Disclaimer</h3>
 <p>This tool is intended for use by entertainment rigging professionals to assist them in making rigging decisions. Every attempt has been made to be
-accurate. However, the authors of the original program and of this rebuild are not responsible for errors in the program or the results of its use.
+accurate. However, the authors of the original program and of this expansion are not responsible for errors in the program or the results of its use.
 <b>Users are responsible for verifying the results before using them to make rigging decisions.</b></p>
 
-<h3>About this guide</h3>
+<h3>About This Guide</h3>
 <p>User Guide for Truss Grid Analyzer version {{VER}}, {{DATE}}. The guide is revised on request, not with every release of the app.</p>
 </section>

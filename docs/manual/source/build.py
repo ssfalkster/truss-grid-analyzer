@@ -19,6 +19,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE.parent
 CSS = (HERE / "manual.css").read_text(encoding="utf-8")
 TITLE = "Truss Grid Analyzer - User Guide"
+CREDIT = ('<p class="credit">By <b>G.E. Simmons Falk</b>. Truss Grid Analyzer is an expansion, for indeterminate grids, of '
+          '<i>Truss Load Analyzer - EOT</i> by <b>Delbert L. Hall and Jon Sogoian</b>, the originators of the program.</p>')
 
 
 def slug(s):
@@ -96,7 +98,7 @@ WEB_JS = r"""
     var sec = b.closest('section'), h = null, el = b;
     while (el && !h) { var prev = el.previousElementSibling; while (prev && !/^H[23]$/.test(prev.tagName)) prev = prev.previousElementSibling; if (prev) h = prev; else el = el.parentElement; if (el === main) break; }
     if (/^H[23]$/.test(b.tagName)) h = b;
-    return { el: b, text: b.textContent.replace(/\s+/g, ' ').trim(), where: h ? title(h) : (sec && sec.querySelector('h2') ? title(sec.querySelector('h2')) : '') };
+    return { el: b, text: b.textContent.replace(/\s+/g, ' ').trim(), where: h ? title(h) : (sec && sec.querySelector('h2') ? title(sec.querySelector('h2')) : 'Title page') };
   });
   function title(h) { var n = h.querySelector('.num'); return n ? n.textContent + '  ' + h.textContent.slice(n.textContent.length) : h.textContent; }
   function esc(s) { return s.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
@@ -189,7 +191,7 @@ def web(guide, toc):
 <div class="top"><button id="navbtn">☰ Contents</button><span class="t">Truss Grid Analyzer - User Guide</span><span class="v">for version {VER}</span><span class="grow"></span>
 <input id="q" type="search" placeholder="Search the guide  (press / )" autocomplete="off" aria-label="Search the guide"></div>
 <div id="hits" hidden></div>
-<div class="wrap"><nav id="toc" aria-label="Contents">{nav}</nav><main id="content">{body}</main></div>
+<div class="wrap"><nav id="toc" aria-label="Contents">{nav}</nav><main id="content"><div class="cover"><div class="muted">Truss Grid Analyzer</div><h1>User Guide</h1><p class="muted">Written for version {VER} - {DATE}</p>{CREDIT}</div>{body}</main></div>
 <script>{WEB_JS}</script></body></html>"""
 
 
@@ -284,11 +286,11 @@ if __name__ == "__main__":
     print("wrote", OUT / f"{TITLE} (v{VER}).html")
     qs_src, qs_toc = number((HERE / "quickstart.src.html").read_text(encoding="utf-8"))
     cover_g = (f'<div class="cover"><div class="muted">Truss Grid Analyzer</div><h1>User Guide</h1><p class="sub">How to build a rig, load it, hang it and read the results</p>'
-               f'<div><div class="versionbox"><b>Written for version {VER}</b><br>{DATE}</div></div>'
+               f'<div><div class="versionbox"><b>Written for version {VER}</b><br>{DATE}</div></div>{CREDIT}'
                f'<p class="muted small" style="margin-top:2.5em;max-width:5.6in">This guide is written for version {VER} and is not updated for every release. Later versions may look or behave differently; the version you are running is shown next to the app name in the header. '
                f'A searchable copy of this guide is supplied as an HTML file with the same name.</p></div>')
     cover_q = (f'<div class="cover"><div class="muted">Truss Grid Analyzer</div><h1>Quick Start</h1><p class="sub">Your first rig in ten minutes</p>'
-               f'<div><div class="versionbox"><b>Written for version {VER}</b><br>{DATE}</div></div>'
+               f'<div><div class="versionbox"><b>Written for version {VER}</b><br>{DATE}</div></div>{CREDIT}'
                f'<p class="muted small" style="margin-top:2.5em;max-width:5.6in">For everything else, see the full User Guide (PDF, or the searchable HTML copy). The guides are written for version {VER} and are not updated for every release.</p></div>')
     c = Chrome(1200, 900, 1)
     try:
