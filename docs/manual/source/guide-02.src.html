@@ -1,0 +1,276 @@
+<section class="chapter">
+<h2 id="grids">Working in the grids</h2>
+<p>Steps 1, 2 and 3 each have a spreadsheet-style grid under the plan. You can build a whole rig from the grids alone - typing
+straight from a drawing or pasting from Excel - or use them alongside the plan and side panel. Every edit in a grid is exactly
+the same as making it in the side panel, and each edit (or paste) is one Undo step.</p>
+
+<h3>Moving around and typing</h3>
+<table class="compact">
+<tr><th>To</th><th>Do this</th></tr>
+<tr><td>Select a cell</td><td>Click it. The cell gets a blue outline and its row's truss, load or hoist is selected on the plan and in the side panel.</td></tr>
+<tr><td>Move</td><td>Arrow keys; <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> (right / left, skipping grey result columns); <kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> (down / up). After tabbing along a row, <kbd>Enter</kbd> goes back to the column you started in, on the next row - like Excel.</td></tr>
+<tr><td>Edit</td><td>Just start typing (replaces the value), or double-click, press <kbd>F2</kbd>, or click an already-selected cell (edits the value).</td></tr>
+<tr><td>Finish an edit</td><td><kbd>Enter</kbd> (and move down), <kbd>Tab</kbd> (and move right), or click elsewhere. <kbd>Esc</kbd> cancels.</td></tr>
+<tr><td>Tick a checkbox</td><td>Click it, or press <kbd>Space</kbd> on it.</td></tr>
+<tr><td>Copy the cell above</td><td><kbd>Ctrl</kbd>+<kbd>D</kbd> (fill down).</td></tr>
+<tr><td>Copy a cell</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd>. The <span class="ui">⧉ Copy</span> button in the grid's header copies the whole grid as tab-separated text for Excel.</td></tr>
+<tr><td>Paste</td><td><kbd>Ctrl</kbd>+<kbd>V</kbd> - see below.</td></tr>
+<tr><td>Delete a row</td><td><kbd>Delete</kbd> (or <kbd>Shift</kbd>+<kbd>Backspace</kbd>). Deleting a truss asks first.</td></tr>
+<tr><td>Stop editing the grid</td><td><kbd>Esc</kbd> (with no edit open) - the plan's keys work again.</td></tr>
+</table>
+<p><b>Grey columns</b> are results or values set elsewhere (for example the position of a bolted truss); you cannot type in them.
+A column that is grey for one row may be editable in another.</p>
+
+<h3>Adding rows</h3>
+<p>The last row of each group is a "new" row in italics: <i>new truss… (type a name)</i>, <i>+ load on North (start typing)</i>,
+<i>+ hoist on West (type its position)</i>. Click one of its editable cells and type: a new truss, load or hoist is created with
+what you typed, and the cursor stays on the new row so you can keep going.</p>
+
+<h3>Picking from a list</h3>
+<p>Some cells search a list as you type - the truss <b>Type</b>, the load <b>Item / fixture</b> and the <b>Hoist</b> model. Type any
+part of the name (several words narrow it down: <code>jte 12 plated</code>, <code>mac aura</code>, <code>lode 1t</code>). Use the arrow
+keys to choose, then <kbd>Enter</kbd> to pick, or <kbd>Tab</kbd> to pick and move to the next cell. <kbd>Esc</kbd> closes the list.</p>
+
+<h3>Pasting from a spreadsheet</h3>
+<p>Copy a block of cells in Excel (or any spreadsheet), click the cell where the top-left value should go, and press
+<kbd>Ctrl</kbd>+<kbd>V</kbd>. Each line fills a row, from that cell to the right and down. If you run past the last row of a group,
+new rows are added to it. Empty pasted cells leave the value alone; cells the app cannot read are skipped and it tells you how many.
+Paste one value (no tabs) to put it in the selected cell.</p>
+<div class="box tip"><b>Column order for pasting</b>
+<p><b>Loads:</b> At, From, Item, Weight, Clamp, Mirror, Note, Category (Mirror: <code>yes</code>, <code>y</code>, <code>x</code> or <code>1</code>).<br>
+<b>Hoists:</b> At, From, Hoist, Chain / rope, DLF, Hardware, Hangs from, Level.<br>
+Start the paste in the <b>At</b> column. Put the column you start in first in your spreadsheet selection.</p></div>
+
+<h3>Choosing several hoists at once</h3>
+<p>The Hoists grid (step 3) lets you change many hoists in one go - see <a href="#multi">Editing many hoists at once</a>.</p>
+</section>
+
+<section class="chapter">
+<h2 id="structure">Step 1 - Structure</h2>
+<p>In step 1 you create every truss, set its make, model and length, add its corner blocks, place it on the plan and bolt the trusses
+together. Build all the trusses first; loads and hoists come later.</p>
+[[img dock-structure.jpg|The Structure grid: one row per truss.|100]]
+
+<h3>Adding a truss</h3>
+<p>Click <span class="ui">+ Truss</span> (above the plan, or in the rig panel), or type a name in the grid's <i>new truss…</i> row. A new
+truss is a 20 ft JTE 12x12 Plated, named <i>Truss 1</i>, <i>Truss 2</i>…, measured from its centerline, with no loads and no hoists, placed
+at X 0, Y 0 running east. It is selected, so the side panel shows it.</p>
+[[img truss-head.jpg|The top of a truss's panel: name, status, type, length, what it hangs from, and actions.|70]]
+<p>The top of the truss panel shows:</p>
+<ul>
+<li>the <b>name</b> (click it to rename) and its <b>status</b>;</li>
+<li>its type and length, and <b>Hangs from</b>: the trusses or corner blocks it is bolted to and how many hoists it has;</li>
+<li>buttons: <span class="ui">+ Hoist</span> (adds a hoist in the middle), <span class="ui">+ Load</span> (jumps to the quick-add box),
+<span class="ui">Bolt to…</span>, <span class="ui">Connected</span>, rotate <span class="ui">⟳</span> (free trusses only), <b>Duplicate</b> and <b>Delete</b>.</li>
+</ul>
+<p><b>Connected</b> dims everything on the plan that is not joined to this truss (bolted, stacked, or hung on a hoist below it) - a quick way to
+spot a truss you meant to bolt on but did not. Click it again to turn it off.</p>
+
+<h3>Choosing the truss type</h3>
+<div class="side">
+<div>
+<p>Open the <b>Truss</b> section. Choose the <b>Manufacturer</b>, then the <b>Model</b>.</p>
+<ul>
+<li>Models marked <b>(MFG)</b> use the manufacturer's own current load table and are listed first. The others come from the original
+Truss Load Analyzer workbook. Where a workbook row allows more than the maker's current table for a span in your rig, the app warns and
+names the maker's row to use instead.</li>
+<li><b>(metric data)</b> means the maker publishes a metric table; it is checked in whole-metre steps.</li>
+<li><b>(custom)</b> is a truss you added yourself (see <a href="#databases">Databases</a>).</li>
+</ul>
+<p>Under the pickers the app shows the maximum span, the maximum cantilever (a quarter of the maximum span), the repetitive-use factor
+applied, and where the data comes from. For manufacturer data, <b>maker's load table ↗</b> opens the maker's own document in a new tab
+(this needs an internet connection).</p>
+<p>In the grid, click the <b>Type</b> cell and type part of the name (<code>tyler gt</code>, <code>christie a</code>) instead.</p>
+</div>
+[[img truss-grp-truss.jpg|The Truss section.|100]]
+</div>
+
+<h3>Setting the length</h3>
+<p>A truss line is its <b>truss pieces</b> plus any <b>corner blocks</b> in the line:</p>
+<ul>
+<li><b>Truss pieces</b> - the total length of truss sections, not counting corner blocks. Type it (<code>30</code>, <code>28-6</code>).</li>
+<li>The line under the fields adds it up: <i>30 ft truss + 2 ft corner blocks = 32 ft whole line</i>. With <b>add block lengths</b> ticked
+(the default) each corner block's length is added to the pieces. Untick it if the length you typed already includes the blocks.</li>
+</ul>
+<h4>Building a truss from standard pieces</h4>
+<div class="side">
+<div>
+<p>Click <span class="ui">Build from pieces…</span> to assemble the line from stock lengths. Buttons such as <b>+10'</b> and <b>+5'</b> add a
+stick of that length (the lengths offered depend on the truss family); type another length in the small box and click <b>+ add</b> for an
+odd piece (the app remembers it for next time). Each piece is shown as a tag - click a tag to remove that piece. <b>+CB</b> between two tags
+puts a corner block between those pieces. <span class="ui">Type a length instead</span> goes back to a single length.</p>
+</div>
+[[img pieces-builder.jpg|A truss built from pieces.|100]]
+</div>
+
+<h3>Corner blocks in a truss line</h3>
+<p>Open the <b>Corner blocks</b> section. First choose the <b>Block to add</b> - maker, truss family and block (with its number of ways and
+weight). The app suggests a block that fits the truss.</p>
+[[img truss-grp-blocks.jpg|The Corner blocks section of a truss that has two blocks in its line (8' + CB + 13' + CB + 9').|55]]
+<p>Then add blocks in one of these ways:</p>
+<table class="compact">
+<tr><th>Button</th><th>Puts a corner block…</th></tr>
+<tr><td class="k">+ Corner block at start / at end</td><td>at that end of the line (the line gets longer by the block, if <b>add block lengths</b> is ticked).</td></tr>
+<tr><td class="k">Corner block at … from … › Add there</td><td>with its centre at an exact distance from the start, centerline or end; the truss is split there.</td></tr>
+<tr><td class="k">Set segment lengths…</td><td>(once there is a block in the line) switches to typing each run of truss between blocks: <i>before first block</i>, <i>between blocks</i>, <i>after last block</i>. Each run can be typed as a length or built from pieces.</td></tr>
+<tr><td class="k">+ Corner block after these pieces</td><td>after a run of truss (in segment mode).</td></tr>
+<tr><td class="k">+CB</td><td>between two pieces (in the piece tags).</td></tr>
+</table>
+<p>The line is summed up as, for example, <b>8' + CB + 13' + CB + 9' = 32 ft</b>. Each block gets a row with its name (editable), its length,
+type and position, and what is bolted to it; <b>select</b> opens the block's own panel and <b>remove</b> takes it out of the line.
+Blocks are named after the truss (<i>North CB1</i>, <i>North CB2</i>…); <b>Number blocks from</b> with <b>Renumber this truss</b> or
+<b>Renumber all trusses</b> renames them in order along each line.</p>
+
+<h3>Placing a free truss</h3>
+<p>A truss that is not bolted to anything is <b>free</b>. Place it in any of these ways:</p>
+<ul>
+<li>Type <b>Plan X</b>, <b>Plan Y</b> (the start point) and <b>Angle</b> in the <b>Placement</b> section, or in the grid's X, Y and Angle columns.
+Angles: 0 = east, 90 = north, 180 = west, 270 (or -90) = south.</li>
+<li>Drag it on the plan. It moves in half-foot steps, and its ends snap to the ends of other trusses within 1.5 ft; hold <kbd>Alt</kbd> while
+dragging to stop the snapping.</li>
+<li>Press <kbd>R</kbd> (or click <span class="ui">⟳</span>) to turn the selected truss 90° anticlockwise about its start.</li>
+</ul>
+<p>To move a whole rig so it is centred on the origin, use <b>Center on 0,0</b> in <a href="#settings">Rig settings</a>.</p>
+
+<h3 id="bolting">Bolting a truss to a corner block</h3>
+<p>Bolting joins two trusses: the truss you bolt is placed by the block, at right angles to the block's truss, and follows it from then on.</p>
+<ol class="steps">
+<li>Make sure the corner block exists: it must be in another truss's line (see above).</li>
+<li>Select the truss you want to bolt on. In <b>Placement › Bolt to a corner block</b>, check the two options (the defaults are usually right):
+<ul>
+<li><b>end: automatic</b>, <b>its start meets the block</b>, <b>its end meets the block</b>, or <b>the block is along it</b> (the block sits partway along this truss, as where a truss passes through a block);</li>
+<li><b>direction: automatic</b> or <b>extends north / south / east / west</b> - which way the truss runs from the block.</li>
+</ul></li>
+<li>Click <span class="ui">Bolt to…</span> (in the Placement section or at the top of the panel). A blue bar appears: <i>Bolt North: click a corner block</i>, and the corner blocks you can use are outlined.</li>
+<li>Click the corner block on the plan. The truss jumps into place. (Press <kbd>Esc</kbd> or <b>Cancel</b> to stop without bolting.)</li>
+</ol>
+[[img pick-mode.jpg|Choosing a corner block to bolt to. The blocks you can pick are outlined in blue.|80]]
+<p>You can also start from the block: select a corner block and click <span class="ui">Bolt a truss here…</span>, then click the truss; or click
+one of the block's free faces (<b>+ north</b>, <b>+ east</b>…) and then the truss, to bolt it to that face.</p>
+<p>Once bolted, the <b>Placement</b> section says, for example, <i>Bolted to West CB1 at its start, extends east</i>, and offers:</p>
+<ul>
+<li><b>Flip side</b> - swing the truss to the other side of the block's truss;</li>
+<li><b>Bolt other end</b> - use the other end of this truss at the block;</li>
+<li><b>Unbolt</b> - make it free again (it stays where it is).</li>
+</ul>
+<p>Its X, Y and angle are now grey (set by the block). To move it, move the truss that owns the block.</p>
+[[img truss-grp-place.jpg|The Placement section of a bolted truss.|55]]
+
+<h4>Closing a box: bolting both ends</h4>
+<p>A truss can be bolted at both ends. After a truss is bolted at its start, bolt its <b>end</b> to a corner block on another truss: that
+other truss (if it is free) is <b>pulled onto</b> this truss so the block meets its end. Its panel then says <i>Pulled onto North (bolted
+through its own corner block)</i>, with <b>Flip side</b> and <b>Unbolt</b>. This is how the last side of a box closes onto the first - see
+<a href="#box">Building a box, step by step</a>. If the lengths around a loop do not add up, the app warns that the truss does not meet the block and
+by how much.</p>
+
+<h4>Bolted parts must match</h4>
+<p>Bolted truss and corner blocks only fit within one manufacturer's truss family (JTE 12x12 does not bolt to Christie A Type, even at the same
+size). The app warns, and draws the bolt in red on the plan, when bolted parts do not match - including a generic or universal truss bolted to
+branded parts. Parts it cannot check (generic, universal, custom) get a note. Trusses <b>stacked</b> or <b>clamped</b> at a crossing can be any
+family. Nothing is ever blocked; it is a warning.</p>
+
+<h3>Stacking or clamping at a crossing</h3>
+<p>Where two trusses cross on the plan, one can rest on top of the other or be clamped underneath it without a corner block. In <b>Placement ›
+Stack or clamp at one point</b>, choose <b>sits above</b> or <b>clamped below</b>, choose the other truss, and click <b>Add</b>. The app adds a
+support where the two centerlines cross: this truss is then held up by the other truss at that point.</p>
+
+<h3>Bolted connections table</h3>
+<p>Every bolt and stacking point is a support of the truss, listed under <b>Hoists &amp; connections › Bolted connections</b>. For each one you
+can see and change where it is on this truss (<b>At … from</b>), which truss or block it is joined to and where on it, whether it is in the same
+plane, <b>above</b> or <b>below</b>, a hardware weight at the connection (<b>+lb</b>), and the force passed through it. The <b>plan</b> tick keeps
+both distances tied to the plan drawing; typing a distance unticks it. <b>Delete</b> removes the connection.</p>
+
+<h3>UDL and cable allowance</h3>
+<ul>
+<li><b>UDL</b> - a total weight spread evenly along the whole truss, for example a drape, a projection screen or an LED wall hung along it.
+Type the total (not per foot).</li>
+<li><b>Cable</b> - cable weight per foot (lb/ft) on this truss, added to its UDL. Blank uses the rig's cable allowance (<a href="#settings">Rig
+settings</a>); <code>0</code> means no cable on this truss. The panel shows the result, e.g. <i>Cable allowance 1.5 lb/ft × 32 ft = 48 lb, added to
+the UDL.</i></li>
+</ul>
+
+<h3>Advanced</h3>
+<table class="compact">
+<tr><th>Field</th><th>What it does</th></tr>
+<tr><td class="k">Height</td><td>Raises the truss in the 3D view only (no effect on results).</td></tr>
+<tr><td class="k">Width (in)</td><td>How wide it is drawn on the plan and in 3D. Taken from the truss type; type to override.</td></tr>
+<tr><td class="k">Stiffness (×)</td><td>Scales the truss's bending, shear and torsion stiffness in the whole-rig analysis (1 = the app's estimate). Only change this if you have better data.</td></tr>
+<tr><td class="k">Weightless</td><td>Leaves this truss's own weight out of the calculation. Rarely correct - use with care.</td></tr>
+</table>
+<p>Below the fields the app lists the stiffness it used (EI, GA, GJ) and whether it was estimated from the tables or taken from section data.</p>
+
+<h3>Duplicating and deleting</h3>
+<p><b>Duplicate</b> makes a free copy called <i>… copy</i>, a little below and to the right of the original, with the same type, pieces, loads and
+hoists. The copy is not bolted to anything and has no corner blocks or bolted connections - add those again.</p>
+<p><b>Delete</b> (or <kbd>Delete</kbd> with the truss selected) removes the truss after asking. Its corner blocks go with it; trusses that were
+bolted to it or to its blocks stay where they are but are no longer bolted (and show <i>Not solved</i> if that was their only support), and hoists
+hung below it hang from the structure again. Undo brings it all back.</p>
+
+<h3>The Structure grid</h3>
+<table class="compact">
+<tr><th>Column</th><th>Contents</th></tr>
+<tr><td class="k">Name</td><td>The truss name.</td></tr>
+<tr><td class="k">Type</td><td>Maker and model; type to search.</td></tr>
+<tr><td class="k">Line (pieces · blocks)</td><td>The line in words, e.g. <code>8' · CB1 · 13' · CB2 · 9'</code> (grey).</td></tr>
+<tr><td class="k">Pieces</td><td>Truss sections before corner blocks (grey when built from pieces or segments - change it in the panel).</td></tr>
+<tr><td class="k">Line</td><td>The whole line length (grey).</td></tr>
+<tr><td class="k">X, Y, Angle</td><td>Position of a free truss (grey when bolted).</td></tr>
+<tr><td class="k">Bolted to</td><td>The block it is bolted to and how (grey).</td></tr>
+<tr><td class="k">UDL</td><td>Spread load, total.</td></tr>
+<tr><td class="k">Measure from</td><td>start, CL or end.</td></tr>
+<tr><td class="k">Hangs from</td><td>What holds it up (grey).</td></tr>
+<tr><td class="k">Status</td><td>Its current status (grey).</td></tr>
+</table>
+
+<h3>Corner block panel</h3>
+<div class="side">
+<div>
+<p>Click a corner block (on the plan, in the outline, or <b>select</b> in its truss's list) to open its panel.</p>
+<ul>
+<li><b>Faces</b> - a diagram of the block with the truss on each face (north is up the plan) and how many of its ways are used. Click a free
+face, then a truss, to bolt that truss to that face. <i>Too many faces</i> means more trusses are bolted to it than it has ways.</li>
+<li><b>Block</b> - the block type (maker › family › block); <b>Hardware fitted</b> for blocks sold with different plates; a <b>Weight override</b>
+(leave blank for the published weight - and enter one where the maker publishes none); its <b>Height</b> in 3D; and a link to the maker's product page.</li>
+<li><b>Carrying</b> - the loads passed into it by the trusses bolted to it.</li>
+<li><b>Supports</b> - a hoist can hang directly on a corner block: open Supports and click <span class="ui">+ Add hoist</span>.</li>
+</ul>
+<p><span class="ui">Remove from …</span> takes the block out of its truss line.</p>
+</div>
+[[img block-inspector.jpg|A corner block's panel.|100]]
+</div>
+</section>
+
+<section class="chapter">
+<h2 id="box">Building a box, step by step</h2>
+<p>This example builds a simple box: two 22 ft sides (<b>West</b> and <b>East</b>, each 20 ft of truss with a corner block at each end) and two
+30 ft sides (<b>North</b> and <b>South</b>) bolted between them, hung from four hoists, one at each corner. It uses the default truss
+(JTE 12x12 Plated) and the default 6-way corner block. (For a larger example, open <span class="path">File › Load example box</span> and click each
+truss to see how it is built.)</p>
+
+<h3>The two short sides</h3>
+<ol class="steps">
+<li><span class="path">File › New rig</span>. Click <span class="ui">+ Truss</span>. Rename it <b>West</b>. Set <b>Truss pieces</b> to <code>20</code> and <b>Angle</b> to <code>270</code> (it now runs south from X 0, Y 0).</li>
+<li>Open <b>Corner blocks</b> and click <span class="ui">+ Corner block at start</span>, then <span class="ui">+ Corner block at end</span>. The line reads <i>20 ft truss + 2 ft corner blocks = 22 ft whole line</i>, and the blocks are <i>West CB1</i> (north end) and <i>West CB2</i> (south end).</li>
+<li>Click <span class="ui">+ Truss</span> again. Rename it <b>East</b>, <b>Truss pieces</b> <code>20</code>, <b>Angle</b> <code>270</code>, <b>Plan X</b> <code>40</code> (anywhere to the east will do - it is pulled into place later). Add a corner block at its start and its end (<i>East CB1</i>, <i>East CB2</i>).</li>
+</ol>
+
+<h3>The long sides</h3>
+<ol class="steps" start="4">
+<li>Click <span class="ui">+ Truss</span>. Rename it <b>North</b>, <b>Truss pieces</b> <code>30</code>.</li>
+<li>In <b>Placement</b>, set the options to <b>its start meets the block</b> and <b>extends east</b>. Click <span class="ui">Bolt to…</span> and click <b>West CB1</b> on the plan. North jumps to the north-west corner and runs east.</li>
+<li>Set the option to <b>its end meets the block</b>, click <span class="ui">Bolt to…</span> again and click <b>East CB1</b>. East is pulled across so its north block meets North's end: the box has three sides.</li>
+<li>Add <b>South</b> the same way: <span class="ui">+ Truss</span>, 30 ft; <b>its start meets the block</b>, <b>extends east</b>, <span class="ui">Bolt to…</span> <b>West CB2</b>; then <b>its end meets the block</b>, <span class="ui">Bolt to…</span> <b>East CB2</b>.</li>
+</ol>
+
+<h3>Loads and hoists</h3>
+<ol class="steps" start="8">
+<li>Press <kbd>2</kbd>. Add some loads - for example select North, type <code>80 lb @ -5</code> in the quick-add box of its <b>Loads</b> section, press <kbd>Enter</kbd> and click <b>Mirror all</b>; do the same on South.</li>
+<li>Press <kbd>3</kbd>. Put a hoist at each corner: on West and on East, add hoists at <code>0.5</code> from the <b>start</b> and <code>0.5</code> from the <b>end</b> (the centres of the corner blocks). In the grid, type the position in <b>At</b> and set <b>From</b> to <i>start</i> or <i>end</i>.</li>
+<li>Press <kbd>4</kbd> and check the results. With 80 lb moving lights (two per side, mirrored) each corner hoist carries about 382 lb.</li>
+</ol>
+[[img box-built.jpg|The finished box: four sides joined at four corner blocks, a hoist at each corner.|85]]
+
+<div class="box warn"><b>Why a hoist at every corner?</b><p>Some manufacturers (for example Christie Lites for its A Type) require a box built
+with 90° corner blocks to be supported at every corner, and allow only part of the truss capacity where an unsupported block joins four or more
+sections. The app warns about both. Always follow the maker's rules for its corner blocks.</p></div>
+</section>
