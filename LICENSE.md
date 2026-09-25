@@ -3,14 +3,14 @@
 Truss Grid Analyzer, copyright (c) 2026 **G.E. Simmons Falk**.
 
 Based on **Truss Load Analyzer - EOT** by **Delbert L. Hall and Jon Sogoian**, who are the originators of the program.
-Rebuilt with the knowledge and permission of Delbert L. Hall (2026).
+Developed with the knowledge and permission of Delbert L. Hall (2026).
 
 ## 1. Origin and the original program's terms
 
-Truss Grid Analyzer is a web rebuild of *Truss Load Analyzer - EOT* (Excel workbooks, versions 1.0 - 2.1,
-2020 - 2021) by Delbert L. Hall and Jon Sogoian. It uses that program's method (Clapeyron's three-moment equation,
+Truss Grid Analyzer is an expansion of *Truss Load Analyzer - EOT* (Excel workbooks, versions 1.0 - 2.1,
+2020 - 2021) by Delbert L. Hall and Jon Sogoian, for indeterminate grids. It uses that program's method (Clapeyron's three-moment equation,
 manufacturer-table span and cantilever checks), its truss, chain hoist and fixture data, and its results as test
-references. The rebuild is new code, and it adds the truss-grid model, plan and 3D views, and the stiffness
+references. Truss Grid Analyzer is new code, and it adds the truss-grid model, plan and 3D views, and the stiffness
 (grillage) check.
 
 The original workbook is open-source freeware. It may be distributed for free, and it sets three conditions on
