@@ -164,4 +164,16 @@
       });
     });
   });
+
+  add("truss view (1.26.3): reaction labels don't overlap (end bolts next to a hoist)", function () {
+    example();
+    S.rig.trusses.filter(function (t) { return !t.isBlock && S.results.trusses[t.id]; }).forEach(function (t) {
+      var svg = TLA.panels.reactionsDiagram(t, S.results.trusses[t.id]), boxes = [];
+      Array.prototype.forEach.call(svg.querySelectorAll("text.strong"), function (e) {
+        var y = Number(e.getAttribute("y")), x = Number(e.getAttribute("x")), w = e.textContent.length * 11 * 0.56;
+        boxes.forEach(function (b) { eq(Math.abs(b.y - y) > 1 || Math.abs(b.x - x) > (b.w + w) / 2, true, t.name + ": reaction labels at " + b.x + " and " + x); });
+        boxes.push({ x: x, y: y, w: w });
+      });
+    });
+  });
 })(typeof globalThis !== "undefined" ? globalThis : window);
