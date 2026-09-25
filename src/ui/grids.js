@@ -174,7 +174,7 @@
     cols[12].key = "status"; cols[12].label = "Status";
     var rows = S.rig.trusses.filter(function (t) { return !t.isBlock; }).map(function (t) { return { key: "T:" + t.id, obj: t, truss: t, sel: { truss: t.id } }; });
     rows.push({ key: "NT", kind: "new", label: "new truss… (type a name)", create: function () { var t = S.makeTruss({ hoists: [] }); S.rig.trusses.push(t); return { key: "T:" + t.id, obj: t, truss: t }; } });
-    return { cols: cols, rows: rows, hint: "Type straight from the plot: X / Y / angle for free trusses; a truss bolted to a corner block is placed by the block (bolt it with \"Bolt to…\" in the inspector). Pieces = truss sections before corner blocks. Grey columns are results." };
+    return { cols: cols, rows: rows, hint: "Type straight from the plot: X / Y / angle for free trusses; a truss bolted to a corner block is placed by the block (bolt it with \"Bolt to…\" in the inspector). Pieces = truss sections before corner blocks. Gray columns are results." };
   }
 
   /* ---------------- step 2: loads ---------------- */
@@ -216,7 +216,7 @@
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
     if (!others.length) return;
-    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the centre)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
+    var name = prompt("Copy all " + t.loads.length + " loads from " + t.name + " to which truss? (keeps each load's distance from the center)\n\n" + others.map(function (o) { return o.name; }).join(", "), others[0].name);
     if (!name) return;
     var dst = others.filter(function (o) { return o.name.toLowerCase() === name.trim().toLowerCase(); })[0];
     if (!dst) { alert("No truss called \"" + name + "\"."); return; }
@@ -281,7 +281,7 @@
       hs.forEach(function (s) { rows.push({ key: "H:" + s.id, obj: s, truss: t, sel: { truss: t.id, support: s.id }, del: function () { t.supports.splice(t.supports.indexOf(s), 1); } }); });
       rows.push({ key: "NH:" + t.id, kind: "new", truss: t, label: "+ hoist on " + t.name + " (type its position)", sel: { truss: t.id }, create: function () { var sp = S.applyMeasure(S.newHoist(round(t.length / 2)), t); t.supports.push(sp); return { key: "H:" + sp.id, obj: sp, truss: t }; } });
     });
-    return { cols: cols, rows: rows, multi: true, noun: "hoists", fixed: ["at"], hint: "Select several hoists with Shift+click (a range), Ctrl+click (one at a time), Shift+arrows, Ctrl+A or Select on a truss row; then any edit changes all of them (not the position). New hoists copy the last hoist placed. Results (grey) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the centre. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
+    return { cols: cols, rows: rows, multi: true, noun: "hoists", fixed: ["at"], hint: "Select several hoists with Shift+click (a range), Ctrl+click (one at a time), Shift+arrows, Ctrl+A or Select on a truss row; then any edit changes all of them (not the position). New hoists copy the last hoist placed. Results (gray) update as you type. Hoist: type to filter (\"lode 1t\", \"prostar\", \"2 ton\"). DLF blank = from the hoist speed. Mirror all adds a hoist at each hoist's mirrored spot; Copy to truss keeps each hoist's distance from the center. " + (st.cmp ? "* The three whole-rig joint models; high hook static uses the largest." : "Tick Compare analysis methods to see the joint-model columns.") };
   }
 
   /* ---------------- rendering ---------------- */
