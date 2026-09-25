@@ -117,7 +117,7 @@ c.size(W, H)
 c.js("window.dispatchEvent(new Event('resize')); TLA.plan.fit()", 0.5)
 
 # ------------------------------------------------------------------ calc sheet
-c.js("TLA.store.rig.report = { project: 'Example show', location: 'Example venue', preparedBy: 'A. Rigger', checkedBy: 'B. Checker' }; TLA.report.open();", 1.2)
+c.js("TLA.store.rig.report = { project: 'Example show', location: 'Example venue', preparedBy: 'A. Rigger', preparedFor: 'Example production' }; TLA.report.open();", 1.2)
 shot("calcsheet-top.jpg")
 c.js("document.getElementById('report').scrollTop = 1500", 0.5)
 shot("calcsheet-mid.jpg")
