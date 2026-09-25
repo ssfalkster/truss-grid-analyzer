@@ -25,6 +25,12 @@ Your work is kept in the browser automatically. Use **File > Save** and **File >
 `.rig.json` files and share them. Saved files record the app version that made them. Rig-wide settings (dynamic
 factor, Add %, units...) are under **Rig settings**.
 
+## User manual
+
+[`docs/manual`](docs/manual) has a **Quick Start** (PDF) and a full **User Guide** (PDF, and a searchable HTML copy that
+works offline), written for version 1.24.0. The manual is revised on request, not with every release, so the app may
+have features it doesn't describe yet; the version history (**File > About**) lists what changed.
+
 ## What it does
 
 - **Truss lines from real pieces.** Build each truss from stock lengths and corner blocks
