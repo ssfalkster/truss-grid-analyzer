@@ -182,7 +182,7 @@
           if (v.length && v.every(isFinite) && (M ? v.length >= n : v.length === 100)) return M ? v.slice(0, n) : v;
           var o = []; for (var i = 1; i <= n; i++) o.push(i <= Math.ceil(ms) ? (parseFloat(flat.value) || 0) : 0); return o;
         }
-        var id = 1000 + u.trusses.length + 1, wv = parseFloat(f[KW].value) || 0;
+        var id = S.nextUserId("trusses"), wv = parseFloat(f[KW].value) || 0;
         var e = { id: id, manufacturer: f.Manufacturer.value || "Custom", description: f.Model.value, repetitive_use: rep.checked, source: "User", units: M ? "metric" : "imperial" };
         if (M) { e.weight_per_m_kg = wv; e.max_span_m = ms; e.weight_per_ft_lb = U.back("wpl", wv); e.max_span_ft = ms / U.FT_M; e.udl_kg = arr(udlList, f[KU]); e.cpl_kg = arr(cplList, f[KC]); }
         else { e.weight_per_ft_lb = wv; e.max_span_ft = ms; e.udl_lb = arr(udlList, f[KU]); e.cpl_lb = arr(cplList, f[KC]); }
@@ -199,7 +199,7 @@
       h("button", { "class": "primary", text: "Add block", onclick: function () {
         if (!cf.Name.value) { alert("Enter a name."); return; }
         u.corners = u.corners || [];
-        var nid = 2000 + u.corners.length + 1;
+        var nid = S.nextUserId("corners");
         u.corners.push({ id: nid, custom: true, manufacturer: cf.Maker.value || "Custom", family: cf["Truss family"].value || "Custom", fits: (fitsIn.value || "12x12").toLowerCase().replace(/\s|"/g, ""), name: cf.Name.value, code: "", kind: "corner",
           ways: parseInt(cf.Ways.value, 10) || 6, size_in: parseFloat(cf[CS].value) ? U.back("inch", parseFloat(cf[CS].value)) : null, weight_lb: parseFloat(cf[CW].value) ? U.back("w", parseFloat(cf[CW].value)) : null, variants: null, base_lb: null, per_connection_lb: null, notes: "user-added", source: "" });
         S.commit({ noUndo: true }); render();
@@ -214,7 +214,7 @@
       h("button", { "class": "primary", text: "Add hoist", onclick: function () {
         if (!g2.Model.value) { alert("Enter a model name."); return; }
         function gv(i, q) { return U.back(q, parseFloat(g2[HK[i]].value) || 0); }
-        u.hoists.push({ id: 1000 + u.hoists.length + 1, brand: g2.Brand.value || "Custom", description: g2.Model.value, capacity_label: g2["Capacity label"].value || fmt(parseFloat(g2[HK[3]].value) || 0, 0) + " " + U.unit("w"), speed_fpm: gv(4, "speed"), weight_lb: gv(5, "w"), chain_weight_per_ft_lb: gv(6, "wpl"), capacity_lb: gv(3, "w") });
+        u.hoists.push({ id: S.nextUserId("hoists"), brand: g2.Brand.value || "Custom", description: g2.Model.value, capacity_label: g2["Capacity label"].value || fmt(parseFloat(g2[HK[3]].value) || 0, 0) + " " + U.unit("w"), speed_fpm: gv(4, "speed"), weight_lb: gv(5, "w"), chain_weight_per_ft_lb: gv(6, "wpl"), capacity_lb: gv(3, "w") });
         S.commit({ noUndo: true }); render();
       } })));
     hc.appendChild(listBlock(u.hoists, function (x) { return x.brand + " " + x.description + " - " + U.f("w", x.capacity_lb, 0) + ", " + U.f("speed", x.speed_fpm, 0); }, function (i) { u.hoists.splice(i, 1); S.commit({ noUndo: true }); render(); }));

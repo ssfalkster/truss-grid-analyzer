@@ -223,8 +223,8 @@
     $("r-yaw").oninput = function (e) { S.ui.iso.yaw = parseFloat(e.target.value); TLA.iso.render(); };
     $("r-pitch").oninput = function (e) { S.ui.iso.pitch = parseFloat(e.target.value); TLA.iso.render(); };
 
-    $("b-new").onclick = function () { if (confirm("Start a new empty rig? (Undo can bring the current one back.)")) { S.newRig(); ui.step = 1; saveShell(); S.ui.fit = true; S.emit(); } };
-    $("b-sample").onclick = function () { S.newRig(); TLA.samples.box(S); S.commit({ noUndo: true }); S.ui.fit = true; S.emit(); };
+    $("b-new").onclick = function () { if (confirm("Start a new empty rig? (Undo brings the current one back, until you close or reload the page.)")) { S.newRig(); ui.step = 1; saveShell(); S.ui.fit = true; S.emit(); } };
+    $("b-sample").onclick = function () { S.loadExample(); S.ui.fit = true; S.emit(); };
     (function () {
       var main = $("main"), KEY = "tla-layout2", DEF = { w: 400, h: 330 }, lay = { w: DEF.w, h: DEF.h };
       try { var sv = JSON.parse(localStorage.getItem(KEY) || "null"); if (sv) lay = { w: sv.w || DEF.w, h: sv.h || DEF.h }; } catch (e) { /* ignore */ }

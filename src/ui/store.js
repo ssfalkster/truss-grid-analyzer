@@ -863,11 +863,13 @@
   function snapshot() { return JSON.stringify(S.rig); }
   var lastSnap = null;
 
+  function pushUndo(snap) { if (snap == null) return; undoStack.push(snap); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; }
+
   S.commit = function (opts) {
     S.reconnect();
     if (!(opts && opts.noUndo)) {
       var cur = lastSnap;
-      if (cur != null) { undoStack.push(cur); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; }
+      pushUndo(cur);
     }
     lastSnap = snapshot();
     S.persist();
@@ -905,7 +907,20 @@
     S.commit({ noUndo: true });
   };
 
-  S.newRig = function () { S.setRig(emptyRig()); };
+  /** Put a whole rig in place as ONE Undo step (1.25.2): New rig, Open and Load example box used to clear the undo
+      history (and the autosave then overwrote the old rig), so the rig on screen was lost. `build` (optional) fills
+      the new rig, e.g. the example box; its own commits don't become Undo steps. */
+  S.replaceRig = function (rig, build) {
+    var before = lastSnap, keep = undoStack.slice();
+    S.rig = rig; S.sel = { truss: null, support: null, load: null };
+    if (build) build(S);
+    undoStack.length = 0; Array.prototype.push.apply(undoStack, keep);
+    pushUndo(before);
+    S.commit({ noUndo: true });
+  };
+  S.newRig = function () { S.replaceRig(emptyRig()); };
+  S.loadExample = function () { S.replaceRig(emptyRig(), TLA.samples.box); };
+  S.canUndo = function () { return undoStack.length > 0; };
 
   /** Move the whole rig so the middle of its footprint is at plan 0,0 (1.18.0). Free trusses move; bolted trusses and
    * corner blocks follow them, so the rig keeps its shape. One Undo step. Returns the shift [dx, dy] in ft. */
@@ -941,7 +956,53 @@
     var o = JSON.parse(text);
     var rig = o.rig || o;
     if (!rig.trusses) throw new Error("Not a rig file");
-    if (o.userDb) S.userDb = o.userDb;
-    S.setRig(rig);
+    var merged = o.userDb ? S.mergeUserDb(o.userDb, rig) : null;
+    S.replaceRig(rig);
+    return merged;
+  };
+
+  /* ---- custom database (1.25.2) ---- */
+  var USER_KINDS = [{ k: "trusses", base: 1000 }, { k: "hoists", base: 1000 }, { k: "corners", base: 2000 }];
+  function userList(k) { S.userDb = S.userDb || {}; return (S.userDb[k] = S.userDb[k] || []); }
+  /** Next free id for a custom truss (1001+), hoist (1001+) or corner block (2001+): one past the highest in use,
+      so a deleted entry's id is never handed out again. */
+  S.nextUserId = function (k) {
+    var base = k === "corners" ? 2000 : 1000, top = base;
+    userList(k).concat(TLA.data[k] || []).forEach(function (x) { var n = Number(x.id); if (n > top) top = n; });
+    return top + 1;
+  };
+  function canon(v) {
+    if (Array.isArray(v)) return "[" + v.map(canon).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).sort().filter(function (k) { return v[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ":" + canon(v[k]); }).join(",") + "}";
+    return JSON.stringify(v);
+  }
+  function sameEntry(a, b) { var x = Object.assign({}, a), y = Object.assign({}, b); delete x.id; delete y.id; return canon(x) === canon(y); }
+  /** Merge a rig file's custom entries into this browser's database instead of replacing it. An entry that is
+      already here (same data) is reused; a new one keeps its id unless that id is taken, then it gets the next free
+      id. `rig` (the file's rig) is rewritten to point at the ids the entries have here. Returns counts. */
+  S.mergeUserDb = function (inc, rig) {
+    var out = { added: 0, same: 0, renumbered: 0 }, map = { trusses: {}, hoists: {}, corners: {} };
+    USER_KINDS.forEach(function (K) {
+      var mine = userList(K.k), builtIn = TLA.data[K.k] || [];
+      (inc[K.k] || []).forEach(function (e) {
+        var hit = mine.filter(function (x) { return sameEntry(x, e); })[0];
+        if (hit) { out.same++; if (hit.id !== e.id) map[K.k][e.id] = hit.id; return; }
+        var c = JSON.parse(JSON.stringify(e));
+        if (mine.concat(builtIn).some(function (x) { return x.id === e.id; })) { c.id = S.nextUserId(K.k); map[K.k][e.id] = c.id; out.renumbered++; }
+        mine.push(c); out.added++;
+      });
+    });
+    var fx = userList("fixtures");
+    (inc.fixtures || []).forEach(function (e) {
+      if (fx.some(function (x) { return sameEntry(x, e); })) { out.same++; return; }
+      fx.push(JSON.parse(JSON.stringify(e))); out.added++;
+    });
+    function re(m, v) { return Object.prototype.hasOwnProperty.call(m, v) ? m[v] : v; }
+    (rig && rig.trusses || []).forEach(function (t) {
+      if (t.isBlock) { if (t.blockTypeId != null) t.blockTypeId = re(map.corners, t.blockTypeId); }
+      else if (t.trussId != null) t.trussId = re(map.trusses, t.trussId);
+      (t.supports || []).forEach(function (s) { if (s.hoistId != null) s.hoistId = re(map.hoists, s.hoistId); });
+    });
+    return out;
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
