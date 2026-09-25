@@ -13,7 +13,7 @@ import re
 
 from PIL import Image
 
-VER = "1.24.0"
+VER = "1.26.0"
 DATE = "24 September 2026"
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE.parent

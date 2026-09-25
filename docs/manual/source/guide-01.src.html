@@ -107,7 +107,7 @@ tables, and adds the grid model, the whole-rig analysis, and the plan and 3D vie
 
 <h3>Opening the App</h3>
 <ol class="steps">
-<li>Save <code>index.html</code> somewhere you will find it again, for example a <i>Truss Grid Analyzer</i> folder in Documents. You can rename it (for example <code>Truss Grid Analyzer 1.24.0.html</code>).</li>
+<li>Save <code>index.html</code> somewhere you will find it again, for example a <i>Truss Grid Analyzer</i> folder in Documents. You can rename it (for example <code>Truss Grid Analyzer {{VER}}.html</code>).</li>
 <li>Double-click it. It opens in your default browser. (Or drag it onto an open browser window.)</li>
 <li>Check the version at the top left, next to <b>Truss Grid Analyzer</b>.</li>
 </ol>
@@ -122,15 +122,15 @@ tomorrow, and your rig (and your custom trusses, hoists and fixtures) will be th
 <ul>
 <li>It is kept by <b>this browser on this computer</b>. Another browser, another computer or a private/incognito window starts empty (with the example box).</li>
 <li>Clearing the browser's history or "site data" can erase it.</li>
-<li>It holds <b>one rig at a time</b> - the one on screen. Starting a new rig or opening another replaces it.</li>
+<li>It holds <b>one rig at a time</b> - the one on screen. Starting a new rig or opening another replaces it (Undo brings it back only until you close or reload the page).</li>
 </ul>
 <p>So keep every rig you care about as a file with <span class="path">File › Save</span> (see <a href="#files">Files, Export and Sharing</a>).</p></div>
 
 <h3>Starting a New Rig</h3>
 <p>Choose <span class="path">File › New rig</span> and click <b>OK</b>. The plan is cleared and you start at step 1.</p>
-<div class="box warn"><b>Save first</b><p>In version {{VER}} the confirmation says Undo can bring the old rig back - it cannot. <span class="path">File › New rig</span>,
-<span class="path">File › Open…</span> and <span class="path">File › Load example box</span> all clear the undo history and replace the rig that was on screen.
-Use <span class="path">File › Save</span> before any of them.</p></div>
+<div class="box warn"><b>Save first</b><p><span class="path">File › New rig</span>, <span class="path">File › Open…</span> and
+<span class="path">File › Load example box</span> each replace the rig on screen. Each is one Undo step, so <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings the
+old rig back - but only until you close or reload the page. Use <span class="path">File › Save</span> before any of them to keep a copy.</p></div>
 
 <h3>Naming the Rig</h3>
 <p>Click the rig's name in the top bar (a new rig is called <i>Untitled rig</i>), type a new name and click <b>OK</b>. You can also
@@ -145,7 +145,7 @@ for daylight or an office, or <span class="path">Follow system</span> to match y
 <h3>Undo and Redo</h3>
 <p>Almost every change can be undone: click <span class="ui">↶</span> / <span class="ui">↷</span> in the top bar, or press
 <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo and <kbd>Ctrl</kbd>+<kbd>Y</kbd> (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>) to redo. The
-app keeps the last 100 changes. A paste or a multi-hoist edit counts as one change. (Undo does not work while you are typing
+app keeps the last 100 changes. A paste, a multi-hoist edit, New rig, Open and Load example box each count as one change. The history is lost when you close or reload the page. (Undo does not work while you are typing
 in a box - finish the entry first.)</p>
 </section>
 
@@ -153,26 +153,27 @@ in a box - finish the entry first.)</p>
 <h2>The Screen</h2>
 
 <p>The app has one main screen. The picture below shows it with the example box loaded and nothing selected.</p>
-[[pins overview.jpg|The main screen.|100|1@14.9,-2.6;2@23.0,-2.6;3@32.1,-2.6;4@38.4,-2.6;5@44.4,-2.6;6@69.4,-2.6;7@84.9,-2.6;8@90.6,-2.6;9@96.5,-2.6;10@-1.8,7.5;11@37.9,7.4;12@36.4,11.9;13@10,40;14@58,8.7;15@68.4,53.4;16@49.8,61.0;17@101.8,33;18@-1.8,65.4]]
+[[pins overview.jpg|The main screen.|100|1@14.9,-2.6;2@23.0,-2.6;3@32.1,-2.6;4@38.4,-2.6;5@44.4,-2.6;6@51.1,-2.6;7@69.4,-2.6;8@84.9,-2.6;9@90.6,-2.6;10@96.5,-2.6;11@-1.8,7.5;12@37.9,7.4;13@36.4,11.9;14@10,40;15@58,8.7;16@68.4,53.4;17@49.8,61.0;18@101.8,33;19@-1.8,65.4]]
 <ul class="pinkey">
 <li>{{pin 1}}<b>File menu</b> - new, open, save, example box, theme, About.</li>
 <li>{{pin 2}}<b>Rig name</b> - click to rename.</li>
 <li>{{pin 3}}<b>Undo / redo.</b></li>
 <li>{{pin 4}}<b>Plan / 3D</b> - which view is shown.</li>
 <li>{{pin 5}}<b>Calculators menu</b> - standalone tools and the databases.</li>
-<li>{{pin 6}}<b>Rig status</b> - click it for the results.</li>
-<li>{{pin 7}}<b>Rig settings</b> - rig-wide options.</li>
-<li>{{pin 8}}<b>Export menu</b> - hoist table, picture, model, print.</li>
-<li>{{pin 9}}<b>Calc sheet</b> - the printable calculation.</li>
-<li>{{pin 10}}<b>Steps bar</b> - 1 Structure, 2 Loads, 3 Hoists, 4 Results.</li>
-<li>{{pin 11}}<b>Add button</b> - changes with the step: + Truss, + Load, + Hoist, Calc sheet.</li>
-<li>{{pin 12}}<b>View toolbar</b> - colour mode, show loads, show labels.</li>
-<li>{{pin 13}}<b>Plan</b> - the rig to scale; click, drag, zoom.</li>
-<li>{{pin 14}}<b>Key (legend)</b> - what the colours and symbols mean.</li>
-<li>{{pin 15}}<b>Zoom</b> - zoom in, zoom out, fit.</li>
-<li>{{pin 16}}<b>Hint bar</b> - what the mouse and keys do on the plan.</li>
-<li>{{pin 17}}<b>Side panel</b> - details of whatever is selected.</li>
-<li>{{pin 18}}<b>Grid</b> - a spreadsheet for the current step.</li>
+<li>{{pin 6}}<b>Help menu</b> - the Quick Start and this User Guide.</li>
+<li>{{pin 7}}<b>Rig status</b> - click it for the results.</li>
+<li>{{pin 8}}<b>Rig settings</b> - rig-wide options.</li>
+<li>{{pin 9}}<b>Export menu</b> - hoist table, picture, model, print.</li>
+<li>{{pin 10}}<b>Calc sheet</b> - the printable calculation.</li>
+<li>{{pin 11}}<b>Steps bar</b> - 1 Structure, 2 Loads, 3 Hoists, 4 Results.</li>
+<li>{{pin 12}}<b>Add button</b> - changes with the step: + Truss, + Load, + Hoist, Calc sheet.</li>
+<li>{{pin 13}}<b>View toolbar</b> - colour mode, show loads, show labels.</li>
+<li>{{pin 14}}<b>Plan</b> - the rig to scale; click, drag, zoom.</li>
+<li>{{pin 15}}<b>Key (legend)</b> - what the colours and symbols mean.</li>
+<li>{{pin 16}}<b>Zoom</b> - zoom in, zoom out, fit.</li>
+<li>{{pin 17}}<b>Hint bar</b> - what the mouse and keys do on the plan.</li>
+<li>{{pin 18}}<b>Side panel</b> - details of whatever is selected.</li>
+<li>{{pin 19}}<b>Grid</b> - a spreadsheet for the current step.</li>
 </ul>
 
 <h3>The Top Bar</h3>
@@ -185,6 +186,7 @@ in a box - finish the entry first.)</p>
 <tr><td class="k">↶ ↷</td><td>Undo and redo.</td></tr>
 <tr><td class="k">Plan | 3D</td><td>Show the rig as a plan (from above, to scale, editable) or in 3D (for looking).</td></tr>
 <tr><td class="k">Calculators ▾</td><td><b>Circular truss</b>, <b>Simple UDL</b>, <b>Fixture weights</b> and <b>Databases</b> (trusses, blocks, hoists). See <a href="#calculators">Calculators and Databases</a>.</td></tr>
+<tr><td class="k">Help ▾</td><td><b>Quick Start</b> (PDF) and the <b>User Guide</b> (searchable HTML or PDF), opened in a new tab from the <code>docs/manual</code> folder next to the app, and <b>All manuals online</b> (the same folder on GitHub - use it if you have only the app file). See <a href="#help">Help and Search in This Guide</a>.</td></tr>
 <tr><td class="k">Status</td><td>A one-line summary: <span class="badge b-ok">● All OK</span> or <span class="badge b-fail">● 2 to check</span>, the number of hoists and the highest hoist workload, and <span class="badge b-warn">▲ n warnings</span>. Click it to go to step 4 (the Warnings tab if there are warnings).</td></tr>
 <tr><td class="k">⚙ Rig settings</td><td>Opens the rig settings page (units, dynamic factor, allowances, deflection limit, paper…). See <a href="#settings">Rig Settings</a>.</td></tr>
 <tr><td class="k">Export ▾</td><td><b>Copy hoist table</b> (for Excel), <b>Save view as PNG</b>, <b>Export whole-rig model</b>, <b>Print screen</b>.</td></tr>
@@ -194,7 +196,10 @@ in a box - finish the entry first.)</p>
 [[img menu-file.png|The File menu.|100]]
 [[img menu-calc.png|The Calculators menu.|100]]
 </div>
-[[img menu-export.png|The Export menu.|45]]
+<div class="row2">
+[[img menu-help.png|The Help menu.|100]]
+[[img menu-export.png|The Export menu.|100]]
+</div>
 
 <h3>The Steps Bar</h3>
 [[img steps.png|The steps bar, the add button and the view toolbar.|70]]

@@ -121,8 +121,8 @@ formula, table look-up and result is set out so it can be checked by hand or in 
 <h3>Opening, Filling In and Printing</h3>
 <ol class="steps">
 <li>Click <span class="ui">Calc sheet</span> (top right, or the add button in step 4).</li>
-<li>Fill in the boxes along the top: <b>Project / event</b>, <b>Venue / location</b>, <b>Prepared by</b>, <b>Checked by</b> and <b>Notes</b>. They are printed on the sheet and saved with the rig.</li>
-<li>Click <b>Print / save PDF</b>. In your browser's print dialog, choose a printer, or <i>Save as PDF</i> / <i>Microsoft Print to PDF</i> to make a PDF file. Choose the same paper size as the sheet (Rig settings › <b>Calc sheet paper</b>).</li>
+<li>Fill in the boxes along the top: <b>Project / event</b>, <b>Venue / location</b>, <b>Prepared by</b>, <b>Prepared for</b> and <b>Notes</b>. They are printed on the sheet and saved with the rig.</li>
+<li>Click <b>Print / save PDF</b>. In your browser's print dialog, choose a printer, or <i>Save as PDF</i> / <i>Microsoft Print to PDF</i> to make a PDF file. Choose the same paper size as the sheet (Rig settings › <b>Calc sheet paper</b>), and turn off the browser's own <i>Headers and footers</i> - the sheet prints its own.</li>
 <li>Click <b>Close</b> or press <kbd>Esc</kbd> to go back to the rig. (While the sheet is open, the rig cannot be edited.)</li>
 </ol>
 [[img calcsheet-top.jpg|The top of the calc sheet: the title block and the first sections.|100]]
@@ -131,19 +131,22 @@ formula, table look-up and result is set out so it can be checked by hand or in 
 <table>
 <tr><th>Part</th><th>Contents</th></tr>
 <tr><td class="k">Title block</td><td>Rig name, project, venue, the date and time calculated, the software version, units, notes, and an <b>input fingerprint</b> - a short code that changes whenever any input changes. Two sheets with the same fingerprint describe the same rig. A box at the top right shows the number of warnings or failures.</td></tr>
+<tr><td class="k">Estimate notice</td><td>Under the title block: the sheet is an estimate, not an engineering certification. On an indeterminate rig (one whose hoist loads depend on the stiffness of the trusses and rigging, such as most grids and boxes) it cites ANSI E1.6-3-2019 section 2.11, with 7.1, 6.2.12, 5.1 and 5.2, and says the sheet certifies no standard.</td></tr>
 <tr><td class="k">1 Summary of results</td><td>The method, counts, total weight carried, total high hook static and dynamic loads, the highest hoist and truss workloads, and the number of warnings.</td></tr>
 <tr><td class="k">2 Basis of calculation</td><td>The assumptions, and every formula used (F1 span, F2 cantilever, F3 moment and shear, …) written with real fractions and symbols.</td></tr>
 <tr><td class="k">3 Plan</td><td>A plan drawn to scale with the hoists numbered H1, H2… (dead hangs DH1…).</td></tr>
 <tr><td class="k">4 Hoists</td><td>Each hoist's reaction from every joint model and its static and dynamic load worked out part by part.</td></tr>
 <tr><td class="k">5 Equilibrium</td><td>Self-checks: the loads going in balance the reactions coming out.</td></tr>
-<tr><td class="k">6 Trusses</td><td>For each truss: its data, the loads it carries (including from bolted trusses), reactions and balance, the diagrams, each span and cantilever check with the table row read and the arithmetic written out, and the moment and shear check.</td></tr>
+<tr><td class="k">6 Trusses</td><td>For each truss: its data, the loads it carries (including from bolted trusses), reactions and balance, the diagrams, each span and cantilever check with the table row read and the arithmetic written out, the moment and shear check, and the deflection drawing (the exaggerated deflected shape) with the deflection check, formula F7: each span's sag against its limit L/n, where it is, L/d, workload and status, plus the cantilever tips (reported only).</td></tr>
 <tr><td class="k">7 Bolted connections and corner blocks</td><td>The forces through the bolts, and each corner block.</td></tr>
 <tr><td class="k">8 How to check this independently</td><td>Guidance for reviewing the results independently.</td></tr>
 <tr><td class="k">9 Warnings and notes</td><td>Everything from the Warnings tab.</td></tr>
-<tr><td class="k">Sign-off</td><td>Space for the names of the person who prepared it and the person who checked it.</td></tr>
+<tr><td class="k">Sign-off</td><td>Prepared by and Prepared for (also shown in the title block).</td></tr>
+<tr><td class="k">A Hoist schedule</td><td>The last page, for the crew: the plan and one row per hoist - truss, position, hoist, chain, high hook static and dynamic, capacity, workload and a <i>Checked</i> column to tick off as each hoist is hung.</td></tr>
 </table>
 <p>Every printed page has a footer with the rig name, the app version, the fingerprint, and <i>Page n of m</i>.</p>
 [[img calcsheet-mid.jpg|Further into the sheet: checks written out as formula, numbers and result.|100]]
+[[img calcsheet-schedule.jpg|The hoist schedule on the last page.|100]]
 </section>
 
 <section class="chapter">
@@ -156,12 +159,11 @@ corner blocks, hoists and fixtures you have added, and the version of the app th
 it with the show paperwork.</p>
 
 <h3>Opening a Rig File</h3>
-<p><span class="path">File › Open…</span> and choose a <code>.rig.json</code> file. It replaces the rig on screen (save that first). If the file
+<p><span class="path">File › Open…</span> and choose a <code>.rig.json</code> file. It replaces the rig on screen (Undo brings that back until you close or reload the page; save it first to keep a copy). If the file
 cannot be read, the app says why and leaves the current rig alone.</p>
-<div class="box warn"><b>Opening a file also replaces your custom trusses, hoists and fixtures</b><p>In version {{VER}} the custom database saved
-inside the file <i>replaces</i> the one in this browser - it is not merged. Custom entries you added since that file was saved (or that were never in
-it) disappear from the browser. They are still inside any rig file saved while they existed. Before opening someone else's file, save your own rig
-(which saves your custom entries with it).</p></div>
+<div class="box"><b>Custom Trusses, Hoists and Fixtures in the File</b><p>Opening a file <i>adds</i> the custom trusses, corner blocks, hoists and
+fixtures saved in it to the ones already in this browser; nothing of yours is removed. An entry that is already here is reused. If the file's entry
+has the same id as a different entry here, it is given a new id and the opened rig is updated to match.</p></div>
 <div class="box"><b>Files from other versions</b><p>Rig files record the version that made them. A newer version of the app opens older files. Results may
 differ between versions where the calculation has changed - the version history (<span class="path">File › About</span>) says which versions changed
 results. Opening a file made by a <i>newer</i> version in an older one may not work.</p></div>

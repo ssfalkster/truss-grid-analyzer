@@ -8,7 +8,7 @@ shot("overview.jpg")
 shot("appbar.png", (0, 0, W, 46))
 shot("steps.png", (0, 44, 720, 102))
 shot("verdict.png", rect("#verdict", 6))
-for pop, name in (("m-file", "menu-file.png"), ("m-calc", "menu-calc.png"), ("m-export", "menu-export.png")):
+for pop, name in (("m-file", "menu-file.png"), ("m-calc", "menu-calc.png"), ("m-export", "menu-export.png"), ("m-help", "menu-help.png")):
     c.js(f"document.querySelector('[data-pop=\"{pop}\"]').click()", 0.3)
     r = rect("#" + pop, 8)
     b = c.js(f"M.rect(document.querySelector('[data-pop=\"{pop}\"]'), 8)", 0)
@@ -121,6 +121,8 @@ c.js("TLA.store.rig.report = { project: 'Example show', location: 'Example venue
 shot("calcsheet-top.jpg")
 c.js("document.getElementById('report').scrollTop = 1500", 0.5)
 shot("calcsheet-mid.jpg")
+c.js("Array.prototype.filter.call(document.querySelectorAll('#report h2'), function (h) { return /Hoist schedule/.test(h.textContent); })[0].scrollIntoView()", 0.5)
+shot("calcsheet-schedule.jpg")
 c.js("TLA.report.close()", 0.4)
 
 # ------------------------------------------------------------------ calculators and databases
