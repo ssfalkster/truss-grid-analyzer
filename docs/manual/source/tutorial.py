@@ -1,4 +1,4 @@
-"""Runs the Quick Start tutorial in the real app (v1.24.0) through its own UI actions, captures qs-*.jpg, prints the numbers."""
+"""Runs the Quick Start tutorial in the real app (v1.26.0) through its own UI actions, captures qs-*.jpg, prints the numbers."""
 import time, json
 import capture_lib as L
 c, W, H = L.c, L.W, L.H

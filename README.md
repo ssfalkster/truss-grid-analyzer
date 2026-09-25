@@ -28,7 +28,7 @@ factor, Add %, units...) are under **Rig settings**.
 ## User manual
 
 [`docs/manual`](docs/manual) has a **Quick Start** (PDF) and a full **User Guide** (PDF, and a searchable HTML copy that
-works offline), written for version 1.24.0. The manual is revised on request, not with every release, so the app may
+works offline), written for version 1.26.0. The manual is revised on request, not with every release, so the app may
 have features it doesn't describe yet; the version history (**File > About**) lists what changed.
 
 ## What it does

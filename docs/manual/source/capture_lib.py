@@ -1,10 +1,10 @@
-"""Capture every screenshot the manual uses from the pinned app build (app-1.24.0.html), light theme.
+"""Capture every screenshot the manual uses from the pinned app build (app-1.26.0.html), light theme.
 Run from this folder: python capture.py  -> img/*.jpg / *.png"""
 import pathlib
 import time
 from cdp import Chrome
 
-URL = pathlib.Path("app-1.24.0.html").resolve().as_uri()
+URL = pathlib.Path("app-1.26.0.html").resolve().as_uri()
 W, H = 1440, 900
 c = Chrome(W, H, 1.5)
 

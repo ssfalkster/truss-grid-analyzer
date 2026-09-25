@@ -1,12 +1,12 @@
 # User manual - sources
 
-The manual in `docs/manual/` is written for **Truss Grid Analyzer v1.24.0** (24 September 2026). It is revised on
+The manual in `docs/manual/` is written for **Truss Grid Analyzer v1.26.0** (24 September 2026). It is revised on
 request, not with every release, so the app may be newer than the manual.
 
 Outputs (in `docs/manual/`):
-- `Truss Grid Analyzer - Quick Start (v1.24.0).pdf`
-- `Truss Grid Analyzer - User Guide (v1.24.0).pdf` - bookmarks, contents with page numbers
-- `Truss Grid Analyzer - User Guide (v1.24.0).html` - one file, images inlined, works offline, search box (`/` or Ctrl+K)
+- `Truss Grid Analyzer - Quick Start (v1.26.0).pdf`
+- `Truss Grid Analyzer - User Guide (v1.26.0).pdf` - bookmarks, contents with page numbers
+- `Truss Grid Analyzer - User Guide (v1.26.0).html` - one file, images inlined, works offline, search box (`/` or Ctrl+K)
 
 ## Sources
 
@@ -25,7 +25,7 @@ The screenshots (`img/`) and the pinned app build are not in git; they are regen
 
 ```
 cd docs/manual/source
-git show v1.24.0:dist/index.html > app-1.24.0.html
+git show v1.26.0:dist/index.html > app-1.26.0.html
 python capture.py
 python tutorial.py
 python box_demo.py
