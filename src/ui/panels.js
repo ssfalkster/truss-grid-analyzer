@@ -127,44 +127,80 @@
     return h("span", { "class": "badge " + cls, text: statusText(status) });
   }
 
+  /** Labels that would overlap go to the next lane (1.25.5): items [{x, w}] (centre and width in drawing units), each
+   * gets .lane (0, 1, ...) - the first lane where it clears the label before it by gap. Returns the number of lanes. */
+  function lanes(items, gap) {
+    var ends = [];
+    items.slice().sort(function (a, b) { return a.x - b.x; }).forEach(function (it) {
+      var k = 0; while (k < ends.length && it.x - it.w / 2 < ends[k] + gap) k++;
+      it.lane = k; ends[k] = it.x + it.w / 2;
+    });
+    return ends.length;
+  }
+  /** Rough text width in the drawings' units (a system sans at the given font size). */
+  function textW(s, size) { return String(s).length * size * 0.56; }
+  /** Sag for the deflection drawing and F7 table: 3 decimals of an inch (a hundredth hid most sags); 0 below that. */
+  function deflText(ft) { var v = ft * 12; return U.f("inch", Math.abs(v) < 0.0005 ? 0 : v, 3); }   // metric: mm to 2 decimals
+  /** Span over sag, capped: past L/10,000 the ratio says nothing useful (it read L/315697). */
+  function ldText(len, sag) { if (!(sag > 1e-9)) return "-"; var r = len / sag; return r >= 10000 ? "L/10,000+" : "L/" + fmt(Math.round(r), 0); }
+
   /* ---------- elevation diagram of one truss ---------- */
+  /** 1.25.5: span lengths are a dimension line above the loads (they sat on the load arrows), and support labels that
+   * would overlap drop to a lower lane with a leader line (end bolts and a hoist next to them ran together). */
   function elevation(t, res) {
-    var W = 420, H = 150, pad = 26;
+    var W = 420, pad = 26;
     var svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("class", "elev");
+    svg.setAttribute("class", "elev");
     function add(tag, attrs, txt) {
       var e = document.createElementNS(NS, tag);
       Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
       if (txt != null) e.textContent = txt;
       svg.appendChild(e); return e;
     }
-    var L = res.beam.length, sx = (W - pad * 2) / L, X = function (d) { return pad + d * sx; }, yb = 62;
+    var L = res.beam.length, sx = (W - pad * 2) / L, X = function (d) { return pad + d * sx; };
     var segs = res.limits.segments, P = res.beam.positions;
-    // beam body coloured by segment status
     var bounds = [0].concat(P).concat([L]);
-    var idx = 0;
+    // span dimensions: laid out first, so the drawing grows downward by as many lanes as they need
+    var dims = [];
     segs.forEach(function (sg, i) {
       var a = bounds[i], b = bounds[i + 1];
       if (b - a < 1e-9) return;
-      add("rect", { x: X(a), y: yb - 6, width: (b - a) * sx, height: 12, "class": "eb " + (sg.code ? "fail" : sg.type.indexOf("cant") === 0 ? "cant" : "ok") });
       var lab = U.mark(b - a, 2) + (sg.code ? " " + statusText(sg.status) : "");
-      add("text", { x: X((a + b) / 2), y: yb - 12, "text-anchor": "middle", "class": "et" + (sg.code ? " fail" : "") }, lab);
+      dims.push({ a: a, b: b, sg: sg, text: lab, x: X((a + b) / 2), w: textW(lab, 10) });
     });
+    var nd = lanes(dims, 4), dimY = function (k) { return 12 + (nd - 1 - k) * 11; }, yb = dimY(0) + 58;
+    dims.forEach(function (d) {
+      var y = dimY(d.lane);
+      add("line", { x1: X(d.a), x2: X(d.b), y1: dimY(0) + 4, y2: dimY(0) + 4, "class": "dim" });
+      [d.a, d.b].forEach(function (x) { add("line", { x1: X(x), x2: X(x), y1: dimY(0) + 1, y2: dimY(0) + 7, "class": "dim" }); });
+      if (d.lane) add("line", { x1: d.x, x2: d.x, y1: y + 2, y2: dimY(0) + 4, "class": "dim lead" });
+      add("text", { x: d.x, y: y, "text-anchor": "middle", "class": "et" + (d.sg.code ? " fail" : "") }, d.text);
+    });
+    // beam body coloured by segment status
+    dims.forEach(function (d) { add("rect", { x: X(d.a), y: yb - 6, width: (d.b - d.a) * sx, height: 12, "class": "eb " + (d.sg.code ? "fail" : d.sg.type.indexOf("cant") === 0 ? "cant" : "ok") }); });
     // loads
     res.beam.loads.forEach(function (l) {
       var x = X(l.distance);
       add("path", { d: "M" + x + " " + (yb - 6) + " l -3.5 -8 l 7 0 z", "class": "el" + (l.injected ? " inj" : l.mirrored ? " ghost" : "") });
-      if (Math.abs(l.weight) > 0.5) add("text", { x: x, y: yb - 32 - ((idx++) % 2) * 0, "text-anchor": "middle", "class": "et small rot", transform: "rotate(-60 " + x + " " + (yb - 18) + ")" }, U.n("w", l.weight, 0));
+      if (Math.abs(l.weight) > 0.5) add("text", { x: x, y: yb - 32, "text-anchor": "middle", "class": "et small rot", transform: "rotate(-60 " + x + " " + (yb - 18) + ")" }, U.n("w", l.weight, 0));
     });
-    // supports + reactions
-    res.supports.forEach(function (sr, i) {
-      var x = X(sr.support.distance);
-      var isH = sr.support.kind === "hoist";
-      add("path", { d: "M" + x + " " + (yb + 6) + " l -7 12 l 14 0 z", "class": "es " + (isH ? "hoist" : "bear") });
-      add("text", { x: x, y: yb + 34, "text-anchor": "middle", "class": "et strong" + (sr.reaction < 0 ? " fail" : "") }, U.n("w", sr.reaction, 0));
-      add("text", { x: x, y: yb + 46, "text-anchor": "middle", "class": "et small" }, (isH ? "hoist" : "bolted to " + ((S.truss(sr.support.onTruss) || {}).name || "?")));
-      add("text", { x: x, y: yb + 58, "text-anchor": "middle", "class": "et small" }, U.mark(sr.support.distance, 2));
+    // supports + reactions: value, what, where - one label block per support, in lanes
+    var labs = res.supports.map(function (sr) {
+      var isH = sr.support.kind === "hoist", what = isH ? "hoist" : "bolted to " + ((S.truss(sr.support.onTruss) || {}).name || "?");
+      var val = U.n("w", sr.reaction, 0), at = U.mark(sr.support.distance, 2);
+      var w = Math.max(textW(val, 11), textW(what, 9), textW(at, 9)), x0 = X(sr.support.distance);
+      return { sr: sr, isH: isH, what: what, val: val, at: at, x0: x0, w: w, x: Math.min(W - 2 - w / 2, Math.max(2 + w / 2, x0)) };
     });
+    var nl = lanes(labs, 6), LANE = 38;
+    labs.forEach(function (o) {
+      var x0 = o.x0, top = yb + 18 + o.lane * LANE;
+      add("path", { d: "M" + x0 + " " + (yb + 6) + " l -7 12 l 14 0 z", "class": "es " + (o.isH ? "hoist" : "bear") });
+      if (o.lane || Math.abs(o.x - x0) > 1) add("line", { x1: x0, x2: o.x, y1: yb + 19, y2: top + 4, "class": "dim lead" });
+      add("text", { x: o.x, y: top + 16, "text-anchor": "middle", "class": "et strong" + (o.sr.reaction < 0 ? " fail" : "") }, o.val);
+      add("text", { x: o.x, y: top + 27, "text-anchor": "middle", "class": "et small" }, o.what);
+      add("text", { x: o.x, y: top + 38, "text-anchor": "middle", "class": "et small" }, o.at);
+    });
+    svg.setAttribute("viewBox", "0 0 " + W + " " + (yb + 18 + nl * LANE + 6));
     return svg;
   }
 
@@ -295,16 +331,22 @@
     var dc = res.deflection; if (!dc || !res.memberForces) return null;
     var worstSpan = dc.spans.slice().sort(function (a, b) { return b.util - a.util; })[0], m = worstSpan ? worstSpan.model : res.model;
     var mf = res.memberForces[m], d = mf && mf.defl; if (!d || !d.length) return null;
-    var W = 420, pad = 26, L = res.beam.length || 1, X = function (x) { return pad + x * (W - pad * 2) / L; }, y0 = 42, svg = svgBox(W, 104, "elev forces"), add = svg.add;
+    var W = 420, pad = 26, L = res.beam.length || 1, X = function (x) { return pad + x * (W - pad * 2) / L; }, y0 = 42;
+    // span labels in lanes (1.25.5): short end spans ran into their neighbours
+    var labs = dc.spans.map(function (sp) { var s = deflText(sp.max) + " (" + ldText(sp.length, sp.max) + ")"; return { sp: sp, text: s, x: X((sp.from + sp.to) / 2), w: textW(s, 10) }; });
+    var nl = Math.max(1, lanes(labs, 6)), H = y0 + 38 + (nl - 1) * 12 + 20;
+    var svg = svgBox(W, H, "elev forces"), add = svg.add;
     var mx = d.reduce(function (a, p) { return Math.max(a, Math.abs(p[1])); }, 0) || 1e-9, sc = 22 / mx;
     add("text", { x: pad - 22, y: 10, "class": "et small" }, "Deflection, exaggerated (whole-rig analysis, " + TLA.grillage.MODEL_LABEL[m] + ")");
     add("line", { x1: X(0), x2: X(L), y1: y0, y2: y0, "class": "axis", "stroke-dasharray": "3 3" });
     add("path", { d: "M" + d.map(function (p) { return X(p[0]).toFixed(1) + " " + (y0 - p[1] * sc).toFixed(1); }).join(" L"), fill: "none", stroke: worstSpan && worstSpan.util > 1 ? "var(--fail)" : "var(--accent)", "stroke-width": 2 });
     (res.beam.positions || []).forEach(function (x) { add("path", { d: "M" + X(x) + " " + (y0 + 4) + " l -5 8 l 10 0 z", "class": "es hoist" }); });
-    dc.spans.forEach(function (sp) {
-      add("text", { x: X((sp.from + sp.to) / 2), y: y0 + 38, "text-anchor": "middle", "class": "et" + (sp.util > 1 ? " fail" : "") }, U.f("inch", sp.max * 12, 2) + " (L/" + (sp.max > 1e-9 ? Math.round(sp.length / sp.max) : "-") + ")");
+    labs.forEach(function (o) {
+      var y = y0 + 32 + o.lane * 12, x = Math.min(W - 2 - o.w / 2, Math.max(2 + o.w / 2, o.x));
+      if (o.lane || Math.abs(x - o.x) > 1) add("line", { x1: o.x, x2: x, y1: y0 + 14, y2: y - 9, "class": "dim lead" });
+      add("text", { x: x, y: y, "text-anchor": "middle", "class": "et" + (o.sp.util > 1 ? " fail" : "") }, o.text);
     });
-    add("text", { x: W / 2, y: 100, "text-anchor": "middle", "class": "et small" }, "Limit L/" + dc.ratio + " (" + (dc.source === "maker" ? "maker's data sheet - past it fails" : "rig default, the maker publishes none - past it warns") + "), sag from the line between the supports. Estimate.");
+    add("text", { x: W / 2, y: H - 4, "text-anchor": "middle", "class": "et small" }, "Limit L/" + dc.ratio + " (" + (dc.source === "maker" ? "maker's data sheet - past it fails" : "rig default, the maker publishes none - past it warns") + "), sag from the line between the supports. Estimate.");
     return svg;
   }
 
@@ -1293,7 +1335,7 @@
 
   TLA.panels = {
     mount: function (store) { S = store; },
-    elevation: elevation, forceDiagrams: forceDiagrams,
+    elevation: elevation, forceDiagrams: forceDiagrams, deflText: deflText, ldText: ldText,
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
     loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, mirrorHoistsUi: mirrorHoistsUi, copyHoistsPrompt: copyHoistsPrompt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,

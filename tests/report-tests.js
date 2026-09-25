@@ -42,7 +42,7 @@
       var t = S.truss(x.truss), s = t.supports.filter(function (q) { return q.id === x.support; })[0], e = S.db().hoists.filter(function (q) { return q.id === s.hoistId; })[0];
       near(x.hoist.reaction + (x.hoist.added || 0) + e.weight_lb + e.chain_weight_per_ft_lb * s.chainLength + (s.hardwareWeight || 0), x.hoist.staticLoad, 1e-9, "static parts");
     });
-    eq(el.querySelectorAll(".rplan circle.ho").length, S.results.hoists.length, "every hoist on the plan");
+    eq(el.querySelector(".rplan").querySelectorAll("circle.ho").length, S.results.hoists.length, "every hoist on the plan");
   });
 
   add("calc sheet: the input fingerprint follows the inputs, not the names on the sheet", function () {
@@ -115,8 +115,53 @@
     eq((text.match(/Deflection check \(F7\)/g) || []).length, trusses.length, "one check per truss");
     trusses.forEach(function (t) {
       var dc = S.results.trusses[t.id].deflection;
-      dc.spans.forEach(function (sp) { var v = TLA.units.f("inch", sp.max * 12, 2); eq(text.indexOf(v) >= 0, true, t.name + " span " + sp.index + " sag " + v); });
+      dc.spans.forEach(function (sp) { var v = TLA.panels.deflText(sp.max); eq(text.indexOf(v) >= 0, true, t.name + " span " + sp.index + " sag " + v); });
     });
     eq(/NaN|undefined/.test(text), false, "no NaN / undefined");
+  });
+
+  add("calc sheet (1.25.5): estimate notice citing ANSI E1.6-3 2.11 on an indeterminate rig, Prepared by / for, hoist schedule", function () {
+    example();
+    S.rig.report = { preparedBy: "GESF", preparedFor: "Venue", checkedBy: "QQchecker" };
+    var el = TLA.report.build(), text = el.textContent, n = el.querySelector(".notice");
+    eq(!!n && el.firstChild.nextSibling === n, true, "notice right under the title block");
+    eq(/Estimate only/.test(n.textContent) && /E1\.6-3-2019/.test(n.textContent) && /section 2\.11/.test(n.textContent) && /indeterminate structure/.test(n.textContent), true, n.textContent);
+    eq((text.match(/Prepared for/g) || []).length, 2, "Prepared for in the title block and at the end");
+    eq(/Checked by/.test(text) || text.indexOf("QQchecker") >= 0, false, "Checked by no longer printed");
+    eq(el.querySelectorAll("tfoot").length, 0, "no tfoot: a total must not repeat on every printed page");
+    var sch = el.querySelector(".sched");
+    eq(!!sch && sch.querySelectorAll("tbody tr").length === S.results.hoists.length, true, "one schedule row per hoist");
+    eq(el.querySelectorAll(".rplan").length, 2, "plan in section 3 and on the schedule");
+    eq(/Speed/.test(text), true, "hoist speed column");
+  });
+
+  add("calc sheet (1.25.5): a truss on two hoists is not called indeterminate; three in a line are", function () {
+    S.newRig(); TLA.panels.mount(S); TLA.report.mount(S);
+    var t = S.addTruss({ name: "Pipe", x: 0, y: 0, angle: 0, length: 30, hoists: [2, 28] }); S.commit();
+    var n = TLA.report.build().querySelector(".notice").textContent;
+    eq(/Estimate only/.test(n) && !/indeterminate structure/.test(n), true, n);
+    S.addHoist(t.id); S.commit();
+    n = TLA.report.build().querySelector(".notice").textContent;
+    eq(/3 hoists in a straight line/.test(n), true, n);
+  });
+
+  add("calc sheet (1.25.5): deflection text - 3 decimals of an inch, L/d capped at L/10,000+", function () {
+    eq(TLA.panels.deflText(0.01 / 12), "0.01 in", "0.010 in");
+    eq(TLA.panels.deflText(0.0001 / 12), "0 in", "below a thousandth");
+    eq(TLA.panels.ldText(10, 0.001), "L/10,000+", "cap");
+    eq(TLA.panels.ldText(10, 10 / 8204), "L/" + (8204).toLocaleString(), "under the cap");
+    eq(TLA.panels.ldText(10, 0), "-", "no sag");
+  });
+
+  add("calc sheet (1.25.5): support labels in the truss drawings don't overlap (end bolts next to a hoist)", function () {
+    example();
+    S.rig.trusses.filter(function (t) { return !t.isBlock && S.results.trusses[t.id]; }).forEach(function (t) {
+      var svg = TLA.panels.elevation(t, S.results.trusses[t.id]), boxes = [];
+      Array.prototype.forEach.call(svg.querySelectorAll("text.strong"), function (e) {
+        var y = Number(e.getAttribute("y")), x = Number(e.getAttribute("x"));
+        boxes.forEach(function (b) { eq(Math.abs(b.y - y) > 1 || Math.abs(b.x - x) > 30, true, t.name + ": labels at " + b.x + " and " + x); });
+        boxes.push({ x: x, y: y });
+      });
+    });
   });
 })(typeof globalThis !== "undefined" ? globalThis : window);

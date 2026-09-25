@@ -48,11 +48,13 @@
   }
 
   /* ---- small builders ---- */
+  /** The total row goes last in the body, not in a tfoot: the browser repeats a tfoot on every printed page, so a
+   * table split across pages showed its full total before the last rows (1.25.5). The header still repeats. */
   function table(cls, head, rows, foot) {
-    var t = h("table", { "class": "rt " + (cls || "") });
+    var t = h("table", { "class": "rt " + (cls || "") + ((rows ? rows.length : 0) + (foot ? 1 : 0) <= 6 ? " keep" : "") });   // a short table is never split
     if (head) t.appendChild(h("thead", null, h("tr", null, head.map(function (c) { return typeof c === "string" ? h("th", { text: c }) : h("th", { "class": c[1] || "", text: c[0] }); }))));
-    t.appendChild(h("tbody", null, rows));
-    if (foot) t.appendChild(h("tfoot", null, foot));
+    if (foot) foot.classList.add("tot");
+    t.appendChild(h("tbody", null, rows, foot || null));
     return t;
   }
   function td(text, cls) { return h("td", { "class": cls || "", text: text == null ? "" : String(text) }); }
@@ -110,6 +112,26 @@
     return truss.repetitive_use ? "the table already includes the repetitive-use factor" : "ANSI repetitive-use factor";
   }
 
+  /** ANSI E1.6-3-2019 §2.11 / E2.11: a load system is indeterminate on more than two hoists in a straight line, or
+   * more than three not in a line. [n, inLine] from the hoists' plan positions. */
+  function hoistLayout(r) {
+    var G = TLA.rig.geometry, pts = r.hoists.map(function (x) { var t = S.truss(x.truss), s = t && supportOf(t, x.support); return t && s ? G.endPoint(t, s.distance) : null; }).filter(Boolean);
+    var a = pts[0], b = pts.filter(function (p) { return Math.hypot(p.x - a.x, p.y - a.y) > 0.05; })[0];
+    var inLine = !b || pts.every(function (p) { return Math.abs((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / Math.hypot(b.x - a.x, b.y - a.y) < 0.05; });
+    return { n: pts.length, inLine: inLine, indeterminate: pts.length > (inLine ? 2 : 3) };
+  }
+  /** The notice at the top of the sheet (1.25.5): the numbers are estimates, with the standard behind that. */
+  function disclaimer(r) {
+    var lay = hoistLayout(r), E = "ANSI E1.6-3-2019 (Selection and Use of Serially Manufactured Chain Hoists in the Entertainment Industry)";
+    var body = lay.indeterminate ?
+      "This rig hangs from " + lay.n + " hoists" + (lay.inLine ? " in a straight line" : "") + ", so it is an indeterminate structure as defined in " + E + ", section 2.11: the load on each hoist depends on the stiffness of the trusses, the rigging and the structure above as well as on where the loads and hoists are, and the standard says it is not practical to calculate with accuracy the dynamic load on any one hoist due to load shifting. " +
+      "The figures on this sheet are estimates from a simplified model and the manufacturers' published load tables; real hoist loads will differ with hoist level, chain length, connection stiffness and load shifting. " +
+      "E1.6-3 accepts a load calculation as a way to reduce the risk of overload only when every weight is known and accounted for, the calculation method is accurate, and any load shifting will not cause an overload (7.1), and warns that stiff indeterminate structures can shift load very quickly (6.2.12). "
+      : "The figures on this sheet are estimates from a simplified model and the manufacturers' published load tables. ";
+    body += "A competent person must assess the risks before any lifting operation, and a qualified person where the hazards call for one (" + (lay.indeterminate ? "E1.6-3, " : E + ", ") + "5.1 and 5.2). This sheet does not certify compliance with ANSI E1.6-3, ANSI E1.2 or any other standard.";
+    return h("div", { "class": "notice" }, h("b", { text: "Estimate only - not an engineering certification. " }), body);
+  }
+
   /* ================================================================ sheet */
   function build() {
     var r = S.results, rig = S.rig, st = rig.settings || {}, rep = rig.report || {}, db = S.db();
@@ -145,7 +167,9 @@
         h("div", { "class": "tb-f" }, h("span", { "class": "tb-l", text: "Software" }), h("span", { "class": "tb-v", text: "Truss Grid Analyzer v" + TLA.VERSION })),
         h("div", { "class": "tb-f" }, h("span", { "class": "tb-l", text: "Input fingerprint" }), h("span", { "class": "tb-v mono", title: "Changes whenever any input of the rig changes", text: fp })),
         h("div", { "class": "tb-f" }, h("span", { "class": "tb-l", text: "Units" }), h("span", { "class": "tb-v", text: U.metric() ? "metric (m, kg, kg·m) - solved in ft and lb" : "imperial (ft, lb, lb-ft)" })),
+        field("Prepared by", "preparedBy"), field("Prepared for", "preparedFor"),
         field("Notes", "notes", true))));
+    sheet.appendChild(disclaimer(r));
 
     /* ---- 1. summary ---- */
     var s1 = sec(sheet, next(), "Summary of results");
@@ -252,19 +276,23 @@
       var rowsB = r.hoists.map(function (x) {
         var t = byId[x.truss], s = supportOf(t, x.support) || {}, e = hoistEntry(s) || {}, hx = x.hoist;
         var body = Number(e.weight_lb) || 0, perFt = Number(e.chain_weight_per_ft_lb) || 0, cl = Number(e.dead ? s.ropeLength : s.chainLength) || 0, chain = perFt * cl, hw = Number(s.hardwareWeight) || 0;
-        var dlfSrc = Number(s.dlf) > 0 ? "typed" : e.dead ? "dead hang, static" : Number(e.speed_fpm) > 0 ? fmt(e.speed_fpm, 1) + " fpm / 60 + 1" + (U.metric() ? ", " + U.f("speed", e.speed_fpm, 1) : "") : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
+        // speed in its own column (1.25.5); the DLF column says where the factor came from only when not speed / 60 + 1
+        var speed = e.dead ? "-" : Number(e.speed_fpm) > 0 ? (U.metric() ? U.f("speed", e.speed_fpm, 1) : fmt(e.speed_fpm, 1) + " fpm") : "unknown";
+        var dlfSrc = Number(s.dlf) > 0 ? "typed" : e.dead ? "dead hang" : Number(e.speed_fpm) > 0 ? "" : Number(e.capacity_lb) >= 999999 ? "no hoist" : "default";
         if (!x.hung) { sum.r += hx.reaction; sum.a += hx.added || 0; sum.l = (sum.l || 0) + (x.level ? x.level.add : 0); sum.hw += body; sum.ch += chain; sum.hd += hw; sum.s += hx.staticLoad; sum.d += hx.dynamicLoad; }
         var cap = hx.capacity >= 999999 ? null : hx.capacity, bad = hx.status !== "Good";
         return h("tr", null, td(hid[x.truss + ":" + x.support], "b"),
           tdr(Wn(hx.reaction)), tl4 ? tdr(x.level ? Wn(x.level.add) : "-") : null, tdr(hx.added ? Wn(hx.added) : "-"), tdr(Wn(body)),
           tdr(perFt ? U.n("wpl", perFt, 2) + " x " + Ln(cl, 1) + " = " + Wn(chain) : "-"), tdr(hw ? Wn(hw) : "-"),
-          tdr(Wn(hx.staticLoad), "b"), h("td", { "class": "r" }, fmt(hx.dynamicFactor, 3), h("span", { "class": "sub2", text: dlfSrc })), tdr(Wn(hx.dynamicLoad)),
+          tdr(Wn(hx.staticLoad), "b"), tdr(speed), tdr(fmt(hx.dynamicFactor, 3) + (dlfSrc ? " (" + dlfSrc + ")" : "")), tdr(Wn(hx.dynamicLoad)),
           tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
           statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), bad || hx.dynamicOver));
       });
-      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"]].concat(tl4 ? [["+ Level", "r"]] : []).concat([["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"]), rowsB,
-        h("tr", null, td("Total"), tdr(Wn(sum.r)), tl4 ? tdr(sum.l ? Wn(sum.l) : "-") : null, tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
-      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware." + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
+      s4.appendChild(table("small", ["Hoist", ["Low hook R", "r"]].concat(tl4 ? [["+ Level", "r"]] : []).concat([["+ Add %", "r"], ["Hoist", "r"], ["Chain", "r"], ["Hardware", "r"], ["High hook", "r"], ["Speed", "r"], ["DLF", "r"], ["High hook dyn.", "r"], ["Capacity", "r"], ["Workload", "r"], "Status"]), rowsB,
+        h("tr", null, td("Total"), tdr(Wn(sum.r)), tl4 ? tdr(sum.l ? Wn(sum.l) : "-") : null, tdr(sum.a ? Wn(sum.a) : "-"), tdr(Wn(sum.hw)), tdr(Wn(sum.ch)), tdr(sum.hd ? Wn(sum.hd) : "-"), tdr(Wn(sum.s), "b"), td(""), td(""), tdr(Wn(sum.d)), td(""), td(""), td(""))));
+      // 1.25.5: each hoist's R is the worst of the joint models, so the column can add up to more than the weight carried
+      var envelope = grill && sum.r - tot.applied > 0.05 ? " The Low hook R total (" + W(sum.r, 1) + ") adds each hoist's governing value, each from the joint model that loads that hoist hardest, so it is " + W(sum.r - tot.applied, 1) + " more than the weight carried (" + W(tot.applied, 1) + "); every single joint model balances exactly (section 5)." : "";
+      s4.appendChild(para("All weights in " + U.unit("w") + ". High hook = low hook R + Add % + Hoist + Chain + Hardware. DLF = speed (fpm) / 60 + 1 unless marked." + envelope + (nD ? " Dead hangs (DH): Chain = the rope (weight per " + U.unit("len") + " x length), no hoist; Capacity = WLL = the rope's minimum breaking strength / " + TLA.limits.ropeFactor(st) + " (design factor, Rig settings), or the typed assembly WLL if lower; static (DLF 1.0 unless typed)." : "") + (tot.hung ? " The totals leave out the hoists hung below a truss (their load is in the carrier's hoists)." : ""), "cap"));
     }
 
     // 1.22.0: load-cell readings against the calculation
@@ -348,12 +376,28 @@
     /* ---- names (no signature blocks) ---- */
     sheet.appendChild(h("section", { "class": "rsec sign" },
       h("div", { "class": "signs" },
-        ["Prepared by", "Checked by"].map(function (who, i) {
-          var key = i ? "checkedBy" : "preparedBy";
+        ["Prepared by", "Prepared for"].map(function (who, i) {
+          var key = i ? "preparedFor" : "preparedBy";
           return h("div", { "class": "signname" }, h("span", { "class": "sl", text: who }), h("span", { "class": "sv" + (rep[key] ? "" : " blank"), "data-field": key, text: rep[key] || "" }));
         })),
       h("p", { "class": "disc", text: "This sheet shows how the loads and checks were calculated so they can be verified. It is not a substitute for the judgement of a qualified person: the user is responsible for verifying the results, the rig as built, the hardware ratings and the rigging points before using them to make rigging decisions. Capacities are only as good as the truss and hoist data entered, and allowable moment and shear are estimates from the manufacturer's tables." }),
       h("p", { "class": "disc", text: "Truss Grid Analyzer v" + TLA.VERSION + " by G.E. Simmons Falk - an expansion, for indeterminate grids, of Truss Load Analyzer - EOT by Delbert L. Hall and Jon Sogoian, the originators of the program. Free software; see the About dialog for the version history and license." })));
+
+    /* ---- A. hoist schedule (1.25.5): one page for the crew, on a page of its own at the end ---- */
+    if (r.hoists.length) {
+      var sA = h("section", { "class": "rsec sched" }, h("h2", null, h("span", { "class": "n", text: "A" }), " Hoist schedule"));
+      sA.appendChild(para((rig.name || "Untitled rig") + (rep.project ? " - " + rep.project : "") + (rep.location ? " - " + rep.location : "") + ". Calculated " + stamp(now) + ", Truss Grid Analyzer v" + TLA.VERSION + ", input fingerprint " + fp + ". Estimates - see the notice on page 1 and the warnings in section 9.", "cap"));
+      var planA = planFigure(hid); if (planA) sA.appendChild(planA);
+      sA.appendChild(table("small sch", ["Hoist", "Truss", ["At (" + U.unit("len") + ")", "r"], "Hoist model", ["Chain (" + U.unit("len") + ")", "r"], ["High hook (" + U.unit("w") + ")", "r"], ["Dynamic (" + U.unit("w") + ")", "r"], ["Capacity", "r"], ["Workload", "r"], "Status", "Checked"], r.hoists.map(function (x) {
+        var s = supportOf(byId[x.truss], x.support) || {}, e = hoistEntry(s) || {}, hx = x.hoist, cap = hx.capacity >= 999999 ? null : hx.capacity;
+        return h("tr", null, td(hid[x.truss + ":" + x.support], "b"), td(x.trussName + (x.hung && byId[x.hung] ? " (below " + byId[x.hung].name + ")" : "")), tdr(Ln(x.distance)),
+          td(e.dead ? "Dead hang, " + (e.rope ? e.rope.name : "WLL typed") : e.description ? String(e.description).trim() + " " + (e.capacity_label || "") : "-", "nw"),
+          tdr(Ln(Number(e.dead ? s.ropeLength : s.chainLength) || 0, 1)), tdr(Wn(hx.staticLoad, 0), "b"), tdr(Wn(hx.dynamicLoad, 0)), tdr(cap ? Wn(cap, 0) : "none"), tdr(cap ? pct(hx.staticLoad / cap) : "-"),
+          statusCell(hx.status + (hx.dynamicOver ? ", dynamic over" : ""), hx.status !== "Good" || hx.dynamicOver), td("", "chk"));
+      })));
+      sA.appendChild(para("At: from the start (0) of the truss, as on the plan. High hook = low hook load + hoist, chain and hardware (section 4b)." + (tot.hung ? " Hoists hung below a truss are listed on the truss they lift." : ""), "cap"));
+      sheet.appendChild(sA);
+    }
     return sheet;
   }
 
@@ -514,11 +558,11 @@
   /** Deflection check (F7, 1.25.0): each span's sag against L / n, and the cantilever tips (reported only). */
   function deflectionSection(box, res) {
     var dc = res.deflection; if (!dc) return;
-    var maker = dc.source === "maker", IN = function (ft) { return U.f("inch", ft * 12, 2); };
+    var maker = dc.source === "maker", IN = function (ft) { return P().deflText(ft); };
     box.appendChild(para("Deflection check (F7) - limit L/" + dc.ratio + ": " + (maker ? dc.note + " (the maker's data sheet; past it the truss fails)" : "the rig default; the maker publishes no limit, so past it is a warning"), "sub"));
     var rows = dc.spans.map(function (sp) {
       var over = sp.util > 1 + 1e-9;
-      return h("tr", null, td("Span " + sp.index + " (" + Ln(sp.from, 2) + " - " + Lf(sp.to, 2) + ")"), tdr(Ln(sp.length, 3)), tdr(IN(sp.max)), td("at " + Lf(sp.at, 2)), tdr(sp.max > 1e-9 ? "L/" + Math.round(sp.length / sp.max) : "-"), tdr(IN(sp.allowed)), tdr(pct(sp.util)),
+      return h("tr", null, td("Span " + sp.index + " (" + Ln(sp.from, 2) + " - " + Lf(sp.to, 2) + ")"), tdr(Ln(sp.length, 3)), tdr(IN(sp.max)), td("at " + Lf(sp.at, 2)), tdr(P().ldText(sp.length, sp.max)), tdr(IN(sp.allowed)), tdr(pct(sp.util)),
         statusCell(!over ? "Good" : maker ? "Too much sag" : "Past L/" + dc.ratio + " (warning)", over && maker), td(shortModel(sp.model)));
     });
     (dc.cantilevers || []).forEach(function (c) {
@@ -540,9 +584,9 @@
     rig.trusses.forEach(function (t) { pts.push(G.endPoint(t, 0), G.endPoint(t, t.length || 0)); });
     var x1 = Math.min.apply(null, pts.map(function (p) { return p.x; })), x2 = Math.max.apply(null, pts.map(function (p) { return p.x; }));
     var y1 = Math.min.apply(null, pts.map(function (p) { return p.y; })), y2 = Math.max.apply(null, pts.map(function (p) { return p.y; }));
-    var VW = 1000, pad = 70, span = Math.max(x2 - x1, (y2 - y1) * 1.6, 1), sc = (VW - 2 * pad) / span;
-    var VH = Math.max(260, Math.min(760, (y2 - y1) * sc + 2 * pad + 30));
-    var ox = (VW - (x2 - x1) * sc) / 2 - x1 * sc, oy = (VH - 30 - (y2 - y1) * sc) / 2 + y2 * sc;
+    var VW = 1000, pad = 70, span = Math.max(x2 - x1, (y2 - y1) * 1.6, 1), sc = (VW - 2 * pad - 50) / span, FOOT = 64;   // 1.25.5: room for the dimensions and the legend
+    var VH = Math.max(260, Math.min(790, (y2 - y1) * sc + 2 * pad + FOOT));
+    var ox = (VW - 50 - (x2 - x1) * sc) / 2 - x1 * sc, oy = (VH - FOOT - (y2 - y1) * sc) / 2 + y2 * sc;
     function X(p) { return ox + p.x * sc; } function Y(p) { return oy - p.y * sc; }
     var svg = document.createElementNS(NS, "svg");
     svg.setAttribute("viewBox", "0 0 " + VW + " " + VH); svg.setAttribute("class", "rplan");
@@ -563,7 +607,29 @@
       // names below a level truss and left of an upright one; hoist labels sit above-right, so they don't collide
       var m = G.endPoint(t, (t.length || 0) / 2), ang = (Number(t.angle) || 0) * Math.PI / 180, upright = Math.abs(Math.cos(ang)) < 0.5;
       labels.push({ x: X(m) - (upright ? 20 : 0), y: Y(m) + (upright ? 0 : 22), text: t.name, rot: upright ? -90 : 0, cls: "tn" });
+      // 1.25.5: the start of the line (0), where every position in the tables is measured from: a "0" just past that
+      // end, on the truss's axis (beside it, it ran into the hoist labels)
+      var len = Math.hypot(X(b) - X(a), Y(b) - Y(a)) || 1, ux = (X(b) - X(a)) / len, uy = (Y(b) - Y(a)) / len, off = Math.max(4, TLA.rig.widthFt(t) * sc) / 2 + 16;
+      labels.push({ x: X(a) - ux * off, y: Y(a) - uy * off, text: "0", rot: 0, cls: "zn" });
     });
+    // overall dimensions (truss centerlines), below and right of the drawing
+    var lineEnds = [];
+    rig.trusses.forEach(function (t) { if (!t.isBlock) lineEnds.push(G.endPoint(t, 0), G.endPoint(t, t.length || 0)); });
+    if (lineEnds.length) {
+      var dx1 = Math.min.apply(null, lineEnds.map(function (p) { return p.x; })), dx2 = Math.max.apply(null, lineEnds.map(function (p) { return p.x; }));
+      var dy1 = Math.min.apply(null, lineEnds.map(function (p) { return p.y; })), dy2 = Math.max.apply(null, lineEnds.map(function (p) { return p.y; }));
+      var yd = Y({ y: dy1 }) + 44, xd = X({ x: dx2 }) + 44;
+      if (dx2 - dx1 > 0.5) {
+        add("line", { x1: X({ x: dx1 }), x2: X({ x: dx2 }), y1: yd, y2: yd, "class": "dm" });
+        [dx1, dx2].forEach(function (x) { add("line", { x1: X({ x: x }), x2: X({ x: x }), y1: yd - 7, y2: yd + 7, "class": "dm" }); });
+        labels.push({ x: (X({ x: dx1 }) + X({ x: dx2 })) / 2, y: yd + 14, text: U.mark(dx2 - dx1, 2), rot: 0, cls: "dmt" });
+      }
+      if (dy2 - dy1 > 0.5) {
+        add("line", { x1: xd, x2: xd, y1: Y({ y: dy1 }), y2: Y({ y: dy2 }), "class": "dm" });
+        [dy1, dy2].forEach(function (y) { add("line", { x1: xd - 7, x2: xd + 7, y1: Y({ y: y }), y2: Y({ y: y }), "class": "dm" }); });
+        labels.push({ x: xd + 14, y: (Y({ y: dy1 }) + Y({ y: dy2 })) / 2, text: U.mark(dy2 - dy1, 2), rot: -90, cls: "dmt" });
+      }
+    }
     rig.trusses.forEach(function (t) {
       if (!t.isBlock) return;
       var c = G.endPoint(t, (t.length || 0) / 2), half = Math.max(4, (t.length || 1) * sc / 2);
@@ -582,15 +648,25 @@
     // scale bar: a round length about a fifth of the drawing
     var metric = U.metric(), unitFt = metric ? 1 / FT_M : 1, target = span / 5 / unitFt, steps = [1, 2, 5, 10, 20, 25, 50, 100], len = steps[0];
     steps.forEach(function (v) { if (v <= target) len = v; });
-    var bx = pad, by = VH - 18, bl = len * unitFt * sc;
+    var bx = pad, by = VH - 34, bl = len * unitFt * sc;
     add("line", { x1: bx, y1: by, x2: bx + bl, y2: by, "class": "sb" }); add("line", { x1: bx, y1: by - 5, x2: bx, y2: by + 5, "class": "sb" }); add("line", { x1: bx + bl, y1: by - 5, x2: bx + bl, y2: by + 5, "class": "sb" });
     add("text", { x: bx + bl + 8, y: by + 4, "class": "sbt" }, len + (metric ? " m" : " ft"));
-    add("text", { x: VW - pad, y: by + 4, "class": "sbt", "text-anchor": "end" }, "Plan, to scale. Green: truss checks pass, red: a check fails. Circles: hoists; squares: corner blocks; dots: loads.");
+    // legend (1.25.5): the symbols themselves, not a sentence about them
+    var lx = bx + bl + 70, ly = by;
+    function key(draw, text) { draw(lx, ly); add("text", { x: lx + 22, y: ly + 4, "class": "sbt" }, text); lx += 22 + text.length * 7.2 + 18; }
+    key(function (x, y) { add("line", { x1: x - 6, x2: x + 14, y1: y, y2: y, "class": "tr ok", "stroke-width": 7 }); }, "checks pass");
+    key(function (x, y) { add("line", { x1: x - 6, x2: x + 14, y1: y, y2: y, "class": "tr fail", "stroke-width": 7 }); }, "a check fails");
+    key(function (x, y) { add("circle", { cx: x + 4, cy: y, r: 7, "class": "hk" }); }, "hoist");
+    key(function (x, y) { add("rect", { x: x - 2, y: y - 6, width: 12, height: 12, "class": "cb" }); }, "corner block");
+    key(function (x, y) { add("circle", { cx: x + 4, cy: y, r: 3.2, "class": "ld" }); }, "load");
+    key(function (x, y) { add("text", { x: x + 4, y: y + 5, "class": "zn", "text-anchor": "middle" }, "0"); }, "truss start");
+    add("text", { x: bx, y: by + 22, "class": "sbt" }, "Plan, to scale; dimensions between truss centerlines. Positions in the tables are measured from each truss's start (0).");
     return h("div", { "class": "rfig plan" }, svg);
   }
 
   /* ---------------------------------------------------------------- overlay */
-  var FIELDS = [["project", "Project / event"], ["location", "Venue / location"], ["preparedBy", "Prepared by"], ["checkedBy", "Checked by"], ["notes", "Notes"]];
+  // 1.25.5: "Prepared for" replaces "Checked by" (an older rig's checkedBy is kept in the file but no longer printed)
+  var FIELDS = [["project", "Project / event"], ["location", "Venue / location"], ["preparedBy", "Prepared by"], ["preparedFor", "Prepared for"], ["notes", "Notes"]];
   /** Paper for the printed sheet (1.17.0): US Letter or A4, set in the rig setup and saved with the rig (in rig.report,
    * so it never changes the input fingerprint). Unset: Letter for imperial units, A4 for metric. */
   var PAPER = { letter: { page: "letter", label: "Letter (8.5 x 11 in)" }, a4: { page: "A4", label: "A4 (210 x 297 mm)" } };
@@ -614,6 +690,7 @@
         return i;
       }),
       h("span", { "class": "grow" }),
+      h("span", { "class": "rhint", text: "In the print dialog, turn off \"Headers and footers\" - the sheet prints its own." }),
       h("button", { "class": "primary", text: "Print / save PDF", onclick: function () { window.print(); } }),
       h("button", { text: "Close", onclick: close }));
     host.appendChild(bar);
