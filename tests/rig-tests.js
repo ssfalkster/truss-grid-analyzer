@@ -372,6 +372,7 @@
     }
     var w = one(75, 10);
     eq(w.length, 1, "Tomcat 12x12 spigoted, workbook row"); eq(/Light Duty 12x12 Spigoted/.test(w[0].message), true, w[0].message);
+    eq(w[0].link && w[0].link.url, TLA.data.trusses.filter(function (x) { return x.id === 223; })[0].url, "1.26.4: links the maker's load table"); eq(/^https:/.test(w[0].link.url), true, "a web address");
     eq(one(223, 10).length, 0, "the maker's own row");
     eq(one(106, 20).length, 0, "Christie A workbook row is not above Christie's table");
     var st = TLA.data.trusses.filter(function (x) { return x.id === 55; })[0];
@@ -396,6 +397,7 @@
   add("corner blocks (1.12.0): a Christie A box with no hoist at its corners is flagged once, listing them; results are unchanged", function () {
     var rig = boxRig([5, 15]), r = TLA.rig.solve(rig), w = corners(r);
     eq(w.length, 1, "one warning for the box"); eq(/every corner/.test(w[0].message) && /4 of its corner blocks/.test(w[0].message), true, w[0].message);
+    eq(w[0].link && /christielites\.com\/.*Corner%20Blocks.*\.pdf$/.test(w[0].link.url), true, "1.26.4: links Christie's corner-block load table");
     eq(same(r, TLA.rig.solve(rig, noRules())), true, "every result as without the rule");
     eq(corners(TLA.rig.solve(boxRig([0.5, 19.5]))).length, 0, "hoists at the corner blocks: nothing to flag");
     var open = boxRig([5, 15]); open.trusses = open.trusses.filter(function (t) { return t.id !== "E"; });
@@ -411,6 +413,7 @@
       { id: "B", name: "B", isBlock: true, blockTypeId: bt, length: 1, host: "N", loads: [], supports: [{ id: "bs", distance: 0.5, kind: "truss", onTruss: "N", onDistance: 10 }] },
       feeder("W"), feeder("E")] };
     var r = TLA.rig.solve(rig), c = corners(r);
+    eq(c[0] && c[0].link && /Corner%20Blocks/.test(c[0].link.url), true, "1.26.4: links Christie's corner-block load table");
     eq(c.length, 1, "one note"); eq(/joining 4 truss sections/.test(c[0].message) && /half/.test(c[0].message) && /full table capacity/.test(c[0].message), true, c[0].message);
     eq(same(r, TLA.rig.solve(rig, noRules())), true, "checks unchanged");
   });

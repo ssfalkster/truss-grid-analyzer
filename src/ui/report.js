@@ -370,8 +370,10 @@
     /* ---- 9. warnings ---- */
     var s9 = sec(sheet, next(), "Warnings and notes");
     if (!warns.length && !notes.length) s9.appendChild(para("None.", "ok"));
-    if (warns.length) s9.appendChild(h("ol", { "class": "warns" }, warns.map(function (w) { return h("li", { text: U.text(w.message) }); })));
-    if (notes.length) { s9.appendChild(para("Notes:", "cap")); s9.appendChild(h("ul", { "class": "warns notes" }, notes.map(function (w) { return h("li", { text: U.text(w.message) }); }))); }
+    // 1.26.4: a warning from a maker's document names it, with the address written out so it survives printing
+    function warnItem(w) { return h("li", null, U.text(w.message), w.link ? h("span", { "class": "wsrc" }, " Source: " + w.link.text + ", ", h("a", { href: w.link.url, target: "_blank", rel: "noopener noreferrer", text: w.link.url })) : null); }
+    if (warns.length) s9.appendChild(h("ol", { "class": "warns" }, warns.map(warnItem)));
+    if (notes.length) { s9.appendChild(para("Notes:", "cap")); s9.appendChild(h("ul", { "class": "warns notes" }, notes.map(warnItem))); }
 
     /* ---- names (no signature blocks) ---- */
     sheet.appendChild(h("section", { "class": "rsec sign" },

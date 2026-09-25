@@ -581,6 +581,12 @@
     if (!x || !x.url) return null;
     return h("a", { href: x.url, target: "_blank", rel: "noopener noreferrer", "class": "mklink", title: "Opens the maker's own document in a new tab: " + x.url, text: (text || "maker's load table") + " ↗" });
   }
+  /** A warning's text, and the maker's document it comes from when it has one (1.26.4). */
+  function warnBody(w) {
+    var a = w.link ? makerLink(w.link, w.link.text) : null;
+    if (a) a.addEventListener("click", function (e) { e.stopPropagation(); });
+    return a ? [U.text(w.message) + " ", a] : U.text(w.message);
+  }
   function stSpan(cls, text) { return h("span", { "class": "st " + cls, text: text }); }
   function trussVerdict(res) {
     if (!res) return ["mut", "Not solved"];
@@ -1289,7 +1295,7 @@
     [[warns, "warnings"], [which === "all" ? notes : [], "warnings notes"]].forEach(function (g) {
       if (!g[0].length) return;
       var ul = h("ul", { "class": g[1] });
-      g[0].forEach(function (w) { ul.appendChild(h("li", { title: w.truss ? "Click to select the truss" : "", onclick: function () { if (w.truss) sel({ truss: w.truss }); } }, U.text(w.message))); });
+      g[0].forEach(function (w) { ul.appendChild(h("li", { title: w.truss ? "Click to select the truss" : "", onclick: function () { if (w.truss) sel({ truss: w.truss }); } }, warnBody(w))); });
       container.appendChild(ul);
     });
     if (which === "all" && !warns.length && !notes.length) container.appendChild(h("p", { "class": "ghint", text: "No warnings." }));
@@ -1299,7 +1305,7 @@
     var warns = S.results.warnings.filter(function (w) { return w.level !== "note"; });
     if (!warns.length) return;
     var w = warns[0];
-    container.appendChild(h("div", { "class": "banner" + (/overload|unstable|failure/i.test(w.message) ? " fail" : "") }, h("span", { "class": "ic", text: "▲" }), h("div", { text: U.text(w.message) }),
+    container.appendChild(h("div", { "class": "banner" + (/overload|unstable|failure/i.test(w.message) ? " fail" : "") }, h("span", { "class": "ic", text: "▲" }), h("div", null, warnBody(w)),
       h("span", { "class": "x" }, warns.length > 1 ? h("button", { "class": "lnk", text: "All " + warns.length + " warnings", onclick: function () { if (TLA.app) TLA.app.setStep(4, "w"); } }) : null,
         w.truss ? h("button", { "class": "lnk", text: "Select truss ›", onclick: function () { sel({ truss: w.truss }); } }) : null,
         /hoist|level/i.test(w.message) ? h("button", { "class": "lnk", text: "Go to hoists (step 3) ›", onclick: function () { if (TLA.app) TLA.app.setStep(3); } }) : null)));
