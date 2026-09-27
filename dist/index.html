@@ -7,24 +7,24 @@
 <script>try { var th = localStorage.getItem("tla-theme"); if (th === "light" || (th === "system" && matchMedia("(prefers-color-scheme: light)").matches)) document.documentElement.setAttribute("data-theme", "light"); } catch (e) { /* storage unavailable: dark */ }</script>
 <style>
 [hidden] { display: none !important; }
-/* 1.18.0: dark by default (backstage), light on request; File > Theme sets data-theme on <html> */
+/* 1.26.6: purple accent and violet-tinted neutrals in both themes. 1.18.0: dark by default (backstage), light on request; File > Theme sets data-theme on <html> */
 :root {
   color-scheme: dark;
-  --bg: #0e1116; --panel: #151a21; --panel-2: #1a2029; --ink: #e4e8ee; --ink-2: #c3cad5; --muted: #8b95a6; --line: #262d38; --line-2: #1f252e;
-  --accent: #5b92ff; --accent-soft: rgba(91,146,255,.14); --accent-ink: #0b1220;
+  --bg: #100e17; --panel: #17141f; --panel-2: #1d1927; --ink: #e8e5ef; --ink-2: #c8c2d6; --muted: #948ca8; --line: #2c2639; --line-2: #221d2d;
+  --accent: #a47cff; --accent-soft: rgba(164,124,255,.16); --accent-ink: #150b26;
   --ok: #45c07f; --warn: #f0b34a; --fail: #ff6b6b; --neutral: #737e90;
   --l1: #44c2b3; --l2: #f0b34a; --l3: #7ea2ee; --l4: #b98be0; --l5: #ee7d93; --l6: #9ec24a;
-  --grid: #171c24; --grid-major: #212834; --plan-bg: #10141a; --truss: #c9d1dc; --hoist: #eef1f5;
+  --grid: #1a1624; --grid-major: #262033; --plan-bg: #120f19; --truss: #c9d1dc; --hoist: #eef1f5;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --shadow: 0 8px 24px rgba(0,0,0,.35);
 }
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #eef0f3; --panel: #ffffff; --panel-2: #f5f6f8; --ink: #161b24; --ink-2: #3a4352; --muted: #636c7d; --line: #d6dae1; --line-2: #e7eaee;
-  --accent: #1f5fd1; --accent-soft: rgba(31,95,209,.10); --accent-ink: #fff;
+  --bg: #f0eef5; --panel: #ffffff; --panel-2: #f6f4fa; --ink: #19162a; --ink-2: #3d3852; --muted: #67617d; --line: #dbd6e5; --line-2: #ebe8f1;
+  --accent: #6a3fc4; --accent-soft: rgba(106,63,196,.10); --accent-ink: #fff;
   --ok: #1b8a4b; --warn: #b87300; --fail: #c62828; --neutral: #7b8494;
   --l1: #2a9d8f; --l2: #e9a23b; --l3: #4c78c9; --l4: #9b5fc0; --l5: #d2586e; --l6: #6b8e23;
-  --grid: #e9ecf0; --grid-major: #d6dbe2; --plan-bg: #fbfcfd; --truss: #2f3a4a; --hoist: #1c2330;
+  --grid: #ece9f2; --grid-major: #dad5e5; --plan-bg: #fcfbfe; --truss: #2f3a4a; --hoist: #1c2330;
   --shadow: 0 8px 24px rgba(20,30,50,.18);
 }
 * { box-sizing: border-box; }
@@ -363,7 +363,7 @@ a.mklink, .setlinks a { color: var(--accent); text-decoration: none; white-space
 #report .rbar input { width: 150px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); } #report .rbar input.wide { width: 260px; }
 #report .rbar .grow { flex: 1; }
 .sheet {
-  --bg: #fff; --panel: #fff; --ink: #111; --muted: #555; --line: #bbb; --accent: #1f5fd1; --ok: #1b7a43; --warn: #a86a00; --fail: #b3261e; --neutral: #7b8494;
+  --bg: #fff; --panel: #fff; --ink: #111; --muted: #555; --line: #bbb; --accent: #6a3fc4; --ok: #1b7a43; --warn: #a86a00; --fail: #b3261e; --neutral: #7b8494;
   --l1: #2a9d8f; --l2: #e9a23b; --l3: #4c78c9; --l4: #9b5fc0; --l5: #d2586e; --l6: #6b8e23; --grid: #eee; --grid-major: #ddd; --plan-bg: #fff;
   color-scheme: light; background: #fff; color: #111; width: 210mm; max-width: calc(100% - 24px); margin: 14px auto 40px; padding: 12mm 12mm 14mm; box-shadow: 0 2px 12px rgba(0,0,0,.25);
   font: 9pt/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -622,8 +622,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.26.5";
+  TLA.VERSION = "1.26.6";
   TLA.CHANGES = [
+    ["1.26.6", "2026-09-26", "G.E. Simmons Falk", "Colour scheme: purple is now the accent colour (buttons, selection, links, focus) in both the dark and light themes, and the backgrounds, panels and lines carry a slight violet tint. The calculation sheet uses the same purple accent. Display only; results unchanged."],
     ["1.26.5", "2026-09-25", "G.E. Simmons Falk", "Wording only, no result changes. The calc sheet notice now reads 'Estimate only - not an engineering approval' (was 'certification'), to match the README and manuals. LICENSE.md, the README and the User Guide credits call the app an expansion of Truss Load Analyzer - EOT (not 'based on'). US spelling in the app's text and the docs (center, color, gray, meter, license, catalog, counterclockwise), and menus written File > About in the manuals. Out-of-date text fixed: the README (load-path method is the fallback, not kept for reference; truss data from the workbook or the maker's own tables; workload, level sensitivity, UDL and whole-rig analysis instead of utilization, trim, wall weight and stiffness solve), LICENSE.md (whole-rig analysis), the User Guide (what the test suite checks; the license terms are in LICENSE.md), the Quick Start (Undo lasts until the page is closed or reloaded) and the hoist DLF tooltip (the default is in Rig settings). The user manual PDFs and HTML are rebuilt from the corrected text (still written for 1.26.0)."],
     ["1.26.4", "2026-09-25", "G.E. Simmons Falk", "Manufacturer warnings link to the maker's document that says so, opened in a new tab: the Christie Lites corner-block warnings (a box must be supported at every corner; an unsupported block joining 4 or more sections gets only part of the capacity) link to Christie's corner-block load table, and the warning that a workbook row allows more than the maker's table links to that maker's load table. The link is shown in the warnings list and banner; the calculation sheet writes out the address so it survives printing. Warning text and results are unchanged."],
     ["1.26.3", "2026-09-25", "G.E. Simmons Falk", "Truss view: the reactions diagram's labels no longer overlap - where an end bolt sits next to a hoist, the labels that would collide stack in lanes with a dashed leader line, as in the truss drawing (1.25.5). Display only; results unchanged."],
