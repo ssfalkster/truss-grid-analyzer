@@ -652,6 +652,10 @@
     var tw = { distance: t.length - l.distance, from: l.from };
     return posLabel(tw, t);
   }
+  /** How many loads the truss carries, counting each mirrored twin as its own load. */
+  function loadCount(t) {
+    return t.loads.reduce(function (a, l) { return a + (mirrorAt(l, t) ? 2 : 1); }, 0);
+  }
   function newLoad(t, extra) {
     var l = S.applyMeasure(Object.assign({ id: S.newId("l"), distance: round(t.length / 2), weight: 0, note: "", mirror: false }, extra || {}), t);
     t.loads.push(l); return l;
@@ -768,7 +772,7 @@
     }
 
     // 4. loads
-    c = group(root, "loads", "Loads", true, t.loads.length ? t.loads.length + " · " + U.f("w", t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (mirrorAt(l, t) ? 2 : 1); }, 0), 1) : "none");
+    c = group(root, "loads", "Loads", true, t.loads.length ? loadCount(t) + " · " + U.f("w", t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (mirrorAt(l, t) ? 2 : 1); }, 0), 1) : "none");
     if (t.loads.length) {
       var lt = h("table", { "class": "tbl click" }, h("thead", null, h("tr", null, h("th", { text: "At" }), h("th", { text: "Item" }), h("th", { "class": "r", text: "Total (" + U.unit("w") + ")" }), h("th", { text: "Mirror" }))));
       var lb = h("tbody");
@@ -1120,7 +1124,7 @@
         var x = hoistRes(s.id);
         ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id, support: s.id }); } }, h("span", { "class": "ic", text: s.dead ? "●" : "○" }), (s.dead ? "Dead hang @ " : "Hoist @ ") + posLabel(s, t), h("span", { "class": "r", text: x ? U.f("w", x.hoist.staticLoad, 0) : "" })));
       });
-      if (t.loads.length) ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id }); if (TLA.app) TLA.app.setStep(2); } }, h("span", { "class": "ic", text: "▾" }), t.loads.length + " load" + (t.loads.length === 1 ? "" : "s"),
+      if (t.loads.length) ol.appendChild(h("div", { "class": "o l2", onclick: function () { sel({ truss: t.id }); if (TLA.app) TLA.app.setStep(2); } }, h("span", { "class": "ic", text: "▾" }), loadCount(t) + " load" + (loadCount(t) === 1 ? "" : "s"),
         h("span", { "class": "r", text: U.f("w", t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (mirrorAt(l, t) ? 2 : 1); }, 0), 1) })));
     });
     c.appendChild(ol);
@@ -1364,7 +1368,7 @@
     elevation: elevation, forceDiagrams: forceDiagrams, deflText: deflText, ldText: ldText,
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
-    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, mirrorHoistsUi: mirrorHoistsUi, copyHoistsPrompt: copyHoistsPrompt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
+    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, loadCount: loadCount, mirrorHoistsUi: mirrorHoistsUi, copyHoistsPrompt: copyHoistsPrompt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
     hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, supportName: supportName, setDead: setDead, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");

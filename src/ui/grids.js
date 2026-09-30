@@ -206,7 +206,7 @@
     S.rig.trusses.forEach(function (t) {
       if (t.isBlock) return;
       var tot = t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (P.mirrorAt(l, t) ? 2 : 1); }, 0);
-      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: t.loads.length + " load" + (t.loads.length === 1 ? "" : "s") + " · " + U.f("w", tot, 1),
+      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: P.loadCount(t) + " load" + (P.loadCount(t) === 1 ? "" : "s") + " · " + U.f("w", tot, 1),
         acts: t.loads.length ? [["Mirror all", function () { t.loads.forEach(function (l) { l.mirror = true; }); S.commit(); }], ["Copy to truss…", function () { copyPrompt(t); }], ["Sort", function () { S.sortLoads(t.id); }], ["Clear", function () { if (confirm("Remove all " + t.loads.length + " loads from " + t.name + "? (Undo brings them back.)")) S.clearLoads(t.id); }]] : [] });
       t.loads.forEach(function (l) { rows.push({ key: "L:" + l.id, obj: l, truss: t, sel: { truss: t.id, load: l.id }, del: function () { t.loads.splice(t.loads.indexOf(l), 1); } }); });
       rows.push({ key: "NL:" + t.id, kind: "new", truss: t, label: "+ load on " + t.name + " (start typing)", sel: { truss: t.id }, create: function () { var l = P.newLoad(t); return { key: "L:" + l.id, obj: l, truss: t }; } });
@@ -642,7 +642,7 @@
   }
   function drawStrip(box, t, cur) {
     box.textContent = "";
-    var head = h("div", { "class": "sh" }, h("b", { text: t.name }), h("span", { "class": "mini", text: U.f("len", t.length, 2) + " · " + t.loads.length + " loads" + (cur && cur.id && cur.distance != null ? " · editing the load at " + P.posLabel(cur, t) : "") }), h("span", { "class": "grow" }),
+    var head = h("div", { "class": "sh" }, h("b", { text: t.name }), h("span", { "class": "mini", text: U.f("len", t.length, 2) + " · " + P.loadCount(t) + " loads" + (cur && cur.id && cur.distance != null ? " · editing the load at " + P.posLabel(cur, t) : "") }), h("span", { "class": "grow" }),
       h("button", { "class": "lnk", text: "Show plan (Esc)", onclick: function () { st.noFocus = true; focusMode(); if (TLA.app) TLA.app.renderAll(); } }));
     box.appendChild(head);
     var W = 1000, pad = 20, X = function (d) { return pad + d / Math.max(t.length, 1) * (W - pad * 2); };

@@ -39,6 +39,12 @@
     near(l.weight, 45, 1e-9, "45 lb"); eq("qty" in l, false); near(l.distance, 4, 1e-9);
     eq(typeof P.quickAdd(t, "zzzz-no-such @ 2"), "string", "unknown fixture is refused");
   });
+  add("ui: the load count includes each mirrored twin (not one on the centerline)", function () {
+    var t = fresh(), a = P.newLoad(t), b = P.newLoad(t);
+    a.distance = 5; b.distance = 10; eq(P.loadCount(t), 2, "two loads, no mirror");
+    a.mirror = true; eq(P.loadCount(t), 3, "a mirrored load counts twice");
+    b.mirror = true; eq(P.loadCount(t), 3, "a load on the centerline has no twin");
+  });
   add("ui: mirror position is reported on the other side of the centerline", function () {
     var t = fresh(), l = P.newLoad(t); l.distance = 5; l.mirror = true;
     eq(P.mirrorAt(l, t) !== null, true, "has a twin");
