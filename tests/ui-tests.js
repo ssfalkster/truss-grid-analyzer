@@ -39,6 +39,22 @@
     near(l.weight, 45, 1e-9, "45 lb"); eq("qty" in l, false); near(l.distance, 4, 1e-9);
     eq(typeof P.quickAdd(t, "zzzz-no-such @ 2"), "string", "unknown fixture is refused");
   });
+  add("ui: quick add takes a full or partial UDL", function () {
+    var t = fresh(); t.measure = "start";
+    eq(P.quickAdd(t, "UDL 200"), null, "full UDL accepted");
+    near(t.wallWeight, 200, 1e-9, "added to the truss UDL"); eq(t.loads.length, 0, "no point loads");
+    eq(P.quickAdd(t, "UDL 120 @ 2 to 8"), null, "partial UDL accepted");
+    eq(t.loads.length, 6, "one load per foot over 6 ft");
+    near(t.loads.reduce(function (s, l) { return s + l.weight; }, 0), 120, 1e-6, "total kept");
+    near(t.loads[0].distance, 2.5, 1e-9, "first at the middle of its foot"); near(t.loads[5].distance, 7.5, 1e-9);
+    eq(P.quickAdd(t, "UDL 10 lb/ft @ 10-14"), null, "per length");
+    near(t.loads.slice(6).reduce(function (s, l) { return s + l.weight; }, 0), 40, 1e-6, "10 lb/ft x 4 ft");
+    t.measure = "center";
+    eq(P.quickAdd(t, "udl 30 @ -3 to 3"), null, "from the centerline");
+    var c = t.loads.slice(-6); near(c[0].distance, 7.5, 1e-9); near(c[5].distance, 12.5, 1e-9);
+    eq(typeof P.quickAdd(t, "UDL 50 @ 15 to 25"), "string", "past the end is refused");
+    eq(typeof P.quickAdd(t, "UDL"), "string", "no weight is refused");
+  });
   add("ui: mirror position is reported on the other side of the centerline", function () {
     var t = fresh(), l = P.newLoad(t); l.distance = 5; l.mirror = true;
     eq(P.mirrorAt(l, t) !== null, true, "has a twin");
