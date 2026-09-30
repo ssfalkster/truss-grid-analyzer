@@ -622,8 +622,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.26.7";
+  TLA.VERSION = "1.26.8";
   TLA.CHANGES = [
+    ["1.26.8", "2026-09-30", "G.E. Simmons Falk", "3D view: load arrows now point down, the way the load pulls - the arrow hangs below the truss with its tip away from it (it pointed up at the truss before). Display only; results unchanged."],
     ["1.26.7", "2026-09-28", "G.E. Simmons Falk", "Colour scheme: the backgrounds, panels, lines and plan grid go back to the grey tones they had before 1.26.6, in both the dark and light themes; the purple accent colour stays. Display only; results unchanged."],
     ["1.26.6", "2026-09-26", "G.E. Simmons Falk", "Colour scheme: purple is now the accent colour (buttons, selection, links, focus) in both the dark and light themes, and the backgrounds, panels and lines carry a slight violet tint. The calculation sheet uses the same purple accent. Display only; results unchanged."],
     ["1.26.5", "2026-09-25", "G.E. Simmons Falk", "Wording only, no result changes. The calc sheet notice now reads 'Estimate only - not an engineering approval' (was 'certification'), to match the README and manuals. LICENSE.md, the README and the User Guide credits call the app an expansion of Truss Load Analyzer - EOT (not 'based on'). US spelling in the app's text and the docs (center, color, gray, meter, license, catalog, counterclockwise), and menus written File > About in the manuals. Out-of-date text fixed: the README (load-path method is the fallback, not kept for reference; truss data from the workbook or the maker's own tables; workload, level sensitivity, UDL and whole-rig analysis instead of utilization, trim, wall weight and stiffness solve), LICENSE.md (whole-rig analysis), the User Guide (what the test suite checks; the license terms are in LICENSE.md), the Quick Start (Undo lasts until the page is closed or reloaded) and the hoist DLF tooltip (the default is in Rig settings). The user manual PDFs and HTML are rebuilt from the corrected text (still written for 1.26.0)."],
@@ -6833,7 +6834,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           res.beam.loads.forEach(function (l) {
             if (l.injected) return;
             var q = TLA.rig.geometry.endPoint(t, l.distance), a1 = project(q.x, q.y, z);
-            el("path", { d: "M" + a1.X + " " + (a1.Y + bodyW * 0.5) + " l -3.5 8 l 7 0 z", "class": "arrow" + (l.mirrored ? " ghost" : "") }, grp);
+            // the load hangs below the truss, so the arrow points down (tip away from the truss)
+            el("path", { d: "M" + a1.X + " " + (a1.Y + bodyW * 0.5 + 9) + " l -3.5 -8 l 7 0 z", "class": "arrow" + (l.mirrored ? " ghost" : "") }, grp);
           });
         }
       }

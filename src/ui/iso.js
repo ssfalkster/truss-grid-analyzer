@@ -121,7 +121,8 @@
           res.beam.loads.forEach(function (l) {
             if (l.injected) return;
             var q = TLA.rig.geometry.endPoint(t, l.distance), a1 = project(q.x, q.y, z);
-            el("path", { d: "M" + a1.X + " " + (a1.Y + bodyW * 0.5) + " l -3.5 8 l 7 0 z", "class": "arrow" + (l.mirrored ? " ghost" : "") }, grp);
+            // the load hangs below the truss, so the arrow points down (tip away from the truss)
+            el("path", { d: "M" + a1.X + " " + (a1.Y + bodyW * 0.5 + 9) + " l -3.5 -8 l 7 0 z", "class": "arrow" + (l.mirrored ? " ghost" : "") }, grp);
           });
         }
       }
