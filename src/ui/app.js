@@ -67,7 +67,7 @@
 
   function counts() {
     var r = S.results, trs = S.rig.trusses.filter(function (t) { return !t.isBlock; });
-    var loads = trs.reduce(function (a, t) { return a + t.loads.length; }, 0);
+    var loads = trs.reduce(function (a, t) { return a + P.loadCount(t); }, 0);
     var warns = r.warnings.filter(function (w) { return w.level !== "note"; }).length;
     var bad = r.hoists.filter(function (x) { return x.hoist.status !== "Good"; }).length + trs.filter(function (t) { var rr = r.trusses[t.id]; return !rr || TLA.plan.trussStatus(rr).bad; }).length;
     var maxW = r.hoists.reduce(function (m, x) { return x.hoist.capacity < 999999 ? Math.max(m, x.hoist.staticLoad / x.hoist.capacity) : m; }, 0);
