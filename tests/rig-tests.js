@@ -179,7 +179,7 @@
       else eq(x.udl_lb.length === 100 && x.cpl_lb.length === 100, true, x.description + " imperial table");
       near(x.weight_per_ft_lb > 0 ? 1 : 0, 1, 0, x.description + " weight");
     });
-    eq(TLA.data.trusses.filter(function (x) { return x.source === "MFG" && x.manufacturer === "Tomcat"; }).length, 7, "Tomcat MFG entries");
+    eq(TLA.data.trusses.filter(function (x) { return x.source === "MFG" && x.manufacturer === "Tomcat"; }).length, 8, "Tomcat MFG entries");
   });
 
   add("metric trusses (1.6.0): looked up in their own table in whole metres, kg to lb; model numbers are not inches", function () {
