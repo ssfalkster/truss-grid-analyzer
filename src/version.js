@@ -4,8 +4,9 @@
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.26.8";
+  TLA.VERSION = "1.27.0";
   TLA.CHANGES = [
+    ["1.27.0", "2026-10-07", "G.E. Simmons Falk", "New truss in the library: Tomcat Ballroom 12x30 Spigoted (2\" x 3/16\" chords, 12.6 lb/ft, to 40 ft), from the maker's catalog load table. Existing results unchanged."],
     ["1.26.8", "2026-09-30", "G.E. Simmons Falk", "Load counts include mirrored loads: a load mirrored about the centerline counts as two in the truss panel's Loads heading, the rig outline, the Loads grid and step bar. Display only; results unchanged."],
     ["1.26.7", "2026-09-28", "G.E. Simmons Falk", "Colour scheme: the backgrounds, panels, lines and plan grid go back to the grey tones they had before 1.26.6, in both the dark and light themes; the purple accent colour stays. Display only; results unchanged."],
     ["1.26.6", "2026-09-26", "G.E. Simmons Falk", "Colour scheme: purple is now the accent colour (buttons, selection, links, focus) in both the dark and light themes, and the backgrounds, panels and lines carry a slight violet tint. The calculation sheet uses the same purple accent. Display only; results unchanged."],
