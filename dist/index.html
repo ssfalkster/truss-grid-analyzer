@@ -622,8 +622,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.28.1";
+  TLA.VERSION = "2.0.0-beta.1";
   TLA.CHANGES = [
+    ["2.0.0-beta.1", "2026-10-12", "G.E. Simmons Falk", "BETA branch started, one Major ahead of the released 1.28.1. No changes to the app or its results; new work lands here and reaches main only at the next Major release (docs/BRANCHING.md)."],
     ["1.28.1", "2026-10-12", "G.E. Simmons Falk", "Documentation only: the user manual (Quick Start PDF, User Guide PDF and searchable HTML) is updated for version 1.28.0 - the UDL quick-add forms and + UDL button, mirrored loads counted as two - with new screenshots in the purple colour scheme. The Help menu links to the new file names. The manual's build tooling now also runs on Linux. The app and its results are unchanged."],
     ["1.28.0", "2026-10-12", "G.E. Simmons Falk", "Easier UDL input on a truss: a new + UDL button, and the Loads quick-add box takes UDL 200 (added to the truss's full-length UDL), UDL 200 @ 2 to 10 (or 2-10) for a UDL over part of the truss, and UDL 25 lb/ft or kg/m for a weight per length. A partial UDL is entered as equal point loads about a foot (0.3 m) apart over that stretch, named after the UDL, since the solver's UDL covers the whole truss; they are checked as point loads (against the CPL), which is conservative. Existing rigs' results are unchanged."],
     ["1.27.1", "2026-09-30", "G.E. Simmons Falk", "3D view: load arrows now point down, the way the load pulls - the arrow hangs below the truss with its tip away from it (it pointed up at the truss before). Display only; results unchanged."],
