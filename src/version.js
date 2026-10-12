@@ -4,8 +4,9 @@
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.27.1";
+  TLA.VERSION = "1.28.0";
   TLA.CHANGES = [
+    ["1.28.0", "2026-10-12", "G.E. Simmons Falk", "Easier UDL input on a truss: a new + UDL button, and the Loads quick-add box takes UDL 200 (added to the truss's full-length UDL), UDL 200 @ 2 to 10 (or 2-10) for a UDL over part of the truss, and UDL 25 lb/ft or kg/m for a weight per length. A partial UDL is entered as equal point loads about a foot (0.3 m) apart over that stretch, named after the UDL, since the solver's UDL covers the whole truss; they are checked as point loads (against the CPL), which is conservative. Existing rigs' results are unchanged."],
     ["1.27.1", "2026-09-30", "G.E. Simmons Falk", "3D view: load arrows now point down, the way the load pulls - the arrow hangs below the truss with its tip away from it (it pointed up at the truss before). Display only; results unchanged."],
     ["1.27.0", "2026-10-07", "G.E. Simmons Falk", "New truss in the library: Tomcat Ballroom 12x30 Spigoted (2\" x 3/16\" chords, 12.6 lb/ft, to 40 ft), from the maker's catalog load table. Existing results unchanged."],
     ["1.26.8", "2026-09-30", "G.E. Simmons Falk", "Load counts include mirrored loads: a load mirrored about the centerline counts as two in the truss panel's Loads heading, the rig outline, the Loads grid and step bar. Display only; results unchanged."],
