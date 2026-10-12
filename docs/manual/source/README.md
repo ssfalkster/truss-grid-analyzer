@@ -1,12 +1,12 @@
 # User manual - sources
 
-The manual in `docs/manual/` is written for **Truss Grid Analyzer v1.26.0** (24 September 2026). It is revised on
-request, not with every release, so the app may be newer than the manual.
+The manual in `docs/manual/` is written for **Truss Grid Analyzer v1.28.0** (12 October 2026). It is revised when a new Major
+version is released (BETA merged into main - see `docs/BRANCHING.md`), so the app may be newer than the manual.
 
 Outputs (in `docs/manual/`):
-- `Truss Grid Analyzer - Quick Start (v1.26.0).pdf`
-- `Truss Grid Analyzer - User Guide (v1.26.0).pdf` - bookmarks, contents with page numbers
-- `Truss Grid Analyzer - User Guide (v1.26.0).html` - one file, images inlined, works offline, search box (`/` or Ctrl+K)
+- `Truss Grid Analyzer - Quick Start (v1.28.0).pdf`
+- `Truss Grid Analyzer - User Guide (v1.28.0).pdf` - bookmarks, contents with page numbers
+- `Truss Grid Analyzer - User Guide (v1.28.0).html` - one file, images inlined, works offline, search box (`/` or Ctrl+K)
 
 ## Sources
 
@@ -25,7 +25,7 @@ The screenshots (`img/`) and the pinned app build are not in git; they are regen
 
 ```
 cd docs/manual/source
-git show v1.26.0:dist/index.html > app-1.26.0.html
+git show v1.28.0:dist/index.html > app-1.28.0.html
 python capture.py
 python tutorial.py
 python box_demo.py
@@ -34,6 +34,6 @@ python build.py
 
 ## Updating for a new version
 
-Only when the owner asks. Take the new build (`git show vX.Y.Z:dist/index.html > app-X.Y.Z.html`), change the file
+Done at each Major release, when BETA is merged into main. Take the new build (`git show vX.Y.Z:dist/index.html > app-X.Y.Z.html`), change the file
 name in `capture_lib.py` and `VER` / `DATE` in `build.py`, re-run the captures, check every screenshot and every
 statement against the version history (`src/version.js`), then `python build.py` and replace the outputs.

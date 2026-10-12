@@ -4,7 +4,7 @@
 at one position; for eight lights, add eight loads (or four, mirrored).</p>
 [[img dock-loads.jpg|The Loads grid: loads grouped by truss, each group ending with a "+ load on …" row.|100]]
 
-<h3>Three Ways to Add a Load</h3>
+<h3 id="three-ways">Three Ways to Add a Load</h3>
 <h4>1. Quick Add, in the Truss Panel</h4>
 <p>Select a truss and find the box <i>Add: fixture or weight</i> in its <b>Loads</b> section (or click <span class="ui">+ Load</span> at the top of
 the panel to jump there). Type what and where, and press <kbd>Enter</kbd>:</p>
@@ -14,7 +14,10 @@ the panel to jump there). Type what and where, and press <kbd>Enter</kbd>:</p>
 <tr><td><code>120 lb @ -6</code></td><td>A 120 lb load 6 ft before the centerline.</td></tr>
 <tr><td><code>20 kg @ 2.5</code></td><td>A 20 kg load at 2.5 (meters in metric, feet in imperial).</td></tr>
 <tr><td><code>MAC Aura</code></td><td>The fixture in the middle of the truss.</td></tr>
-</table>
+<tr><td><code>UDL 200</code></td><td>200 lb added to the truss's UDL, spread over its whole length.</td></tr>
+<tr><td><code>UDL 200 @ 2 to 10</code></td><td>200 lb spread over the stretch from 2 to 10 ft (<code>2-10</code> also works). The solver's UDL always covers the whole truss, so the app
+enters this as equal point loads about a foot (0.3 m) apart, named after the UDL, and checks them as point loads against the CPL - conservative.</td></tr>
+<tr><td><code>UDL 25 lb/ft @ 2 to 10</code></td><td>A weight per length (lb/ft or kg/m) instead of a total; here 25 × 8 ft = 200 lb. Without a range, per-length is added over the whole truss.</td></tr></table>
 <p>As you type a fixture name a list of matching fixtures appears; pick one, then type <code>@</code> and the position.</p>
 
 <h4>2. The Loads Grid</h4>
@@ -45,7 +48,8 @@ side panel. Fill in the item and weight there.</p>
 <h3>Mirrored Loads</h3>
 <p>Rigs are often symmetrical. Tick <b>Mirror</b> on a load and the truss carries the same load at the same distance on the other side of
 its centerline. The twin is not a separate load: change the original's weight or position and the twin follows. A load exactly on the
-centerline has no twin. On the plan the twin's triangle is drawn lighter.</p>
+centerline has no twin. On the plan the twin's triangle is drawn lighter. Load counts (the Loads heading in the truss panel, the rig outline, the
+Loads grid and the step bar) count a mirrored load as two.</p>
 
 <h3>Copying Loads to Another Truss</h3>
 <p><b>Copy to truss…</b> (in the grid group header or the truss panel) asks for the name of the truss to copy to, then copies every load

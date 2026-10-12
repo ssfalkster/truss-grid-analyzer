@@ -13,8 +13,8 @@ import re
 
 from PIL import Image
 
-VER = "1.26.0"
-DATE = "24 September 2026"
+VER = "1.28.0"
+DATE = "12 October 2026"
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE.parent
 CSS = (HERE / "manual.css").read_text(encoding="utf-8")
@@ -237,7 +237,8 @@ def outline_fix(path):
             return m.group(1) + "  " + m.group(2)[:len(m.group(2)) // 2]
         if len(t) % 2 == 0 and t[:len(t) // 2] == t[len(t) // 2:]:
             return t[:len(t) // 2]
-        return re.sub(r"^(\d+\.\d+)(\S)", r"\1  \2", t)
+        t = re.sub(r"^(\d+\.\d+)(\S)", r"\1  \2", t)
+        return re.sub(r"^(\d+)([^\d.\s])", r"\1  \2", t)   # newer Chrome: "1About This Guide" (no doubling)
     pages = {p.indirect_reference.idnum: k for k, p in enumerate(w.pages)}
     def walk(node):
         while node is not None:
