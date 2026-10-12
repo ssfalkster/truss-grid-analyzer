@@ -13,6 +13,9 @@ import urllib.request
 CHROME_CANDIDATES = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    "/opt/pw-browsers/chromium",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
 ]
 
 
@@ -82,7 +85,7 @@ class Chrome:
         self.prof = tempfile.mkdtemp(prefix="tga-chrome-")
         self.proc = subprocess.Popen([exe, "--headless=new", f"--remote-debugging-port={port}", "--remote-allow-origins=*",
                                       f"--user-data-dir={self.prof}", "--hide-scrollbars", "--no-first-run",
-                                      "--disable-gpu", "--allow-file-access-from-files", f"--window-size={width},{height}", "about:blank"],
+                                      "--disable-gpu", "--no-sandbox", "--allow-file-access-from-files", f"--window-size={width},{height}", "about:blank"],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for _ in range(100):
             try:
