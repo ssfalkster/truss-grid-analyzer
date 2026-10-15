@@ -939,7 +939,7 @@
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { saved = null; }
     if (saved && saved.rig && saved.rig.trusses) {
-      S.rig = saved.rig;
+      S.rig = saved.rig; S.upgradeRig(S.rig);
       if (saved.userDb) S.userDb = saved.userDb;
       if (saved.ui) { S.ui.colorMode = saved.ui.colorMode && saved.ui.colorMode !== "layer" ? saved.ui.colorMode : "util"; /* 1.18.0: no hang-order colouring */ if (saved.ui.view) S.ui.view = saved.ui.view; if (saved.ui.customPieces) S.ui.customPieces = saved.ui.customPieces; }
       lastSnap = null; S.commit({ noUndo: true });
@@ -951,12 +951,38 @@
     }
   };
 
+  /** 2.0.0: a partial UDL entered in 1.28.0 was saved as equal point loads (the same .udl group id, about a foot
+      apart, at the middle of equal pieces). Put each group back together as one UDL load (a load with a span) over the
+      stretch it stood for, so it is solved as a real distributed load. Returns how many were merged. */
+  S.upgradeRig = function (rig) {
+    var n = 0;
+    (rig && rig.trusses || []).forEach(function (t) {
+      var groups = {};
+      (t.loads || []).forEach(function (l) { if (l.udl && !(Number(l.span) > 0)) (groups[l.udl] = groups[l.udl] || []).push(l); });
+      Object.keys(groups).forEach(function (g) {
+        var ls = groups[g].slice().sort(function (a, b) { return a.distance - b.distance; });
+        if (ls.length < 2) { delete ls[0].udl; return; }
+        var d0 = Number(ls[0].distance), d1 = Number(ls[ls.length - 1].distance), step = (d1 - d0) / (ls.length - 1);
+        var a = Math.max(0, d0 - step / 2), b = Math.min(Number(t.length) || d1 + step / 2, d1 + step / 2), first = ls[0];
+        var u = { id: first.id, distance: round((a + b) / 2), span: Math.round((b - a) * 10000) / 10000, weight: Math.round(ls.reduce(function (s2, l) { return s2 + (Number(l.weight) || 0); }, 0) * 1000) / 1000,
+          note: "UDL", mirror: !!first.mirror };
+        if (first.cat) u.cat = first.cat;
+        if (first.from === "end" || first.from === "center") { u.from = first.from; u.pos = round(first.from === "end" ? t.length - u.distance : u.distance - t.length / 2); }
+        t.loads.splice(t.loads.indexOf(first), 1, u);
+        t.loads = t.loads.filter(function (l) { return ls.indexOf(l) < 0; });
+        n++;
+      });
+    });
+    return n;
+  };
+
   S.exportJSON = function () { return JSON.stringify({ format: "truss-grid-analyzer", version: 1, appVersion: TLA.VERSION, rig: S.rig, userDb: S.userDb }, null, 2); };
   S.importJSON = function (text) {
     var o = JSON.parse(text);
     var rig = o.rig || o;
     if (!rig.trusses) throw new Error("Not a rig file");
     var merged = o.userDb ? S.mergeUserDb(o.userDb, rig) : null;
+    S.upgradeRig(rig);
     S.replaceRig(rig);
     return merged;
   };

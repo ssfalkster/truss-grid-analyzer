@@ -201,6 +201,23 @@
       var dim = hl && !hl[t.id];
       var grp = el("g", { "class": "marks" + (dim ? " dim" : "") }, svg);
       var ang = (t.angle || 0) * Math.PI / 180, nx = -Math.sin(ang), ny = Math.cos(ang);
+      if (res && S.ui.showLoads && !t.isBlock && (res.beam.wDist > 1e-9 || (res.beam.udls || []).length)) {
+        // UDLs (1.27.0, 2.0.0): a band beside the truss, on the side toward the top of the screen - the whole-truss UDL
+        // next to it, a partial UDL further out over its stretch
+        var u0 = TLA.rig.geometry.endPoint(t, 0), u1 = TLA.rig.geometry.endPoint(t, t.length);
+        var ux = X(u1.x) - X(u0.x), uy = Y(u1.y) - Y(u0.y), ul = Math.hypot(ux, uy) || 1, on = -uy / ul, om = ux / ul;
+        if (om > 0 || (Math.abs(om) < 1e-9 && on > 0)) { on = -on; om = -om; }
+        var band = function (a, b, off, cls, tip) {
+          var pa = TLA.rig.geometry.endPoint(t, a), pb = TLA.rig.geometry.endPoint(t, b), ug = el("g", { "class": cls }, grp);
+          el("line", { x1: X(pa.x) + on * off, y1: Y(pa.y) + om * off, x2: X(pb.x) + on * off, y2: Y(pb.y) + om * off }, ug);
+          el("title", null, ug).textContent = tip;
+        };
+        if (res.beam.wDist > 1e-9) band(0, t.length, bodyW / 2 + 4, "udl", t.name + ": UDL " + TLA.units.f("w", res.beam.wDist * t.length, 1) + " (" + TLA.units.f("wpl", res.beam.wDist, 2) + ") over the whole truss");
+        (res.beam.udls || []).forEach(function (u) {
+          band(u.start, u.end, bodyW / 2 + (res.beam.wDist > 1e-9 ? 9 : 4), "udl part" + (u.mirrored ? " ghost" : "") + (S.sel.load && u.ref && u.ref.id === S.sel.load ? " sel" : ""),
+            t.name + ": UDL " + TLA.units.f("w", u.weight, 1) + " (" + TLA.units.f("wpl", u.q, 2) + "), " + TLA.units.mark(u.start, 2) + " to " + TLA.units.mark(u.end, 2));
+        });
+      }
       if (res && S.ui.showLoads) {
         res.beam.loads.forEach(function (l) {
           if (l.injected) return;
