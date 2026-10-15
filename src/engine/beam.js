@@ -5,12 +5,10 @@
   var TLA = (g.TLA = g.TLA || {});
   var EPS = 1e-9;
 
-  /** Expand loads with mirror flag into the list the solver sees. A load with a span (2.0.0, ft) is a partial UDL:
-   * its weight spread evenly over span, centered on distance; those are left out here (see expandUdls). */
+  /** Expand loads with mirror flag into the list the solver sees. */
   function expandLoads(loads, length) {
     var out = [];
     (loads || []).forEach(function (ld) {
-      if (Number(ld.span) > 0) return;
       var w = Number(ld.weight) || 0;
       var d = Number(ld.distance) || 0;
       out.push({ distance: d, weight: w, note: ld.note, source: ld.source, injected: ld.injected, ref: ld });
@@ -19,34 +17,6 @@
       }
     });
     return out;
-  }
-
-  /** Partial UDLs (2.0.0): a load with span > 0 is its weight spread evenly over [distance - span/2, distance + span/2],
-   * cut to the truss. Mirrored like a point load (the twin is centered on length - distance). Each: { start, end, q
-   * (lb/ft), weight, distance (center), span, note, ref, mirrored }. */
-  function expandUdls(loads, length) {
-    var out = [];
-    (loads || []).forEach(function (ld) {
-      var sp = Number(ld.span) || 0; if (!(sp > 0)) return;
-      var w = Number(ld.weight) || 0, d = Number(ld.distance) || 0, q = w / sp;
-      function one(c, mirrored) {
-        var a = Math.max(0, c - sp / 2), b = Math.min(length, c + sp / 2);
-        if (b - a < EPS) return;
-        out.push({ start: a, end: b, q: q, weight: q * (b - a), distance: (a + b) / 2, span: b - a, note: ld.note, ref: ld, mirrored: !!mirrored });
-      }
-      one(d);
-      if (ld.mirror && Math.abs(d - length / 2) > 1e-7) one(length - d, true);
-    });
-    return out;
-  }
-  /** A uniform load q over [a, b] of a span of length L (a, b from its left support): its simple-beam rotation terms
-   * for the three-moment equation (6 A xbar / L at each end, as for a point load F a b (L + b) / 6L, integrated) and
-   * its simple-beam end shears. */
-  function udlTerms(q, a, b, L) {
-    function iL(x) { return L * L * x * x - L * x * x * x + x * x * x * x / 4; }      // integral of x (L - x)(2L - x)
-    function iR(x) { return L * L * x * x / 2 - x * x * x * x / 4; }                   // integral of x (L - x)(L + x)
-    function vl(x) { return L * x - x * x / 2; }
-    return { pL: q * (iL(b) - iL(a)) / (6 * L), pR: q * (iR(b) - iR(a)) / (6 * L), vL: q * (vl(b) - vl(a)) / L, vR: q * (b * b - a * a) / (2 * L) };
   }
 
   /** Solve tridiagonal system (sub a, diag b, super c, rhs d) with the Thomas algorithm. */
@@ -66,7 +36,7 @@
   }
 
   /**
-   * input: { length, supports:[distance...], loads:[{distance,weight,span?,...}] (span > 0: a partial UDL),
+   * input: { length, supports:[distance...], loads:[{distance,weight,...}],
    *          trussWeightPerFt, wallWeight, weightless }
    * returns reactions aligned with the input support order.
    */
@@ -94,7 +64,6 @@
       if (l.distance < -EPS || l.distance > length + EPS) warnings.push("Load at " + l.distance + " ft is outside the truss");
     });
 
-    var udls = expandUdls(input.loads, length);
     var wall = Number(input.wallWeight) || 0;
     var wDist = wall / (length || 1);
     var wSelf = input.weightless ? 0 : Number(input.trussWeightPerFt) || 0;
@@ -106,20 +75,7 @@
     // cantilever + span load buckets
     var left = { F: 0, MF: 0 }, right = { F: 0, MF: 0 };
     var spans = [];
-    for (var k = 0; k < n - 1; k++) spans.push({ start: P[k], L: P[k + 1] - P[k], pl: [], ud: [], sumF: 0 });
-    // partial UDLs, cut at the supports: cantilever parts add their weight and moment about the end support; span
-    // parts keep their stretch for the span terms. udl* sums are what limits.js checks them as.
-    left.udls = []; right.udls = [];
-    udls.forEach(function (u) {
-      var a = u.start, b = Math.min(u.end, P[0]);
-      if (b - a > EPS) { left.F += u.q * (b - a); left.MF += u.q * ((P[0] - a) * (P[0] - a) - (P[0] - b) * (P[0] - b)) / 2; left.udls.push({ a: a, b: b, q: u.q, ref: u }); }
-      a = Math.max(u.start, P[n - 1]); b = u.end;
-      if (b - a > EPS) { right.F += u.q * (b - a); right.MF += u.q * ((b - P[n - 1]) * (b - P[n - 1]) - (a - P[n - 1]) * (a - P[n - 1])) / 2; right.udls.push({ a: a, b: b, q: u.q, ref: u }); }
-      spans.forEach(function (sp) {
-        var a2 = Math.max(u.start, sp.start), b2 = Math.min(u.end, sp.start + sp.L);
-        if (b2 - a2 > EPS) sp.ud.push({ a: a2 - sp.start, b: b2 - sp.start, q: u.q, ref: u });
-      });
-    });
+    for (var k = 0; k < n - 1; k++) spans.push({ start: P[k], L: P[k + 1] - P[k], pl: [], sumF: 0 });
 
     loads.forEach(function (l) {
       var x = l.distance;
@@ -149,7 +105,6 @@
         vL += (F * b) / L;
         vR += (F * a) / L;
       });
-      s.ud.forEach(function (u) { var tm = udlTerms(u.q, u.a, u.b, L); pL += tm.pL; pR += tm.pR; vL += tm.vL; vR += tm.vR; });
       pL += (w * L * L * L) / 24; pR += (w * L * L * L) / 24;
       vL += (w * L) / 2; vR += (w * L) / 2;
       s.phiL = pL; s.phiR = pR; s.VL = vL; s.VR = vR;
@@ -193,13 +148,13 @@
       gr.members.forEach(function (idx) { reactions[idx] = R[gi] / gr.members.length; });
     });
 
-    var totalLoad = loads.reduce(function (t, l) { return t + l.weight; }, 0) + udls.reduce(function (t, u) { return t + u.weight; }, 0) + w * length;
+    var totalLoad = loads.reduce(function (t, l) { return t + l.weight; }, 0) + w * length;
     return {
       length: length, w: w, wSelf: wSelf, wDist: wDist,
       positions: P, sortedReactions: R, reactions: reactions, moments: M,
-      left: { length: leftLen, V: Vleft, M: M1, sumF: left.F, udls: left.udls, udlF: left.udls.reduce(function (t, u) { return t + u.q * (u.b - u.a); }, 0) },
-      right: { length: rightLen, V: Vright, M: Mn, sumF: right.F, udls: right.udls, udlF: right.udls.reduce(function (t, u) { return t + u.q * (u.b - u.a); }, 0) },
-      spans: spans, loads: loads, udls: udls, totalLoad: totalLoad,
+      left: { length: leftLen, V: Vleft, M: M1, sumF: left.F },
+      right: { length: rightLen, V: Vright, M: Mn, sumF: right.F },
+      spans: spans, loads: loads, totalLoad: totalLoad,
       equilibriumError: R.reduce(function (t, r) { return t + r; }, 0) - totalLoad,
       warnings: warnings
     };
@@ -212,32 +167,28 @@
    * each), plus the peak of each uniformly loaded stretch; and the extremes.
    */
   function diagram(b) {
-    var L = b.length, w = b.w, P = b.positions, R = b.sortedReactions, loads = b.loads, udls = b.udls || [];
-    function qAt(x) { var q = w; udls.forEach(function (u) { if (x > u.start - EPS && x < u.end + EPS) q += u.q; }); return q; }   // load intensity
+    var L = b.length, w = b.w, P = b.positions, R = b.sortedReactions, loads = b.loads;
     function V(x, right) {       // shear just left (right = false) or just right of x
       var v = -w * Math.min(Math.max(x, 0), L);
-      udls.forEach(function (u) { var e = Math.min(u.end, x); if (e > u.start) v -= u.q * (e - u.start); });
       P.forEach(function (p, i) { if (right ? p <= x + EPS : p < x - EPS) v += R[i]; });
       loads.forEach(function (l) { if (right ? l.distance <= x + EPS : l.distance < x - EPS) v -= l.weight; });
       return v;
     }
     function M(x) {
       var m = -w * x * x / 2;
-      udls.forEach(function (u) { var e = Math.min(u.end, x); if (e > u.start) m -= u.q * (e - u.start) * (x - (u.start + e) / 2); });
       P.forEach(function (p, i) { if (p < x) m += R[i] * (x - p); });
       loads.forEach(function (l) { if (l.distance < x) m -= l.weight * (x - l.distance); });
       return m;
     }
-    var xs = [0, L].concat(P).concat(loads.map(function (l) { return l.distance; })).concat([].concat.apply([], udls.map(function (u) { return [u.start, u.end]; })))
+    var xs = [0, L].concat(P).concat(loads.map(function (l) { return l.distance; }))
       .filter(function (x) { return x >= -EPS && x <= L + EPS; }).sort(function (a, c) { return a - c; });
     var pts = [];
     xs.forEach(function (x) { if (!pts.length || x - pts[pts.length - 1].x > 1e-7) pts.push({ x: x }); });
-    pts.forEach(function (p, i) { p.vl = p.x <= EPS ? 0 : V(p.x, false); p.vr = p.x >= L - EPS ? 0 : V(p.x, true); p.m = M(p.x); p.q = i + 1 < pts.length ? qAt((p.x + pts[i + 1].x) / 2) : 0; });
-    // peaks inside uniformly loaded stretches, where the shear passes through zero (every UDL end is a point, so the
-    // intensity is constant between two points)
-    for (var i = pts.length - 2; i >= 0; i--) {
-      var a = pts[i], c = pts[i + 1], qi = qAt((a.x + c.x) / 2);
-      if (qi > 0 && a.vr > 0 && c.vl < 0) { var xp = a.x + a.vr / qi; pts.splice(i + 1, 0, { x: xp, vl: 0, vr: 0, m: M(xp), peak: true, q: qi }); }
+    pts.forEach(function (p) { p.vl = p.x <= EPS ? 0 : V(p.x, false); p.vr = p.x >= L - EPS ? 0 : V(p.x, true); p.m = M(p.x); });
+    // peaks inside uniformly loaded stretches, where the shear passes through zero
+    if (w > 0) for (var i = pts.length - 2; i >= 0; i--) {
+      var a = pts[i], c = pts[i + 1];
+      if (a.vr > 0 && c.vl < 0) { var xp = a.x + a.vr / w; pts.splice(i + 1, 0, { x: xp, vl: 0, vr: 0, m: M(xp), peak: true }); }
     }
     var out = { points: pts, w: w, length: L, maxSag: 0, maxHog: 0, maxShear: 0, atSag: 0, atHog: 0, atShear: 0 };
     pts.forEach(function (p) {
@@ -250,5 +201,5 @@
     return out;
   }
 
-  TLA.beam = { solve: solve, expandLoads: expandLoads, expandUdls: expandUdls, thomas: thomas, diagram: diagram };
+  TLA.beam = { solve: solve, expandLoads: expandLoads, thomas: thomas, diagram: diagram };
 })(typeof globalThis !== "undefined" ? globalThis : window);

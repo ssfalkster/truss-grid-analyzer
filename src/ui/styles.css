@@ -193,7 +193,6 @@ h4 { margin: 14px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-sp
 .elev { width: 100%; height: auto; display: block; }
 .elev .eb.ok { fill: var(--ok); opacity: .75; } .elev .eb.cant { fill: var(--l2); opacity: .8; } .elev .eb.fail { fill: var(--fail); }
 .elev .et { font-size: 10px; fill: var(--ink); } .elev .et.small { fill: var(--muted); font-size: 9px; } .elev .et.strong { font-weight: 700; font-size: 11px; } .elev .et.fail { fill: var(--fail); font-weight: 700; }
-.elev .eudl { fill: var(--l3); opacity: .85; }
 .elev .el { fill: var(--ink); } .elev .el.ghost { opacity: .5; } .elev .el.inj { fill: var(--accent); }
 .elev .es.hoist { fill: var(--l3); } .elev .es.bear { fill: var(--ink); }
 .elev-wrap + .elev-wrap { margin-top: 6px; }
@@ -498,17 +497,3 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .sheet .rplan .dm { stroke: #666; stroke-width: 1.2; } .sheet .rplan .dmt { font-size: 14px; fill: #333; }   /* 1.25.5: truss start, dimensions */
 .lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
 .deflg .defl, .iso .defl { fill: none; stroke: var(--tc, var(--accent)); stroke-width: 2; stroke-linejoin: round; } .deflg { --tc: var(--ok); pointer-events: visibleStroke; } .deflg.c-warn { --tc: var(--warn); } .deflg.c-fail { --tc: var(--fail); } .deflg.c-neutral { --tc: var(--neutral); } .deflg.dim { opacity: .25; }
-
-/* UDL (1.27.0) */
-.udlbox { border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 0 0 10px; background: var(--panel-2); }
-.udlbox.on { border-left-color: var(--l3); }
-.udlbox .udl-h { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
-.udlbox .udl-h .grow { flex: 1; }
-.udlbox .udl-tot { color: var(--l3); font-variant-numeric: tabular-nums; }
-.plan .udl line, svg .udl line { stroke: var(--l3); stroke-width: 3; stroke-linecap: round; opacity: .85; }
-.elev .eudl.part { fill: var(--l4); }
-.elev .eudl.ghost { opacity: .45; }
-.pill.udl { font-size: 10px; border: 1px solid var(--l4); color: var(--l4); border-radius: 3px; padding: 0 4px; }
-svg .udl.part line { stroke: var(--l4); }
-svg .udl.ghost line { opacity: .45; }
-svg .udl.sel line { stroke: var(--accent); stroke-width: 4; }

@@ -136,9 +136,8 @@ def build(ex, joints):
                 continue
             m = "M%d_%d" % (bi, e)
             fe.add_member(m, i, j, "unit", sec)
-            we = bm["w"] + (bm["wx"][e] if bm.get("wx") else 0)   # partial UDLs (2.0.0) per element
-            if we:
-                fe.add_member_dist_load(m, "FY", -we, -we)
+            if bm["w"]:
+                fe.add_member_dist_load(m, "FY", -bm["w"], -bm["w"])
             members[bm["id"]].append(m)
         for ni, nd in enumerate(bm["nodes"]):
             if nd["P"]:
