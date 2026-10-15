@@ -14,6 +14,9 @@ Two long-lived branches:
    Rebuild `dist/index.html` (`python tools/build.py`) and run `tests/run.html`; everything must pass.
 3. The manual is **not** touched on BETA.
 
+**Until 2.0.0 is released:** do not merge `main` into `beta` (PR #61's revert would remove the BETA work). GitHub shows
+`beta` one commit behind `main` (the revert); that is expected. A hotfix to `main` goes into `beta` by cherry-pick instead.
+
 ## Hotfixes to `main`
 
 If released `main` has a bug that cannot wait for the next Major: fix it on a branch from `main`, PR into `main`, bump the patch
@@ -25,6 +28,10 @@ If released `main` has a bug that cannot wait for the next Major: fix it on a br
 2. Update the documentation for that version: the manual (see `docs/manual/source/README.md`), `README.md`, the Help menu
    file names in `index.html`, and the version noted in the docs.
 3. Merge `beta` into `main` (pull request), and tag `main` `v2.0.0`.
+   **For 2.0.0 (reminder):** `main` carries a revert of PR #59 (PR #61: an early merge of `2.0.0-beta.2` into `main`, undone
+   to keep `main` at 1.28.1). Git counts those beta commits as already merged, so **revert that revert on `main` first**
+   (or as the first commit of the release PR); otherwise the release leaves them out. Check the released `main` has the
+   partial UDL work (`tests/udl-tests.js`). Delete this reminder once 2.0.0 is out.
 4. Start the next cycle: `beta` takes the version `3.0.0-beta.1` (one Major ahead of `main` again).
 
 ## Tags
