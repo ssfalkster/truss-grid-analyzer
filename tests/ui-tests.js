@@ -45,21 +45,45 @@
     a.mirror = true; eq(P.loadCount(t), 3, "a mirrored load counts twice");
     b.mirror = true; eq(P.loadCount(t), 3, "a load on the centerline has no twin");
   });
-  add("ui: quick add takes a full or partial UDL", function () {
+  add("ui: quick add takes a whole-truss UDL, and a UDL over part of the truss as one UDL load (2.0.0)", function () {
     var t = fresh(); t.measure = "start";
     eq(P.quickAdd(t, "UDL 200"), null, "full UDL accepted");
-    near(t.wallWeight, 200, 1e-9, "added to the truss UDL"); eq(t.loads.length, 0, "no point loads");
+    near(t.wallWeight, 200, 1e-9, "added to the truss UDL"); eq(t.loads.length, 0, "no loads");
     eq(P.quickAdd(t, "UDL 120 @ 2 to 8"), null, "partial UDL accepted");
-    eq(t.loads.length, 6, "one load per foot over 6 ft");
-    near(t.loads.reduce(function (s, l) { return s + l.weight; }, 0), 120, 1e-6, "total kept");
-    near(t.loads[0].distance, 2.5, 1e-9, "first at the middle of its foot"); near(t.loads[5].distance, 7.5, 1e-9);
+    eq(t.loads.length, 1, "one UDL load"); var u = t.loads[0];
+    eq(P.isUdl(u), true); near(u.span, 6, 1e-9, "6 ft long"); near(u.distance, 5, 1e-9, "centered at 5"); near(u.weight, 120, 1e-9);
     eq(P.quickAdd(t, "UDL 10 lb/ft @ 10-14"), null, "per length");
-    near(t.loads.slice(6).reduce(function (s, l) { return s + l.weight; }, 0), 40, 1e-6, "10 lb/ft x 4 ft");
+    near(t.loads[1].weight, 40, 1e-9, "10 lb/ft x 4 ft");
     t.measure = "center";
     eq(P.quickAdd(t, "udl 30 @ -3 to 3"), null, "from the centerline");
-    var c = t.loads.slice(-6); near(c[0].distance, 7.5, 1e-9); near(c[5].distance, 12.5, 1e-9);
+    var c = t.loads[2]; near(c.distance, 10, 1e-9); near(c.span, 6, 1e-9); eq(P.udlText(c, t), "-3 ft to +3 ft from CL");
     eq(typeof P.quickAdd(t, "UDL 50 @ 15 to 25"), "string", "past the end is refused");
     eq(typeof P.quickAdd(t, "UDL"), "string", "no weight is refused");
+    var r = S.results.trusses[t.id]; eq(r.beam.udls.length, 3, "solved as three UDLs"); eq(r.beam.loads.length, 0, "no point loads");
+  });
+  add("ui: a 1.28.0 partial UDL (point loads about a foot apart) opens as one UDL load", function () {
+    var t = fresh(), w = 0;
+    for (var i = 0; i < 6; i++) { t.loads.push({ id: "x" + i, distance: 2.5 + i, weight: 20, note: "UDL 120 lb 2 ft to 8 ft (" + (i + 1) + "/6)", udl: "u9", mirror: true }); w += 20; }
+    t.loads.push({ id: "p", distance: 15, weight: 33, note: "Load" });
+    var txt = S.exportJSON(); S.importJSON(txt); t = S.rig.trusses.filter(function (x) { return x.name === "T"; })[0];
+    eq(t.loads.length, 2, "six stand-ins merged into one, the point load kept");
+    var u = t.loads.filter(P.isUdl)[0];
+    near(u.distance, 5, 1e-9); near(u.span, 6, 1e-9); near(u.weight, 120, 1e-9); eq(u.mirror, true, "mirror kept"); eq("udl" in u, false);
+  });
+  add("ui: a load given a UDL length in the Loads grid becomes a UDL; blank makes it a point load again", function () {
+    var t = fresh(); t.measure = "start"; var l = P.newLoad(t); l.distance = 3; l.weight = 50;
+    var col = TLA.grids.spec(2).cols.filter(function (c) { return c.key === "span"; })[0];
+    col.set(l, col.parse("4"), { truss: t }); near(l.span, 4, 1e-9); near(l.distance, 3, 1e-9, "stays centered where it was");
+    col.set(l, col.parse("10"), { truss: t }); near(l.distance, 5, 1e-9, "moved in so it stays on the truss");
+    col.set(l, col.parse(""), { truss: t }); eq(P.isUdl(l), false);
+  });
+  add("ui: the Structure grid has no UDL column; the Loads grid has a UDL length column and a + UDL row per truss", function () {
+    var t = fresh();
+    eq(TLA.grids.spec(1).cols.some(function (c) { return c.key === "udl"; }), false, "UDL moved out of Structure");
+    var sp = TLA.grids.spec(2);
+    eq(sp.cols.some(function (c) { return c.key === "span"; }), true, "UDL length column");
+    var nu = sp.rows.filter(function (r) { return r.key === "NU:" + t.id; })[0]; eq(!!nu, true, "+ UDL row");
+    var made = nu.create(); eq(P.isUdl(made.obj), true); near(made.obj.span, 10, 1e-9, "over the middle half"); near(made.obj.distance, 10, 1e-9);
   });
   add("ui: mirror position is reported on the other side of the centerline", function () {
     var t = fresh(), l = P.newLoad(t); l.distance = 5; l.mirror = true;

@@ -201,6 +201,7 @@ h4 { margin: 14px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-sp
 .elev { width: 100%; height: auto; display: block; }
 .elev .eb.ok { fill: var(--ok); opacity: .75; } .elev .eb.cant { fill: var(--l2); opacity: .8; } .elev .eb.fail { fill: var(--fail); }
 .elev .et { font-size: 10px; fill: var(--ink); } .elev .et.small { fill: var(--muted); font-size: 9px; } .elev .et.strong { font-weight: 700; font-size: 11px; } .elev .et.fail { fill: var(--fail); font-weight: 700; }
+.elev .eudl { fill: var(--l3); opacity: .85; }
 .elev .el { fill: var(--ink); } .elev .el.ghost { opacity: .5; } .elev .el.inj { fill: var(--accent); }
 .elev .es.hoist { fill: var(--l3); } .elev .es.bear { fill: var(--ink); }
 .elev-wrap + .elev-wrap { margin-top: 6px; }
@@ -506,6 +507,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
 .lfgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
 .deflg .defl, .iso .defl { fill: none; stroke: var(--tc, var(--accent)); stroke-width: 2; stroke-linejoin: round; } .deflg { --tc: var(--ok); pointer-events: visibleStroke; } .deflg.c-warn { --tc: var(--warn); } .deflg.c-fail { --tc: var(--fail); } .deflg.c-neutral { --tc: var(--neutral); } .deflg.dim { opacity: .25; }
 
+/* UDL (1.27.0) */
+.udlbox { border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 0 0 10px; background: var(--panel-2); }
+.udlbox.on { border-left-color: var(--l3); }
+.udlbox .udl-h { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+.udlbox .udl-h .grow { flex: 1; }
+.udlbox .udl-tot { color: var(--l3); font-variant-numeric: tabular-nums; }
+.plan .udl line, svg .udl line { stroke: var(--l3); stroke-width: 3; stroke-linecap: round; opacity: .85; }
+.elev .eudl.part { fill: var(--l4); }
+.elev .eudl.ghost { opacity: .45; }
+.pill.udl { font-size: 10px; border: 1px solid var(--l4); color: var(--l4); border-radius: 3px; padding: 0 4px; }
+svg .udl.part line { stroke: var(--l4); }
+svg .udl.ghost line { opacity: .45; }
+svg .udl.sel line { stroke: var(--accent); stroke-width: 4; }
+
 </style>
 </head>
 <body>
@@ -622,8 +637,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * every modified version's history to show who made the change, when, and what changed: [version, date, who, what]. */
 (function (g) {
   var TLA = (g.TLA = g.TLA || {});
-  TLA.VERSION = "1.28.1";
+  TLA.VERSION = "2.0.0-beta.2";
   TLA.CHANGES = [
+    ["2.0.0-beta.2", "2026-10-15", "G.E. Simmons Falk", "UDLs are now loads. A UDL over part of a truss is a real distributed load: one load with a start and an end (Loads step: a UDL length column and a + UDL row for every truss; truss panel: + UDL over part of the truss, and its own panel with From / To, total or weight per length, mirror and category; quick add: UDL 200 @ 2 to 10). It is solved exactly in the whole-rig analysis (a node at each end, the elements between carry it) and in the load-path method (three-moment terms for a uniform load over part of a span), checked against PyNite. Span check: a UDL that covers a whole span uses up the table's UDL like the truss's own UDL; one that covers only part of a span is checked as a point load of its weight against the CPL (conservative); on a cantilever its weight counts with the point loads. The 1.28.0 stand-in (equal point loads about a foot apart) is merged back into one UDL when a rig is opened, so those rigs' results change slightly to the exact ones. The UDL over the whole truss moved to the Loads step too: it is out of the Structure grid; the truss panel's Loads & UDL section opens with a UDL box (total, per length, cable allowance) and the + UDL button goes to it; the Loads grid shows it in each truss's header row (Whole-truss UDL...). UDLs are drawn as bands on the plan, in 3D and on the truss drawing, and listed (U1, U2...) on the calculation sheet with their working. A UDL that runs past the end of its truss is flagged in Check rig. Other rigs' results are unchanged."],
+    ["2.0.0-beta.1", "2026-10-12", "G.E. Simmons Falk", "BETA branch started, one Major ahead of the released 1.28.1. No changes to the app or its results; new work lands here and reaches main only at the next Major release (docs/BRANCHING.md)."],
     ["1.28.1", "2026-10-12", "G.E. Simmons Falk", "Documentation only: the user manual (Quick Start PDF, User Guide PDF and searchable HTML) is updated for version 1.28.0 - the UDL quick-add forms and + UDL button, mirrored loads counted as two - with new screenshots in the purple colour scheme. The Help menu links to the new file names. The manual's build tooling now also runs on Linux. The app and its results are unchanged."],
     ["1.28.0", "2026-10-12", "G.E. Simmons Falk", "Easier UDL input on a truss: a new + UDL button, and the Loads quick-add box takes UDL 200 (added to the truss's full-length UDL), UDL 200 @ 2 to 10 (or 2-10) for a UDL over part of the truss, and UDL 25 lb/ft or kg/m for a weight per length. A partial UDL is entered as equal point loads about a foot (0.3 m) apart over that stretch, named after the UDL, since the solver's UDL covers the whole truss; they are checked as point loads (against the CPL), which is conservative. Existing rigs' results are unchanged."],
     ["1.27.1", "2026-09-30", "G.E. Simmons Falk", "3D view: load arrows now point down, the way the load pulls - the arrow hangs below the truss with its tip away from it (it pointed up at the truss before). Display only; results unchanged."],
@@ -744,10 +761,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   var TLA = (g.TLA = g.TLA || {});
   var EPS = 1e-9;
 
-  /** Expand loads with mirror flag into the list the solver sees. */
+  /** Expand loads with mirror flag into the list the solver sees. A load with a span (2.0.0, ft) is a partial UDL:
+   * its weight spread evenly over span, centered on distance; those are left out here (see expandUdls). */
   function expandLoads(loads, length) {
     var out = [];
     (loads || []).forEach(function (ld) {
+      if (Number(ld.span) > 0) return;
       var w = Number(ld.weight) || 0;
       var d = Number(ld.distance) || 0;
       out.push({ distance: d, weight: w, note: ld.note, source: ld.source, injected: ld.injected, ref: ld });
@@ -756,6 +775,34 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       }
     });
     return out;
+  }
+
+  /** Partial UDLs (2.0.0): a load with span > 0 is its weight spread evenly over [distance - span/2, distance + span/2],
+   * cut to the truss. Mirrored like a point load (the twin is centered on length - distance). Each: { start, end, q
+   * (lb/ft), weight, distance (center), span, note, ref, mirrored }. */
+  function expandUdls(loads, length) {
+    var out = [];
+    (loads || []).forEach(function (ld) {
+      var sp = Number(ld.span) || 0; if (!(sp > 0)) return;
+      var w = Number(ld.weight) || 0, d = Number(ld.distance) || 0, q = w / sp;
+      function one(c, mirrored) {
+        var a = Math.max(0, c - sp / 2), b = Math.min(length, c + sp / 2);
+        if (b - a < EPS) return;
+        out.push({ start: a, end: b, q: q, weight: q * (b - a), distance: (a + b) / 2, span: b - a, note: ld.note, ref: ld, mirrored: !!mirrored });
+      }
+      one(d);
+      if (ld.mirror && Math.abs(d - length / 2) > 1e-7) one(length - d, true);
+    });
+    return out;
+  }
+  /** A uniform load q over [a, b] of a span of length L (a, b from its left support): its simple-beam rotation terms
+   * for the three-moment equation (6 A xbar / L at each end, as for a point load F a b (L + b) / 6L, integrated) and
+   * its simple-beam end shears. */
+  function udlTerms(q, a, b, L) {
+    function iL(x) { return L * L * x * x - L * x * x * x + x * x * x * x / 4; }      // integral of x (L - x)(2L - x)
+    function iR(x) { return L * L * x * x / 2 - x * x * x * x / 4; }                   // integral of x (L - x)(L + x)
+    function vl(x) { return L * x - x * x / 2; }
+    return { pL: q * (iL(b) - iL(a)) / (6 * L), pR: q * (iR(b) - iR(a)) / (6 * L), vL: q * (vl(b) - vl(a)) / L, vR: q * (b * b - a * a) / (2 * L) };
   }
 
   /** Solve tridiagonal system (sub a, diag b, super c, rhs d) with the Thomas algorithm. */
@@ -775,7 +822,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
   /**
-   * input: { length, supports:[distance...], loads:[{distance,weight,...}],
+   * input: { length, supports:[distance...], loads:[{distance,weight,span?,...}] (span > 0: a partial UDL),
    *          trussWeightPerFt, wallWeight, weightless }
    * returns reactions aligned with the input support order.
    */
@@ -803,6 +850,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (l.distance < -EPS || l.distance > length + EPS) warnings.push("Load at " + l.distance + " ft is outside the truss");
     });
 
+    var udls = expandUdls(input.loads, length);
     var wall = Number(input.wallWeight) || 0;
     var wDist = wall / (length || 1);
     var wSelf = input.weightless ? 0 : Number(input.trussWeightPerFt) || 0;
@@ -814,7 +862,20 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     // cantilever + span load buckets
     var left = { F: 0, MF: 0 }, right = { F: 0, MF: 0 };
     var spans = [];
-    for (var k = 0; k < n - 1; k++) spans.push({ start: P[k], L: P[k + 1] - P[k], pl: [], sumF: 0 });
+    for (var k = 0; k < n - 1; k++) spans.push({ start: P[k], L: P[k + 1] - P[k], pl: [], ud: [], sumF: 0 });
+    // partial UDLs, cut at the supports: cantilever parts add their weight and moment about the end support; span
+    // parts keep their stretch for the span terms. udl* sums are what limits.js checks them as.
+    left.udls = []; right.udls = [];
+    udls.forEach(function (u) {
+      var a = u.start, b = Math.min(u.end, P[0]);
+      if (b - a > EPS) { left.F += u.q * (b - a); left.MF += u.q * ((P[0] - a) * (P[0] - a) - (P[0] - b) * (P[0] - b)) / 2; left.udls.push({ a: a, b: b, q: u.q, ref: u }); }
+      a = Math.max(u.start, P[n - 1]); b = u.end;
+      if (b - a > EPS) { right.F += u.q * (b - a); right.MF += u.q * ((b - P[n - 1]) * (b - P[n - 1]) - (a - P[n - 1]) * (a - P[n - 1])) / 2; right.udls.push({ a: a, b: b, q: u.q, ref: u }); }
+      spans.forEach(function (sp) {
+        var a2 = Math.max(u.start, sp.start), b2 = Math.min(u.end, sp.start + sp.L);
+        if (b2 - a2 > EPS) sp.ud.push({ a: a2 - sp.start, b: b2 - sp.start, q: u.q, ref: u });
+      });
+    });
 
     loads.forEach(function (l) {
       var x = l.distance;
@@ -844,6 +905,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         vL += (F * b) / L;
         vR += (F * a) / L;
       });
+      s.ud.forEach(function (u) { var tm = udlTerms(u.q, u.a, u.b, L); pL += tm.pL; pR += tm.pR; vL += tm.vL; vR += tm.vR; });
       pL += (w * L * L * L) / 24; pR += (w * L * L * L) / 24;
       vL += (w * L) / 2; vR += (w * L) / 2;
       s.phiL = pL; s.phiR = pR; s.VL = vL; s.VR = vR;
@@ -887,13 +949,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       gr.members.forEach(function (idx) { reactions[idx] = R[gi] / gr.members.length; });
     });
 
-    var totalLoad = loads.reduce(function (t, l) { return t + l.weight; }, 0) + w * length;
+    var totalLoad = loads.reduce(function (t, l) { return t + l.weight; }, 0) + udls.reduce(function (t, u) { return t + u.weight; }, 0) + w * length;
     return {
       length: length, w: w, wSelf: wSelf, wDist: wDist,
       positions: P, sortedReactions: R, reactions: reactions, moments: M,
-      left: { length: leftLen, V: Vleft, M: M1, sumF: left.F },
-      right: { length: rightLen, V: Vright, M: Mn, sumF: right.F },
-      spans: spans, loads: loads, totalLoad: totalLoad,
+      left: { length: leftLen, V: Vleft, M: M1, sumF: left.F, udls: left.udls, udlF: left.udls.reduce(function (t, u) { return t + u.q * (u.b - u.a); }, 0) },
+      right: { length: rightLen, V: Vright, M: Mn, sumF: right.F, udls: right.udls, udlF: right.udls.reduce(function (t, u) { return t + u.q * (u.b - u.a); }, 0) },
+      spans: spans, loads: loads, udls: udls, totalLoad: totalLoad,
       equilibriumError: R.reduce(function (t, r) { return t + r; }, 0) - totalLoad,
       warnings: warnings
     };
@@ -906,28 +968,32 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * each), plus the peak of each uniformly loaded stretch; and the extremes.
    */
   function diagram(b) {
-    var L = b.length, w = b.w, P = b.positions, R = b.sortedReactions, loads = b.loads;
+    var L = b.length, w = b.w, P = b.positions, R = b.sortedReactions, loads = b.loads, udls = b.udls || [];
+    function qAt(x) { var q = w; udls.forEach(function (u) { if (x > u.start - EPS && x < u.end + EPS) q += u.q; }); return q; }   // load intensity
     function V(x, right) {       // shear just left (right = false) or just right of x
       var v = -w * Math.min(Math.max(x, 0), L);
+      udls.forEach(function (u) { var e = Math.min(u.end, x); if (e > u.start) v -= u.q * (e - u.start); });
       P.forEach(function (p, i) { if (right ? p <= x + EPS : p < x - EPS) v += R[i]; });
       loads.forEach(function (l) { if (right ? l.distance <= x + EPS : l.distance < x - EPS) v -= l.weight; });
       return v;
     }
     function M(x) {
       var m = -w * x * x / 2;
+      udls.forEach(function (u) { var e = Math.min(u.end, x); if (e > u.start) m -= u.q * (e - u.start) * (x - (u.start + e) / 2); });
       P.forEach(function (p, i) { if (p < x) m += R[i] * (x - p); });
       loads.forEach(function (l) { if (l.distance < x) m -= l.weight * (x - l.distance); });
       return m;
     }
-    var xs = [0, L].concat(P).concat(loads.map(function (l) { return l.distance; }))
+    var xs = [0, L].concat(P).concat(loads.map(function (l) { return l.distance; })).concat([].concat.apply([], udls.map(function (u) { return [u.start, u.end]; })))
       .filter(function (x) { return x >= -EPS && x <= L + EPS; }).sort(function (a, c) { return a - c; });
     var pts = [];
     xs.forEach(function (x) { if (!pts.length || x - pts[pts.length - 1].x > 1e-7) pts.push({ x: x }); });
-    pts.forEach(function (p) { p.vl = p.x <= EPS ? 0 : V(p.x, false); p.vr = p.x >= L - EPS ? 0 : V(p.x, true); p.m = M(p.x); });
-    // peaks inside uniformly loaded stretches, where the shear passes through zero
-    if (w > 0) for (var i = pts.length - 2; i >= 0; i--) {
-      var a = pts[i], c = pts[i + 1];
-      if (a.vr > 0 && c.vl < 0) { var xp = a.x + a.vr / w; pts.splice(i + 1, 0, { x: xp, vl: 0, vr: 0, m: M(xp), peak: true }); }
+    pts.forEach(function (p, i) { p.vl = p.x <= EPS ? 0 : V(p.x, false); p.vr = p.x >= L - EPS ? 0 : V(p.x, true); p.m = M(p.x); p.q = i + 1 < pts.length ? qAt((p.x + pts[i + 1].x) / 2) : 0; });
+    // peaks inside uniformly loaded stretches, where the shear passes through zero (every UDL end is a point, so the
+    // intensity is constant between two points)
+    for (var i = pts.length - 2; i >= 0; i--) {
+      var a = pts[i], c = pts[i + 1], qi = qAt((a.x + c.x) / 2);
+      if (qi > 0 && a.vr > 0 && c.vl < 0) { var xp = a.x + a.vr / qi; pts.splice(i + 1, 0, { x: xp, vl: 0, vr: 0, m: M(xp), peak: true, q: qi }); }
     }
     var out = { points: pts, w: w, length: L, maxSag: 0, maxHog: 0, maxShear: 0, atSag: 0, atHog: 0, atShear: 0 };
     pts.forEach(function (p) {
@@ -940,7 +1006,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     return out;
   }
 
-  TLA.beam = { solve: solve, expandLoads: expandLoads, thomas: thomas, diagram: diagram };
+  TLA.beam = { solve: solve, expandLoads: expandLoads, expandUdls: expandUdls, thomas: thomas, diagram: diagram };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 </script>
@@ -1012,17 +1078,22 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var L = s.L;
       if (L <= 1e-9) { segs.push({ type: "span", index: i + 1, length: 0, code: 0, status: "Good", skipped: true }); return; }
       var lenFail = L > maxSpan + 1e-9;
+      // partial UDLs (2.0.0): one covering the whole span uses up the table's UDL like the truss's own UDL; a part of
+      // a span is checked as a point load of its weight (the table's CPL is a load at the center: conservative)
+      var udlFull = 0, udlPart = 0;
+      (s.ud || []).forEach(function (u) { var f = u.q * (u.b - u.a); if (u.a < 1e-6 && u.b > L - 1e-6) udlFull += f; else udlPart += f; });
       var udlMax = tableAt(truss, "udl", L) * k;
-      var udlUsed = wallPerFt * L;
+      var udlUsed = wallPerFt * L + udlFull;
       var free = udlMax > 0 ? (udlMax - udlUsed) / udlMax : 0;
       var cap = tableAt(truss, "cpl", L) * k * free;
-      var loadFail = s.sumF > cap + 1e-9;
+      var load = s.sumF + udlPart;
+      var loadFail = load > cap + 1e-9 || (udlMax > 0 && udlUsed > udlMax + 1e-9);
       var code = (lenFail ? 1 : 0) + (loadFail ? 2 : 0);
       segs.push({
-        type: "span", index: i + 1, length: L, maxLength: maxSpan, load: s.sumF, capacity: cap,
+        type: "span", index: i + 1, length: L, maxLength: maxSpan, load: load, pointLoad: s.sumF, udlPart: udlPart, udlFull: udlFull, capacity: cap,
         udlMax: udlMax, udlUsed: udlUsed, freeFraction: free,
         lengthFail: lenFail, loadFail: loadFail, code: code, status: STATUS[code],
-        utilization: cap > 0 ? s.sumF / cap : (s.sumF > 0 ? Infinity : 0)
+        utilization: cap > 0 ? load / cap : (load > 0 ? Infinity : 0)
       });
     });
     cant("cantilever-right", beam.right);
@@ -1071,6 +1142,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var nb = TLA.beam.solve({
         length: beam.length, supports: beam.positions, trussWeightPerFt: 0, wallWeight: beam.wDist * beam.length,
         loads: beam.loads.map(function (l) { return { distance: l.distance, weight: l.weight }; })
+          .concat((beam.udls || []).map(function (u) { return { distance: u.distance, weight: u.weight, span: u.span }; }))
       });
       net = TLA.beam.diagram(nb);
     }
@@ -1308,7 +1380,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
  * on the truss they are bolted to. Fully data driven - any number of trusses / supports / nesting depth.
  *
  * rig = { trusses: [ { id, name, trussId | custom, length, weightless, wallWeight, x, y, angle,
- *                      loads: [ {id, distance, weight, note, mirror} ],
+ *                      loads: [ {id, distance, weight, note, mirror, span?} ] (span > 0, 2.0.0: a UDL over span ft,
+ *                      centered on distance),
  *                      supports: [ { id, name, distance, kind: 'hoist'|'truss', hoistId, chainLength,
  *                                    onTruss, onDistance, hardwareWeight } ] } ],
  *         settings: { derate: number|null } }
@@ -1485,7 +1558,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var supports = t.supports || [];
       if (!supports.length) { warnings.push({ truss: t.id, message: t.name + ": has no supports" }); return; }
 
-      var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, note: l.note, mirror: l.mirror, id: l.id }; });
+      var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, span: l.span, note: l.note, mirror: l.mirror, id: l.id }; });
       var injected = [];
       feeders[t.id].forEach(function (fid) {
         var fr = results[fid];
@@ -1607,6 +1680,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     rig.trusses.forEach(function (t) {
       (t.loads || []).forEach(function (l) {
         if (!(Number(l.weight) > 0)) add("check", t, t.name + ": the load" + (l.note ? " '" + l.note + "'" : "") + " at " + (Math.round((Number(l.distance) || 0) * 10) / 10) + " ft has no weight - enter it, or delete the load.", { load: l.id });
+        // 2.0.0: a UDL that runs past an end of its truss - the part past the end is left out of the solve
+        var sp = Number(l.span) || 0, d = Number(l.distance) || 0;
+        if (sp > 0 && (d - sp / 2 < -0.01 || d + sp / 2 > (Number(t.length) || 0) + 0.01)) add("check", t, t.name + ": the UDL" + (l.note && l.note !== "UDL" ? " '" + l.note + "'" : "") + " runs past the end of the truss - only the part on the truss is counted. Shorten it or move it.", { load: l.id });
       });
     });
     // hoists at the same point, on one truss or across trusses (plan position)
@@ -2159,7 +2235,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         if (origin === undefined || bm.t.id === origin) for (var e = 0; e < bm.nodes.length - 1; e++) {
           var el = bm.els[e]; if (!el) continue;
           var dd = dofs[bi][e].concat(dofs[bi][e + 1]);
-          for (var r = 0; r < 6; r++) F[dd[r]] += bm.w * el.fg[r];
+          var we = bm.w + ((bm.wx && bm.wx[e]) || 0);
+          for (var r = 0; r < 6; r++) F[dd[r]] += we * el.fg[r];
         }
         bm.nodes.forEach(function (nd, ni) {
           var P = origin === undefined ? nd.P : (nd.Pby && nd.Pby[origin]) || 0;
@@ -2266,11 +2343,11 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
    * load, so with M(x) = M0 + V x - w x^2 / 2 (sagging +, w up) the exact Timoshenko shape is the end displacements
    * joined by a straight line, plus the bending part (w'' = M / EI) and the shear part (w' = -V / GA, i.e. -M / GA),
    * each made zero at both ends. Output only - nothing else reads it. */
-  function deflected(bm, nds, seg, w) {
+  function deflected(bm, nds, seg) {
     var EI = bm.EI, GA = bm.GA > 0 && isFinite(bm.GA) ? bm.GA : Infinity, pts = [];
     nds.forEach(function (nd, e) {
       var sg = seg[e]; if (!sg) return;
-      var L = sg.L, x0 = nd.d;
+      var L = sg.L, x0 = nd.d, w = sg.w;
       function B(x) { return (sg.M0 * x * x / 2 + sg.V * x * x * x / 6 - w * x * x * x * x / 24) / EI; }
       function Sh(x) { return isFinite(GA) ? -(sg.M0 + sg.V * x - w * x * x / 2) / GA : 0; }
       var BL = B(L), S0 = Sh(0), SL = Sh(L), n = 8;
@@ -2286,28 +2363,29 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var beams = model.beams, U = sol.U, members = {}, ext = {};
     beams.forEach(function (bm, bi) {
       var nds = bm.nodes, w = wOf ? wOf(bm) : bm.w, seg = [];
+      function wE(e) { return w + ((bm.wx && bm.wx[e]) || 0); }      // the element's uniform load, with any partial UDL
       nds.forEach(function (nd, ni) { ext[bi + ":" + ni] = nd.P || 0; });
       for (var e = 0; e < nds.length - 1; e++) {
         var el = bm.els[e]; if (!el) continue;
         var da = sol.dofs[bi][e], db = sol.dofs[bi][e + 1], ug = [U[da[0]], U[da[1]], U[da[2]], U[db[0]], U[db[1]], U[db[2]]], ul = [], f = [], r, q;
         for (r = 0; r < 6; r++) { var v = 0; for (q = 0; q < 6; q++) v += el.T[r][q] * ug[q]; ul.push(v); }
-        for (r = 0; r < 6; r++) { var v2 = -w * el.fl[r]; for (q = 0; q < 6; q++) v2 += el.Kl[r][q] * ul[q]; f.push(v2); }
+        for (r = 0; r < 6; r++) { var v2 = -wE(e) * el.fl[r]; for (q = 0; q < 6; q++) v2 += el.Kl[r][q] * ul[q]; f.push(v2); }
         ext[bi + ":" + e] += f[0]; ext[bi + ":" + (e + 1)] += f[3];
         // end forces on the element: V up at the left end, moments in the slope sense; M(x) = -m1 + V1 x - w x^2 / 2
-        seg[e] = { L: el.L, V: f[0], M0: -f[1], T: Math.abs(f[2]), wA: ul[0], wB: ul[3] };
+        seg[e] = { L: el.L, V: f[0], M0: -f[1], T: Math.abs(f[2]), wA: ul[0], wB: ul[3], w: wE(e) };
       }
       var scale = 0;
-      seg.forEach(function (sg) { if (sg) scale = Math.max(scale, Math.abs(sg.M0), Math.abs(sg.M0 + sg.V * sg.L - w * sg.L * sg.L / 2)); });
+      seg.forEach(function (sg) { if (sg) scale = Math.max(scale, Math.abs(sg.M0), Math.abs(sg.M0 + sg.V * sg.L - sg.w * sg.L * sg.L / 2)); });
       var pts = [], out = { points: pts, w: w, length: bm.L, maxSag: 0, maxHog: 0, maxShear: 0, maxTorque: 0, atSag: 0, atHog: 0, atShear: 0 };
       nds.forEach(function (nd, ni) {
         var L = seg[ni - 1], R = seg[ni];
-        var vl = L ? L.V - w * L.L : 0, vr = R ? R.V : 0;
-        var ml = L ? L.M0 + L.V * L.L - w * L.L * L.L / 2 : null, mr = R ? R.M0 : null;
+        var vl = L ? L.V - L.w * L.L : 0, vr = R ? R.V : 0, qr = R ? R.w : 0;
+        var ml = L ? L.M0 + L.V * L.L - L.w * L.L * L.L / 2 : null, mr = R ? R.M0 : null;
         if (ml !== null && mr !== null && Math.abs(ml - mr) > JUMP_TOL * scale + 1e-9) {
           // moment carried across a rigid joint from the truss bolted there
-          pts.push({ x: nd.d, vl: vl, vr: vr, m: ml }); pts.push({ x: nd.d, vl: vl, vr: vr, m: mr, jump: true });
-        } else pts.push({ x: nd.d, vl: vl, vr: vr, m: ml !== null ? ml : mr !== null ? mr : 0 });
-        if (R && w > 0 && R.V > 0 && R.V - w * R.L < 0) pts.push({ x: nd.d + R.V / w, vl: 0, vr: 0, m: R.M0 + R.V * R.V / (2 * w), peak: true });
+          pts.push({ x: nd.d, vl: vl, vr: vr, m: ml, q: qr }); pts.push({ x: nd.d, vl: vl, vr: vr, m: mr, jump: true, q: qr });
+        } else pts.push({ x: nd.d, vl: vl, vr: vr, m: ml !== null ? ml : mr !== null ? mr : 0, q: qr });
+        if (R && qr > 0 && R.V > 0 && R.V - qr * R.L < 0) pts.push({ x: nd.d + R.V / qr, vl: 0, vr: 0, m: R.M0 + R.V * R.V / (2 * qr), peak: true, q: qr });
         if (R && R.T > out.maxTorque) out.maxTorque = R.T;
       });
       pts.forEach(function (p) {
@@ -2317,7 +2395,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         if (v > out.maxShear) { out.maxShear = v; out.atShear = p.x; }
       });
       out.maxMoment = Math.max(out.maxSag, out.maxHog);
-      out.defl = deflected(bm, nds, seg, w);
+      out.defl = deflected(bm, nds, seg);
       members[bm.t.id] = out;
     });
     // what is left at a node after the hoists there comes through its bolted connections: peel the link tree from
@@ -2376,6 +2454,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     beams.forEach(function (bm) {
       var res = results.trusses[bm.t.id];
       res.beam.loads.forEach(function (l) { if (l.injected) return; addP(bm, pt(bm, l.distance), l.weight, bm.t.id); });
+      // partial UDLs (2.0.0): a node at each end; the elements between carry them (bm.wx, below)
+      bm.udls = (res.beam.udls || []).map(function (u) { return { a: pt(bm, u.start), b: pt(bm, u.end), q: u.q }; });
     });
     // hoists hung below a truss (1.22.0): a chain between the hoist's point on its truss and the carrier; the hoist,
     // chain and hardware weight hang on the carrier
@@ -2417,7 +2497,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       if (!hh || index[hh.id] === undefined || !r || !r.block) return;
       var s0 = b.supports.filter(function (x) { return x.kind === "truss" && x.onTruss === hh.id; })[0];
       var bm = beams[index[hh.id]], d = pt(bm, s0 ? s0.onDistance : 0);
-      var own = r.beam.loads.reduce(function (a, l) { return a + (l.injected ? 0 : l.weight); }, 0);
+      var own = r.beam.loads.reduce(function (a, l) { return a + (l.injected ? 0 : l.weight); }, 0) + (r.beam.udls || []).reduce(function (a, u) { return a + u.weight; }, 0);
       addP(bm, d, r.block.weight + own, b.id);
     });
     // hardware weight at a bolted connection (rig.js passes it to the truss it is bolted to, with the reaction)
@@ -2453,6 +2533,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     pending.forEach(function (p) { p.na = pt(beams[index[p.a]], p.da); p.nb = pt(beams[index[p.b]], p.db); });
     beams.forEach(function (bm) {
       bm.nodes = Object.keys(bm.pts).map(Number).sort(function (x, y) { return x - y; }).map(function (d) { return { d: d, P: bm.pts[d].P || 0, Pby: bm.pts[d].Pby, hoist: bm.pts[d].hoist }; });
+      // the partial UDL each element carries on top of the beam's uniform w (lb/ft); nodes sit at every UDL end
+      bm.wx = [];
+      for (var e = 0; e < bm.nodes.length - 1; e++) {
+        var mid = (bm.nodes[e].d + bm.nodes[e + 1].d) / 2, q = 0;
+        (bm.udls || []).forEach(function (u) { if (mid > u.a && mid < u.b) q += u.q; });
+        bm.wx.push(q);
+      }
     });
     pending.forEach(function (p) {
       var A = beams[index[p.a]], B = beams[index[p.b]];
@@ -2556,7 +2643,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
     // everything the model carries, to check the solve against (equilibrium) and against the load-path total
     out.load = 0;
-    model.beams.forEach(function (bm) { out.load += bm.w * bm.L; bm.nodes.forEach(function (nd) { out.load += nd.P || 0; }); });
+    model.beams.forEach(function (bm) {
+      out.load += bm.w * bm.L; bm.nodes.forEach(function (nd) { out.load += nd.P || 0; });
+      (bm.wx || []).forEach(function (q, e) { out.load += q * (bm.nodes[e + 1].d - bm.nodes[e].d); });
+    });
     var hinged = solveSlack(model, false), rigid = solveSlack(model, true);
     if (!rigid.ok) {
       out.unstable = true;
@@ -2718,7 +2808,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var injected = res.injected.map(function (inj) {
       return { distance: inj.distance, weight: injectedForce(inj.source, sol, rig, byId, results), note: inj.note, source: inj.source, injected: true };
     });
-    var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, note: l.note, mirror: l.mirror, id: l.id }; }).concat(injected);
+    var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, span: l.span, note: l.note, mirror: l.mirror, id: l.id }; }).concat(injected);
     var truss = res.dbTruss, st = rig.settings || {};
     var beam = TLA.beam.solve({ length: t.length, supports: sups.map(function (s) { return s.distance; }), loads: loads, trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless });
     beam.active = sups;
@@ -2976,7 +3066,9 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       tool: "Truss Grid Analyzer", version: TLA.VERSION, units: { length: "ft", force: "lb", EI: "lb-ft2", GJ: "lb-ft2", k: "lb/ft" },
       beams: model.beams.map(function (bm) {
         return { id: bm.t.id, name: bm.t.name, x: Number(bm.t.x) || 0, y: Number(bm.t.y) || 0, angle: Number(bm.t.angle) || 0, L: bm.L, EI: bm.EI, GJ: bm.GJ, w: bm.w,
-          nodes: bm.nodes.map(function (nd) { return { d: r6(nd.d), P: nd.P || 0 }; }) };
+          nodes: bm.nodes.map(function (nd) { return { d: r6(nd.d), P: nd.P || 0 }; }),
+          // partial UDLs (2.0.0): extra uniform load (lb/ft) on element e, between nodes e and e + 1
+          wx: (bm.wx || []).some(function (q) { return q > 0; }) ? bm.wx.slice() : undefined };
       }),
       links: model.links.map(function (lk) { return { a: lk.a, na: lk.na, b: lk.b, nb: lk.nb, rigid: !!lk.rigid }; }),
       supports: model.supports.map(function (sp) { return sp.k > 0 ? { b: sp.b, n: sp.n, id: sp.id, k: sp.k } : { b: sp.b, n: sp.n, id: sp.id }; }),
@@ -4070,7 +4162,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { saved = null; }
     if (saved && saved.rig && saved.rig.trusses) {
-      S.rig = saved.rig;
+      S.rig = saved.rig; S.upgradeRig(S.rig);
       if (saved.userDb) S.userDb = saved.userDb;
       if (saved.ui) { S.ui.colorMode = saved.ui.colorMode && saved.ui.colorMode !== "layer" ? saved.ui.colorMode : "util"; /* 1.18.0: no hang-order colouring */ if (saved.ui.view) S.ui.view = saved.ui.view; if (saved.ui.customPieces) S.ui.customPieces = saved.ui.customPieces; }
       lastSnap = null; S.commit({ noUndo: true });
@@ -4082,12 +4174,38 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
   };
 
+  /** 2.0.0: a partial UDL entered in 1.28.0 was saved as equal point loads (the same .udl group id, about a foot
+      apart, at the middle of equal pieces). Put each group back together as one UDL load (a load with a span) over the
+      stretch it stood for, so it is solved as a real distributed load. Returns how many were merged. */
+  S.upgradeRig = function (rig) {
+    var n = 0;
+    (rig && rig.trusses || []).forEach(function (t) {
+      var groups = {};
+      (t.loads || []).forEach(function (l) { if (l.udl && !(Number(l.span) > 0)) (groups[l.udl] = groups[l.udl] || []).push(l); });
+      Object.keys(groups).forEach(function (g) {
+        var ls = groups[g].slice().sort(function (a, b) { return a.distance - b.distance; });
+        if (ls.length < 2) { delete ls[0].udl; return; }
+        var d0 = Number(ls[0].distance), d1 = Number(ls[ls.length - 1].distance), step = (d1 - d0) / (ls.length - 1);
+        var a = Math.max(0, d0 - step / 2), b = Math.min(Number(t.length) || d1 + step / 2, d1 + step / 2), first = ls[0];
+        var u = { id: first.id, distance: round((a + b) / 2), span: Math.round((b - a) * 10000) / 10000, weight: Math.round(ls.reduce(function (s2, l) { return s2 + (Number(l.weight) || 0); }, 0) * 1000) / 1000,
+          note: "UDL", mirror: !!first.mirror };
+        if (first.cat) u.cat = first.cat;
+        if (first.from === "end" || first.from === "center") { u.from = first.from; u.pos = round(first.from === "end" ? t.length - u.distance : u.distance - t.length / 2); }
+        t.loads.splice(t.loads.indexOf(first), 1, u);
+        t.loads = t.loads.filter(function (l) { return ls.indexOf(l) < 0; });
+        n++;
+      });
+    });
+    return n;
+  };
+
   S.exportJSON = function () { return JSON.stringify({ format: "truss-grid-analyzer", version: 1, appVersion: TLA.VERSION, rig: S.rig, userDb: S.userDb }, null, 2); };
   S.importJSON = function (text) {
     var o = JSON.parse(text);
     var rig = o.rig || o;
     if (!rig.trusses) throw new Error("Not a rig file");
     var merged = o.userDb ? S.mergeUserDb(o.userDb, rig) : null;
+    S.upgradeRig(rig);
     S.replaceRig(rig);
     return merged;
   };
@@ -4412,6 +4530,23 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var dim = hl && !hl[t.id];
       var grp = el("g", { "class": "marks" + (dim ? " dim" : "") }, svg);
       var ang = (t.angle || 0) * Math.PI / 180, nx = -Math.sin(ang), ny = Math.cos(ang);
+      if (res && S.ui.showLoads && !t.isBlock && (res.beam.wDist > 1e-9 || (res.beam.udls || []).length)) {
+        // UDLs (1.27.0, 2.0.0): a band beside the truss, on the side toward the top of the screen - the whole-truss UDL
+        // next to it, a partial UDL further out over its stretch
+        var u0 = TLA.rig.geometry.endPoint(t, 0), u1 = TLA.rig.geometry.endPoint(t, t.length);
+        var ux = X(u1.x) - X(u0.x), uy = Y(u1.y) - Y(u0.y), ul = Math.hypot(ux, uy) || 1, on = -uy / ul, om = ux / ul;
+        if (om > 0 || (Math.abs(om) < 1e-9 && on > 0)) { on = -on; om = -om; }
+        var band = function (a, b, off, cls, tip) {
+          var pa = TLA.rig.geometry.endPoint(t, a), pb = TLA.rig.geometry.endPoint(t, b), ug = el("g", { "class": cls }, grp);
+          el("line", { x1: X(pa.x) + on * off, y1: Y(pa.y) + om * off, x2: X(pb.x) + on * off, y2: Y(pb.y) + om * off }, ug);
+          el("title", null, ug).textContent = tip;
+        };
+        if (res.beam.wDist > 1e-9) band(0, t.length, bodyW / 2 + 4, "udl", t.name + ": UDL " + TLA.units.f("w", res.beam.wDist * t.length, 1) + " (" + TLA.units.f("wpl", res.beam.wDist, 2) + ") over the whole truss");
+        (res.beam.udls || []).forEach(function (u) {
+          band(u.start, u.end, bodyW / 2 + (res.beam.wDist > 1e-9 ? 9 : 4), "udl part" + (u.mirrored ? " ghost" : "") + (S.sel.load && u.ref && u.ref.id === S.sel.load ? " sel" : ""),
+            t.name + ": UDL " + TLA.units.f("w", u.weight, 1) + " (" + TLA.units.f("wpl", u.q, 2) + "), " + TLA.units.mark(u.start, 2) + " to " + TLA.units.mark(u.end, 2));
+        });
+      }
       if (res && S.ui.showLoads) {
         res.beam.loads.forEach(function (l) {
           if (l.injected) return;
@@ -4818,6 +4953,15 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     });
     // beam body coloured by segment status
     dims.forEach(function (d) { add("rect", { x: X(d.a), y: yb - 6, width: (d.b - d.a) * sx, height: 12, "class": "eb " + (d.sg.code ? "fail" : d.sg.type.indexOf("cant") === 0 ? "cant" : "ok") }); });
+    // UDL (1.27.0): a band along the top of the truss, under the point loads
+    (res.beam.udls || []).forEach(function (u) {          // partial UDLs (2.0.0): a band over their stretch
+      var pb = add("rect", { x: X(u.start), y: yb - 17, width: Math.max(1, (u.end - u.start) * sx), height: 5, "class": "eudl part" + (u.mirrored ? " ghost" : "") });
+      var pt2 = document.createElementNS(NS, "title"); pt2.textContent = "UDL " + U.f("w", u.weight, 1) + " (" + U.f("wpl", u.q, 2) + "), " + U.mark(u.start, 2) + " to " + U.mark(u.end, 2); pb.appendChild(pt2);
+    });
+    if (res.beam.wDist > 1e-9) {
+      var ub = add("rect", { x: X(0), y: yb - 11, width: L * sx, height: 5, "class": "eudl" });
+      var ut = document.createElementNS(NS, "title"); ut.textContent = "UDL " + U.f("w", res.beam.wDist * L, 1) + " (" + U.f("wpl", res.beam.wDist, 2) + ")"; ub.appendChild(ut);
+    }
     // loads
     res.beam.loads.forEach(function (l) {
       var x = X(l.distance);
@@ -4840,7 +4984,18 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       add("text", { x: o.x, y: top + 27, "text-anchor": "middle", "class": "et small" }, o.what);
       add("text", { x: o.x, y: top + 38, "text-anchor": "middle", "class": "et small" }, o.at);
     });
-    svg.setAttribute("viewBox", "0 0 " + W + " " + (yb + 18 + nl * LANE + 6));
+    var hB = yb + 18 + nl * LANE + 6;
+    if (res.beam.wDist > 1e-9) {                        // UDL caption under the reactions
+      add("rect", { x: pad, y: hB + 3, width: 14, height: 5, "class": "eudl" });
+      add("text", { x: pad + 20, y: hB + 9, "class": "et small" }, "UDL " + U.f("w", res.beam.wDist * L, 0) + " over the whole truss (" + U.f("wpl", res.beam.wDist, 1) + ")");
+      hB += 16;
+    }
+    (res.beam.udls || []).forEach(function (u) {
+      add("rect", { x: pad, y: hB + 3, width: 14, height: 5, "class": "eudl part" });
+      add("text", { x: pad + 20, y: hB + 9, "class": "et small" }, "UDL " + U.f("w", u.weight, 0) + " from " + U.mark(u.start, 2) + " to " + U.mark(u.end, 2) + " (" + U.f("wpl", u.q, 1) + ")" + (u.mirrored ? ", mirrored" : ""));
+      hB += 16;
+    });
+    svg.setAttribute("viewBox", "0 0 " + W + " " + hB);
     return svg;
   }
 
@@ -4875,9 +5030,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       sh.push([p.x, p.vl], [p.x, p.vr]);
       var nx = d.points[i + 1];
       mo.push([p.x, p.m]);
-      if (nx && d.w > 0) for (var k = 1; k < 8; k++) {            // moment is a parabola under a uniform load
+      var qi = p.q != null ? p.q : d.w;                     // the load intensity up to the next point (2.0.0)
+      if (nx && qi > 0) for (var k = 1; k < 8; k++) {            // moment is a parabola under a uniform load
         var x = p.x + (nx.x - p.x) * k / 8, dx = x - p.x;
-        mo.push([x, p.m + p.vr * dx - d.w * dx * dx / 2]);
+        mo.push([x, p.m + p.vr * dx - qi * dx * dx / 2]);
       }
     });
     plot(4, "Shear", sh, d.maxShear, mb.shearAllowed, mb.shearOver, "w");
@@ -4911,13 +5067,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     function mv(x) {   // moment and shear at x from the checked diagram (moment is a parabola under the UDL)
       for (var i = 0; i < pts.length; i++) {
         var p = pts[i], n = pts[i + 1];
-        if (n && x >= p.x - 1e-9 && x <= n.x + 1e-9) { var dx = x - p.x; return [p.m + p.vr * dx - w * dx * dx / 2, Math.abs(p.vr - w * dx)]; }
+        if (n && x >= p.x - 1e-9 && x <= n.x + 1e-9) { var dx = x - p.x, wq = p.q != null ? p.q : w; return [p.m + p.vr * dx - wq * dx * dx / 2, Math.abs(p.vr - wq * dx)]; }
       }
       return [0, 0];
     }
     var xs = [0, L]; zones.forEach(function (z) { xs.push(z.a, z.b); });
     pts.forEach(function (p) { xs.push(p.x); });
     (res.beam.loads || []).forEach(function (l) { xs.push(l.distance); });
+    (res.beam.udls || []).forEach(function (u) { xs.push(u.start, u.end); });
     for (var k = 1; k < 120; k++) xs.push(L * k / 120);
     xs = xs.filter(function (x) { return x >= 0 && x <= L; }).sort(function (a, b) { return a - b; });
     var M = xs.map(function (x) { return pts.length ? mv(x) : [0, 0]; });
@@ -5300,16 +5457,31 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     var l = S.applyMeasure(Object.assign({ id: S.newId("l"), distance: round(t.length / 2), weight: 0, note: "", mirror: false }, extra || {}), t);
     t.loads.push(l); return l;
   }
-  /** UDL in the quick add box (1.27.0): "UDL 200" adds 200 to the truss's full-length UDL; "UDL 200 @ 2 to 10" (or
-   * 2-10, 2..10) spreads 200 over that part of the truss as equal point loads about a foot (0.3 m) apart, since the
-   * solver's UDL always covers the whole truss; "UDL 25 lb/ft" (kg/m, /ft, /m) gives it per length instead of total.
-   * Positions are in the truss's measuring reference. Returns an error string, null when added, or undefined when
-   * the text is not a UDL. */
+  /* Partial UDLs (2.0.0): a load with a span (ft) is its weight spread evenly over span, centered on its distance. */
+  function isUdl(l) { return Number(l && l.span) > 0; }
+  function udlEnds(l) { var d = Number(l.distance) || 0, h2 = (Number(l.span) || 0) / 2; return { a: d - h2, b: d + h2 }; }
+  /** "2 ft to 10 ft", in the load's own measuring reference. */
+  function udlText(l, t) { var e = udlEnds(l); return posLabel({ distance: e.a, from: l.from }, t).replace(/ from (CL|end)$/, "") + " to " + posLabel({ distance: e.b, from: l.from }, t); }
+  /** Put a UDL load between two positions along the truss (ft from its start). */
+  function setUdlEnds(l, a, b, t) {
+    var lo = Math.max(0, Math.min(a, b)), hi = Math.min(t.length, Math.max(a, b));
+    l.span = Math.round((hi - lo) * 10000) / 10000; l.distance = Math.round((lo + hi) / 2 * 10000) / 10000;
+    if (l.from === "end" || l.from === "center") S.measureFrom(l, l.from, t.length);
+  }
+  /** Add a UDL load (weight total, lb) between a and b (ft from the start). */
+  function addUdl(t, weight, a, b) {
+    var l = newLoad(t, { note: "UDL" }); setUdlEnds(l, a, b, t); l.weight = Math.round(weight * 1000) / 1000;
+    return l;
+  }
+  /** UDL in the quick add box: "UDL 200" adds 200 to the UDL over the whole truss; "UDL 200 @ 2 to 10" (or 2-10, 2..10)
+   * adds a UDL load over that part of the truss (2.0.0: a real UDL; 1.28.0 entered it as point loads); "UDL 25 lb/ft"
+   * (kg/m, /ft, /m) gives it per length. Positions are in the truss's measuring reference. Returns an error string,
+   * null when added, or undefined when the text is not a UDL. */
   function quickUdl(t, s) {
     var m = s.match(/^(?:udl\s*(.*?)|(.*?)\s*udl)\s*(?:@\s*(.+))?$/i); if (!m) return undefined;
     var ws = (m[1] != null ? m[1] : m[2] || "").trim(), rng = m[3], L = Number(t.length) || 0;
     var wm = ws.match(/^(\d*\.?\d+)\s*(lb|lbs|kg)?\s*(\/\s*(?:ft|m))?$/i);
-    if (!wm) return "Type the UDL weight, e.g. UDL 200 @ 2 to 10, or UDL 25 " + U.unit("wpl") + " @ 2 to 10.";
+    if (!wm) return "Type the UDL weight, e.g. UDL 200, or UDL 200 @ 2 to 10 for part of the truss.";
     var v = parseFloat(wm[1]), kg = wm[2] ? /kg/i.test(wm[2]) : U.metric(), per = wm[3] ? (/m/i.test(wm[3]) ? "m" : "ft") : null;
     if (kg) v = v / U.LB_KG;                              // now lb (total, or per foot / meter)
     if (per === "m") v = v * U.FT_M;                      // lb/m -> lb/ft
@@ -5326,19 +5498,10 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
     var total = per ? v * (b - a) : v;
     if (!(total > 0)) return "The UDL weight must be more than 0.";
-    if (!rng || (a < 1e-6 && b > L - 1e-6)) {           // the whole truss: the truss's own UDL
+    if (!rng) {                                           // the whole truss: the truss's own UDL
       t.wallWeight = Math.round(((Number(t.wallWeight) || 0) + total) * 1000) / 1000;
       S.sel = { truss: t.id, support: null, load: null };
-      S.commit();
-      return null;
-    }
-    var n = Math.max(3, Math.min(40, Math.ceil((b - a) - 1e-6))), each = total / n, gid = S.newId("u"), last = null;
-    var label = "UDL " + U.f("w", total, 1) + " " + posLabel(S.applyMeasure({ distance: a }, t), t) + " to " + posLabel(S.applyMeasure({ distance: b }, t), t);
-    for (var i = 0; i < n; i++) {
-      last = newLoad(t, { distance: Math.round((a + (i + 0.5) * (b - a) / n) * 10000) / 10000, note: label + " (" + (i + 1) + "/" + n + ")", udl: gid });
-      setLoadParts(last, { each: each, clamp: 0 });
-    }
-    S.sel = { truss: t.id, support: null, load: last.id };
+    } else S.sel = { truss: t.id, support: null, load: addUdl(t, total, a, b).id };
     S.commit();
     return null;
   }
@@ -5369,12 +5532,12 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     db.trusses.forEach(function (x) { if (mfrs.indexOf(x.manufacturer) < 0) mfrs.push(x.manufacturer); });
     var vd = trussVerdict(res), nH = t.supports.filter(function (x) { return x.kind === "hoist"; }).length;
     root.appendChild(crumb([["Rig", function () { sel({}); }], [t.name]], "truss"));
-    var quickBox;
+    var quickBox, udlIn;
     root.appendChild(insHead(textInput(t.name, function (v) { t.name = v || t.name; S.commit(); }, "title-input"), stSpan(vd[0], vd[1]),
       [h("b", { text: truss ? truss.manufacturer + " " + String(truss.description).trim() : "custom truss" }), h("span", { text: U.f("len", t.length, 2) }), h("span", { text: "Hangs from: " + hangsFrom(t) })],
       [h("button", { text: "+ Hoist", title: "Add a hoist in the middle of this truss", onclick: function () { var sp = S.addHoist(t.id); if (sp) sel({ truss: t.id, support: sp.id }); } }),
        h("button", { text: "+ Load", title: "Add a load: type a fixture or weight in the Loads section", onclick: function () { var d = root.querySelector('[data-grp="loads"]'); if (d) { d.open = true; } if (quickBox) { quickBox.focus(); quickBox.scrollIntoView({ block: "center" }); } } }),
-       h("button", { text: "+ UDL", title: "Add a UDL over the whole truss (UDL 200) or part of it (UDL 200 @ 2 to 10): type it in the Loads section", onclick: function () { var d = root.querySelector('[data-grp="loads"]'); if (d) { d.open = true; } if (quickBox) { quickBox.value = "UDL "; quickBox.focus(); quickBox.scrollIntoView({ block: "center" }); } } }),
+       h("button", { text: "+ UDL", title: "Set the UDL: weight spread evenly over the whole truss (drape, LED wall, cable)", onclick: function () { var d = root.querySelector('[data-grp="loads"]'); if (d) { d.open = true; } if (udlIn) { udlIn.focus(); udlIn.select(); udlIn.scrollIntoView({ block: "center" }); } } }),
        h("button", { text: "Bolt to…", title: "Then click a corner block on the plan", onclick: function () { startPick({ kind: "block", truss: t.id }); } }),
        h("button", { "class": S.ui.connected === t.id ? "on" : "", text: "Connected", title: "Show on the plan everything joined to this truss - bolted, stacked, or hung on a hoist below it - and dim the rest (to spot a part that is not connected)", onclick: function () { S.ui.connected = S.ui.connected === t.id ? null : t.id; S.emit(); } }),
        h("span", { "class": "grow" }),
@@ -5394,12 +5557,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (truss) c.appendChild(h("div", { "class": "sub", title: trussSource(truss) }, "Max span " + U.f("len", truss.max_span_ft, 1) + " · max cantilever " + U.f("len", truss.max_span_ft / 4, 1) + " · " + (typeof truss.derate === "number" ? truss.derate + " derate (generic data)" : truss.repetitive_use ? "repetitive-use data (no 0.85 derate)" : "0.85 repetitive-use derate") + " · ", h("span", { "class": "mini", text: trussSource(truss) }), truss.url ? [" ", makerLink(truss)] : null));
     c.appendChild(h("div", { "class": "grid3" },
       field("Truss pieces (" + U.unit("len") + ")", (t.layout && t.layout.manual) || Array.isArray(t.pieces) ? h("input", { type: "text", "class": "num", value: lenText(t.pieceLength), disabled: true, title: "Set by the pieces / segments below" }) : numInput(t.pieceLength != null ? t.pieceLength : t.length, function (v) { t.pieceLength = Math.max(0.5, v); S.commit(); }, { ft: true, title: "Total length of the truss sections in this line, before corner blocks" })),
-      field("UDL (" + U.unit("w") + ")", numInput(t.wallWeight, function (v) { t.wallWeight = v; S.commit(); }, { q: "w", title: "UDL (uniformly distributed load): total weight spread evenly over the full length, e.g. a drape or LED wall. For a UDL over part of the truss, type UDL 200 @ 2 to 10 in the Loads section (+ UDL)" })),
       field("Measure from", select([{ value: "start", label: "start" }, { value: "center", label: "centerline" }, { value: "end", label: "end" }], t.measure || "start", function (v) { t.measure = v; S.commit(); }), "")));
-    var rigCable = Number(S.rig.settings && S.rig.settings.cablePerFt) || 0, cab = TLA.rig.cableOf(t, S.rig.settings);
-    c.appendChild(h("div", { "class": "grid3" },
-      field("Cable (" + U.unit("wpl") + ")", cableInput(t, rigCable))));
-    if (cab > 0) c.appendChild(h("div", { "class": "sub", text: "Cable allowance " + U.f("wpl", cab, 2) + " x " + U.f("len", t.length, 2) + " = " + U.f("w", cab * t.length, 1) + ", added to the UDL" + (Number(t.wallWeight) ? " (" + U.f("w", t.wallWeight, 1) + " typed)" : "") + "." }));
     c.appendChild(h("div", { "class": "linelen" },
       h("span", null, U.f("len", t.pieceLength != null ? t.pieceLength : t.length, 3) + " truss"),
       h("span", null, " + " + U.f("len", t.blocksAdded || 0, 3) + " corner blocks = "), h("b", { text: U.f("len", t.length, 3) + " whole line" }),
@@ -5456,18 +5614,33 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     }
 
     // 4. loads
-    c = group(root, "loads", "Loads", true, t.loads.length ? loadCount(t) + " · " + U.f("w", t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (mirrorAt(l, t) ? 2 : 1); }, 0), 1) : "none");
+    var rigCable = Number(S.rig.settings && S.rig.settings.cablePerFt) || 0, cab = TLA.rig.cableOf(t, S.rig.settings), udlAll = (Number(t.wallWeight) || 0) + cab * t.length;
+    var ptNote = t.loads.length ? loadCount(t) + " · " + U.f("w", t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (mirrorAt(l, t) ? 2 : 1); }, 0), 1) : "no point loads";
+    c = group(root, "loads", "Loads & UDL", true, (udlAll > 0 ? "UDL " + U.f("w", udlAll, 1) + " · " : "") + ptNote);
+    // UDL (1.27.0): its own box, first in the loads, as a total or per length, with the cable allowance that adds to it
+    udlIn = numInput(t.wallWeight, function (v) { t.wallWeight = Math.max(0, v); S.commit(); }, { q: "w", title: "UDL (uniformly distributed load): total weight spread evenly over the whole truss, e.g. a drape or LED wall" });
+    c.appendChild(h("div", { "class": "udlbox" + (udlAll > 0 ? " on" : "") },
+      h("div", { "class": "udl-h" }, h("b", { text: "UDL" }), h("span", { "class": "mini", text: "weight spread evenly over the whole truss: drape, LED wall, cable" }),
+        h("span", { "class": "grow" }), udlAll > 0 ? h("b", { "class": "udl-tot", text: U.f("w", udlAll, 1) + " · " + U.f("wpl", udlAll / (t.length || 1), 2) }) : null),
+      h("div", { "class": "grid3" },
+        field("Total (" + U.unit("w") + ")", udlIn),
+        field("Per length (" + U.unit("wpl") + ")", numInput(Math.round((Number(t.wallWeight) || 0) / (t.length || 1) * 10000) / 10000, function (v) { t.wallWeight = Math.round(Math.max(0, v) * t.length * 1000) / 1000; S.commit(); }, { q: "wpl", title: "The same UDL as a weight per length of truss; sets the total" })),
+        field("Cable (" + U.unit("wpl") + ")", cableInput(t, rigCable))),
+      cab > 0 ? h("div", { "class": "sub", text: "Cable allowance " + U.f("wpl", cab, 2) + " x " + U.f("len", t.length, 2) + " = " + U.f("w", cab * t.length, 1) + ", added to the UDL" + (Number(t.wallWeight) ? " (" + U.f("w", t.wallWeight, 1) + " typed)" : "") + "." }) : null,
+      h("div", { "class": "row-btns" }, h("button", { text: "+ UDL over part of the truss", title: "A UDL from one point to another (e.g. a drape on one span); set its ends and weight in its panel", onclick: function () {
+        var l = addUdl(t, 0, t.length / 4, t.length * 3 / 4); S.sel = { truss: t.id, support: null, load: l.id }; S.commit(); } }))));
+    c.appendChild(h("h4", { text: "Point loads and partial UDLs" }));
     if (t.loads.length) {
       var lt = h("table", { "class": "tbl click" }, h("thead", null, h("tr", null, h("th", { text: "At" }), h("th", { text: "Item" }), h("th", { "class": "r", text: "Total (" + U.unit("w") + ")" }), h("th", { text: "Mirror" }))));
       var lb = h("tbody");
       t.loads.forEach(function (l) {
         var p = loadParts(l), mt = mirrorAt(l, t);
         lb.appendChild(h("tr", { "class": S.sel.load === l.id ? "sel" : "", onclick: function () { sel({ truss: t.id, load: l.id }); } },
-          h("td", { "class": "mono", text: posLabel(l, t) }), h("td", { text: l.note || "load" }), h("td", { "class": "r", text: U.n("w", l.weight, 1) }), h("td", { "class": "mini", text: mt ? "✓ " + mt : "" })));
+          h("td", { "class": "mono", text: isUdl(l) ? udlText(l, t) : posLabel(l, t) }), h("td", null, isUdl(l) ? h("span", { "class": "pill udl", text: "UDL" }) : null, isUdl(l) ? " " : null, l.note && !(isUdl(l) && l.note === "UDL") ? l.note : isUdl(l) ? U.f("wpl", l.weight / l.span, 1) : "load"), h("td", { "class": "r", text: U.n("w", l.weight, 1) }), h("td", { "class": "mini", text: mt ? "✓ " + mt : "" })));
       });
       lt.appendChild(lb); c.appendChild(lt);
     }
-    quickBox = h("input", { type: "text", placeholder: "Add: MAC Aura @ 4  ·  120 lb @ -6  ·  UDL 200 @ 2 to 10", title: "A fixture or a weight at a position. UDL 200 adds a UDL over the whole truss; UDL 200 @ 2 to 10 spreads it over part of it (as point loads about a foot apart); UDL 25 lb/ft or kg/m gives it per length", style: "flex:1;min-width:0", autocomplete: "off" });
+    quickBox = h("input", { type: "text", placeholder: "Add: MAC Aura @ 4  ·  120 lb @ -6  ·  UDL 200 @ 2 to 10", title: "A fixture or a weight at a position. UDL 200 adds 200 to the UDL over the whole truss; UDL 200 @ 2 to 10 adds a UDL over part of it; UDL 25 lb/ft or kg/m gives it per length", style: "flex:1;min-width:0", autocomplete: "off" });
     var qMsg = h("div", { "class": "mini" });
     function goQuick() { var err = quickAdd(t, quickBox.value); if (err) { qMsg.textContent = err; quickBox.classList.add("bad"); } }
     quickBox.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); goQuick(); } });
@@ -5682,6 +5855,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   }
 
   function loadInspector(root, t, l) {
+    if (isUdl(l)) return udlInspector(root, t, l);
     var i = t.loads.indexOf(l), p = loadParts(l), mt = mirrorAt(l, t);
     root.appendChild(crumb([["Rig", function () { sel({}); }], [t.name, function () { sel({ truss: t.id }); }], ["Load @ " + posLabel(l, t)]], "load"));
     root.appendChild(insHead(textInput(l.note, function (v) { l.note = v; S.commit(); }, "title-input", "load"), null,
@@ -5709,6 +5883,44 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     c.appendChild(h("div", { "class": "grid2" }, field("At (" + U.unit("len") + ") from", posCell(l, t.length))));
     c.appendChild(h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: !!l.mirror, onchange: function (e) { l.mirror = e.target.checked; S.commit(); } }),
       h("span", { text: "Mirror about the centerline" + (Math.abs(l.distance - t.length / 2) < 1e-7 ? " (it is on the centerline, so no twin)" : " - adds the same load at " + posLabel({ distance: t.length - l.distance, from: l.from }, t)) })));
+  }
+
+  /** A partial UDL (2.0.0): its ends, weight (total or per length), mirror, category. */
+  function udlInspector(root, t, l) {
+    var i = t.loads.indexOf(l), mt = mirrorAt(l, t), e = udlEnds(l);
+    root.appendChild(crumb([["Rig", function () { sel({}); }], [t.name, function () { sel({ truss: t.id }); }], ["UDL " + udlText(l, t)]], "UDL"));
+    root.appendChild(insHead(textInput(l.note, function (v) { l.note = v; S.commit(); }, "title-input", "UDL"), null,
+      [h("b", { text: U.f("w", l.weight, 1) + (mt ? " ×2 (mirrored)" : "") }), h("span", { text: U.f("wpl", l.weight / l.span, 2) + " over " + U.f("len", l.span, 2) }), h("span", { text: "on " + t.name })],
+      [h("button", { "class": "icon", text: "‹", disabled: i <= 0, onclick: function () { sel({ truss: t.id, load: t.loads[i - 1].id }); } }),
+       h("button", { "class": "icon", text: "›", disabled: i >= t.loads.length - 1, onclick: function () { sel({ truss: t.id, load: t.loads[i + 1].id }); } }),
+       h("span", { "class": "grow" }),
+       h("button", { "class": "ghost", text: "Duplicate", onclick: function () { var cpy = S.duplicateLoad(t.id, l.id); if (cpy) sel({ truss: t.id, load: cpy.id }); } }),
+       h("button", { "class": "ghost danger", text: "Delete", onclick: function () { t.loads.splice(i, 1); S.sel = { truss: t.id, support: null, load: null }; S.commit(); } })]));
+    var c = group(root, "udl", "UDL over part of the truss", true, "");
+    c.appendChild(h("div", { "class": "sub", text: "Weight spread evenly between two points, e.g. a drape or LED wall on one span. Solved as a distributed load; a span it covers completely is checked against the UDL table, a span it covers in part against the point-load table (CPL), which is conservative." }));
+    var from = l.from || "start", ref = from === "center" ? " from CL" : from === "end" ? " from end" : "";
+    function endInput(k) {
+      return numInput(S.measureDisplay({ distance: e[k], from: l.from }, t.length), function (v) {
+        var o = { distance: 0, from: l.from }; S.measureSet(o, v, t.length); var n = udlEnds(l); n[k] = o.distance;
+        if (n.a < -1e-6 || n.b < -1e-6 || n.a > t.length + 1e-6 || n.b > t.length + 1e-6) { alert("That is past the end of the truss (0 to " + U.f("len", t.length, 2) + ")."); S.emit(); return; }
+        if (Math.abs(n.b - n.a) < 0.01) { alert("The UDL's two ends can't be the same point."); S.emit(); return; }
+        setUdlEnds(l, n.a, n.b, t); S.commit();
+      }, { ft: true });
+    }
+    var refSel = select([{ value: "start", label: "start" }, { value: "center", label: "centerline" }, { value: "end", label: "end" }], from, function (v) { S.measureFrom(l, v, t.length); S.commit(); });
+    refSel.className = "ref";
+    c.appendChild(h("div", { "class": "grid3" },
+      field("From (" + U.unit("len") + ref + ")", endInput("a")), field("To (" + U.unit("len") + ref + ")", endInput("b")), field("Measured from", refSel)));
+    c.appendChild(h("div", { "class": "grid3" },
+      field("Total (" + U.unit("w") + ")", numInput(l.weight, function (v) { l.weight = Math.max(0, v); S.commit(); }, { q: "w" })),
+      field("Per length (" + U.unit("wpl") + ")", numInput(Math.round(l.weight / l.span * 10000) / 10000, function (v) { l.weight = Math.round(Math.max(0, v) * l.span * 1000) / 1000; S.commit(); }, { q: "wpl", title: "Sets the total: per length x the UDL's length" })),
+      field("Length (" + U.unit("len") + ")", h("input", { type: "number", "class": "num", value: Math.round(U.v("len", l.span) * 10000) / 10000, disabled: true, title: "From - To" }))));
+    c.appendChild(h("label", { "class": "cbline" }, h("input", { type: "checkbox", checked: !!l.mirror, onchange: function (ev) { l.mirror = ev.target.checked; S.commit(); } }),
+      h("span", { text: "Mirror about the centerline" + (Math.abs(l.distance - t.length / 2) < 1e-7 ? " (it is centered on the centerline, so no twin)" : " - adds the same UDL at " + udlText({ distance: t.length - l.distance, span: l.span, from: l.from }, t)) })));
+    var lfac = TLA.rig.loadFactor(l, S.rig.settings);
+    c.appendChild(h("div", { "class": "grid3" }, field("Category", select(TLA.rig.LOAD_CATS.map(function (x) { return { value: x[0], label: x[1] }; }), l.cat || "other", function (v) { l.cat = v === "other" ? undefined : v; S.commit(); }))));
+    if (lfac !== 1) c.appendChild(h("div", { "class": "sub", text: "Load factor " + lfac + " for this category (Rig settings): the truss carries " + U.f("w", l.weight * lfac, 1) + "." }));
+    c.appendChild(field("Note", textInput(l.comment, function (v) { l.comment = v || undefined; S.commit(); }, "", "e.g. black drape, 2 panels"), "span3"));
   }
 
   /** Which plan direction (north/east/south/west) a truss leaves a block in. */
@@ -6052,7 +6264,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     elevation: elevation, forceDiagrams: forceDiagrams, deflText: deflText, ldText: ldText,
     parseLen: parseLen, fmtFtIn: fmtFtIn, trussLabel: trussLabel, hangsFrom: hangsFrom, statusText: statusText, modelsOf: modelsOf, trussSource: trussSource, h: h, select: select, numInput: numInput, textInput: textInput, field: field, fmt: fmt, badge: badge,
     inspector: inspector, settings: settings, heat: heat, localWorkload: localWorkload, reactionsDiagram: reactionsDiagram, deflectionDiagram: deflectionDiagram, results: results, summary: function (c) { results(c, "t"); }, kpis: kpis, exportModel: exportModel,
-    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, quickUdl: quickUdl, loadCount: loadCount, mirrorHoistsUi: mirrorHoistsUi, copyHoistsPrompt: copyHoistsPrompt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
+    loadParts: loadParts, setLoadParts: setLoadParts, applyFixture: applyFixture, mirrorAt: mirrorAt, quickUdl: quickUdl, isUdl: isUdl, udlEnds: udlEnds, udlText: udlText, setUdlEnds: setUdlEnds, addUdl: addUdl, loadCount: loadCount, mirrorHoistsUi: mirrorHoistsUi, copyHoistsPrompt: copyHoistsPrompt, posLabel: posLabel, newLoad: newLoad, quickAdd: quickAdd,
     hoistRes: hoistRes, hoistDb: hoistDb, hoistName: hoistName, supportName: supportName, setDead: setDead, trussVerdict: trussVerdict, wlCell: wlCell, lenText: lenText, parseShownLen: parseShownLen, modelCell: modelCell, semiCell: semiCell, posCell: posCell,
     hoistsCsv: function () {
       var L = U.unit("len"), W = U.unit("w");
@@ -6236,28 +6448,36 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       Object.assign({ key: "y", label: "Y", roIf: function (t) { return !!t.anchor; } }, lenCell(function (t) { return t.y; }, function (t, v) { t.y = v; })),
       Object.assign({ key: "ang", label: "Angle", roIf: function (t) { return !!t.anchor; } }, numCell(function (t) { return t.angle || 0; }, function (t, v) { t.angle = ((v % 360) + 360) % 360; })),
       roCell(function (t) { if (!t.anchor) return '<span class="mut">-</span>'; var b = S.truss(t.anchor.block || (t.anchor.reverse && t.anchor.reverse.truss)); return esc((b ? b.name : "?") + (t.anchor.mode && t.anchor.mode !== "through" ? " (" + t.anchor.mode + ")" : "")); }, { html: true }),
-      Object.assign({ key: "udl", label: "UDL (" + U.unit("w") + ")" }, wCell(function (t) { return t.wallWeight || 0; }, function (t, v) { t.wallWeight = v; }, 0)),
       Object.assign({ key: "meas", label: "Measure from" }, { type: "select", options: FROM, get: function (t) { var f = t.measure || "start"; return (FROM.filter(function (x) { return x[0] === f; })[0] || FROM[0])[1]; }, raw: function (t) { return t.measure || "start"; }, parse: fromCell().parse, set: function (t, v) { t.measure = v; } }),
       roCell(function (t) { return P.hangsFrom(t); }),
       roCell(function (t) { var vd = P.trussVerdict(S.results.trusses[t.id]); return '<span class="st ' + vd[0] + '">' + vd[1] + "</span>"; }, { html: true })
     ];
     cols[4].key = "lenro"; cols[4].label = "Line (" + U.unit("len") + ")";
     cols[8].key = "bolt"; cols[8].label = "Bolted to";
-    cols[11].key = "hangs"; cols[11].label = "Hangs from";
-    cols[12].key = "status"; cols[12].label = "Status";
+    cols[10].key = "hangs"; cols[10].label = "Hangs from";     // 2.0.0: the UDL column moved to the Loads step
+    cols[11].key = "status"; cols[11].label = "Status";
     var rows = S.rig.trusses.filter(function (t) { return !t.isBlock; }).map(function (t) { return { key: "T:" + t.id, obj: t, truss: t, sel: { truss: t.id } }; });
     rows.push({ key: "NT", kind: "new", label: "new truss… (type a name)", create: function () { var t = S.makeTruss({ hoists: [] }); S.rig.trusses.push(t); return { key: "T:" + t.id, obj: t, truss: t }; } });
     return { cols: cols, rows: rows, hint: "Type straight from the plot: X / Y / angle for free trusses; a truss bolted to a corner block is placed by the block (bolt it with \"Bolt to…\" in the inspector). Pieces = truss sections before corner blocks. Gray columns are results." };
   }
 
   /* ---------------- step 2: loads ---------------- */
+  /** Set a truss's UDL (total over its whole length) from the Loads grid (1.27.0). */
+  function udlPrompt(t) {
+    var cur = Math.round(U.v("w", Number(t.wallWeight) || 0) * 1000) / 1000;
+    var a = prompt("UDL on " + t.name + ": total weight spread evenly over the whole truss (" + U.unit("w") + "). 0 = none.", String(cur));
+    if (a == null) return;
+    var v = parseFloat(String(a).replace(/,/g, ""));
+    if (!(v >= 0)) { alert("Type a weight, 0 or more."); return; }
+    t.wallWeight = U.back("w", v); S.commit();
+  }
   function loads() {
     var len = function (row) { return row.truss.length; };
     var cols = [
       roCell(function (l, row) { return row.truss.name; }, { cls: "mut" }),
       Object.assign({ key: "at" }, lenCell(function (l, row) { return S.measureDisplay(l, row.truss.length); }, function (l, v, row) { S.measureSet(l, v, row.truss.length); })),
       Object.assign({ key: "from", label: "From" }, fromCell(len)),
-      { key: "item", label: "Item / fixture", type: "ac", source: fixtureSource, free: true, get: function (l) { return (l.note || "") + (typeof l.fixtureLb === "number" ? "" : l.note ? ' <span class="pill">custom</span>' : ""); }, html: true, raw: function (l) { return l.note || ""; },
+      { key: "item", label: "Item / fixture", type: "ac", source: fixtureSource, free: true, get: function (l, row) { return P.isUdl(l) ? '<span class="pill udl">UDL</span> ' + esc((l.note && l.note !== "UDL" ? l.note + " · " : "") + P.udlText(l, row.truss)) : (l.note || "") + (typeof l.fixtureLb === "number" ? "" : l.note ? ' <span class="pill">custom</span>' : ""); }, html: true, raw: function (l) { return l.note || ""; },
         parse: function (s) { return s; },
         set: function (l, v) {
           if (v && typeof v === "object") { P.applyFixture(l, v); return; }
@@ -6267,24 +6487,36 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
           if (f) P.applyFixture(l, f); else l.note = s;
         } },
       Object.assign({ key: "each", label: "Weight (" + U.unit("w") + ")" }, wCell(function (l) { return P.loadParts(l).each; }, function (l, v) { var p = P.loadParts(l); p.each = v; P.setLoadParts(l, p); })),
-      Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")" }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
+      Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")", roIf: function (l) { return P.isUdl(l); } }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
       roCell(function (l, row) { return U.n("w", l.weight, 1) + (P.mirrorAt(l, row.truss) ? ' <span class="pill">×2</span>' : ""); }, { r: true, html: true }),
       { key: "mirror", label: "Mirror about CL", type: "check", get: function (l, row) { var m = P.mirrorAt(l, row.truss); return m ? "at " + m : ""; }, val: function (l) { return !!l.mirror; }, set: function (l, v) { l.mirror = !!v; } },
       Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; })),
       { key: "cat", label: "Category", type: "select", options: TLA.rig.LOAD_CATS.map(function (c) { return [c[0], c[1]]; }), get: function (l) { var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === (l.cat || "other"); })[0]; var f = TLA.rig.loadFactor(l, S.rig.settings); return (c ? c[1] : "Other") + (f !== 1 ? " ×" + f : ""); }, raw: function (l) { return l.cat || "other"; },
-        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } }
+        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } },
+      // 2.0.0: a length makes the load a UDL over that length, centered on At; blank or 0 makes it a point load again
+      { key: "span", label: "UDL length (" + U.unit("len") + ")", type: "len", r: true, get: function (l) { return P.isUdl(l) ? P.lenText(l.span) : ""; }, raw: function (l) { return P.isUdl(l) ? P.lenText(l.span) : ""; },
+        parse: function (q) { if (String(q).trim() === "") return 0; var v = P.parseShownLen(q); return isFinite(v) && v >= 0 ? v : undefined; },
+        set: function (l, v, row) {
+          if (!(v > 0.01)) { delete l.span; return; }
+          var t = row.truss, c = Math.min(Math.max(l.distance, v / 2), t.length - v / 2);
+          if (v > t.length) { v = t.length; c = t.length / 2; }
+          P.setUdlEnds(l, c - v / 2, c + v / 2, t);
+          delete l.fixtureLb; delete l.clampLb;
+        } }
     ];
-    cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[6].label = "Total (" + U.unit("w") + ")";
+    cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[7].label = "Total (" + U.unit("w") + ")";
     var rows = [];
     S.rig.trusses.forEach(function (t) {
       if (t.isBlock) return;
       var tot = t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (P.mirrorAt(l, t) ? 2 : 1); }, 0);
-      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: P.loadCount(t) + " load" + (P.loadCount(t) === 1 ? "" : "s") + " · " + U.f("w", tot, 1),
-        acts: t.loads.length ? [["Mirror all", function () { t.loads.forEach(function (l) { l.mirror = true; }); S.commit(); }], ["Copy to truss…", function () { copyPrompt(t); }], ["Sort", function () { S.sortLoads(t.id); }], ["Clear", function () { if (confirm("Remove all " + t.loads.length + " loads from " + t.name + "? (Undo brings them back.)")) S.clearLoads(t.id); }]] : [] });
+      var udl = (Number(t.wallWeight) || 0) + TLA.rig.cableOf(t, S.rig.settings) * t.length;
+      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: (udl > 0 ? "UDL " + U.f("w", udl, 1) + " · " : "") + P.loadCount(t) + " load" + (P.loadCount(t) === 1 ? "" : "s") + " · " + U.f("w", tot, 1),
+        acts: [["Whole-truss UDL…", function () { udlPrompt(t); }]].concat(t.loads.length ? [["Mirror all", function () { t.loads.forEach(function (l) { l.mirror = true; }); S.commit(); }], ["Copy to truss…", function () { copyPrompt(t); }], ["Sort", function () { S.sortLoads(t.id); }], ["Clear", function () { if (confirm("Remove all " + t.loads.length + " loads from " + t.name + "? (Undo brings them back.)")) S.clearLoads(t.id); }]] : []) });
       t.loads.forEach(function (l) { rows.push({ key: "L:" + l.id, obj: l, truss: t, sel: { truss: t.id, load: l.id }, del: function () { t.loads.splice(t.loads.indexOf(l), 1); } }); });
       rows.push({ key: "NL:" + t.id, kind: "new", truss: t, label: "+ load on " + t.name + " (start typing)", sel: { truss: t.id }, create: function () { var l = P.newLoad(t); return { key: "L:" + l.id, obj: l, truss: t }; } });
+      rows.push({ key: "NU:" + t.id, kind: "new", truss: t, label: "+ UDL over part of " + t.name + " (type its weight, then At and UDL length)", sel: { truss: t.id }, create: function () { var l = P.addUdl(t, 0, t.length / 4, t.length * 3 / 4); return { key: "L:" + l.id, obj: l, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category." };
+    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. A UDL length makes the row a UDL over that length, centered on At (2.0.0); the whole-truss UDL is in each truss's header row. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category, UDL length." };
   }
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
@@ -6757,6 +6989,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
   TLA.grids = {
     mount: mount, show: show, leave: leave, tsv: tsv, focusMode: focusMode, findFixture: findFixture, fixtureSource: fixtureSource, attachFixtureAc: attachFixtureAc, attachAc: attachAc,
     compare: function (v) { if (v === undefined) return st.cmp; st.cmp = !!v; }, showPlan: function (v) { if (v === undefined) return !st.noFocus; st.noFocus = !v; focusMode(); },
+    spec: function (step) { return step === 1 ? structure() : step === 2 ? loads() : hoists(); },    // the column / row spec of a step
     active: function () { return !!st.act; }, selected: function () { return multiRows().map(function (r) { return r.obj; }); }, selectRows: selectRows
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
@@ -6888,6 +7121,13 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
             var q = TLA.rig.geometry.endPoint(t, l.distance), a1 = project(q.x, q.y, z);
             // the load hangs below the truss, so the arrow points down (tip away from the truss)
             el("path", { d: "M" + a1.X + " " + (a1.Y + bodyW * 0.5 + 9) + " l -3.5 -8 l 7 0 z", "class": "arrow" + (l.mirrored ? " ghost" : "") }, grp);
+          });
+          // UDLs (2.0.0): a band under the truss over the stretch they cover - the whole truss, or part of it
+          var ud = (res.beam.udls || []).map(function (u) { return [u.start, u.end, "udl part" + (u.mirrored ? " ghost" : "")]; });
+          if (res.beam.wDist > 1e-9) ud.unshift([0, t.length, "udl"]);
+          ud.forEach(function (u, k) {
+            var qa = TLA.rig.geometry.endPoint(t, u[0]), qb = TLA.rig.geometry.endPoint(t, u[1]), pa2 = project(qa.x, qa.y, z), pb2 = project(qb.x, qb.y, z), dy = bodyW * 0.5 + 3 + k * 3;
+            el("g", { "class": u[2] }, grp).appendChild(el("line", { x1: pa2.X, y1: pa2.Y + dy, x2: pb2.X, y2: pb2.Y + dy }));
           });
         }
       }
@@ -7399,7 +7639,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     /* ---- 2. basis ---- */
     var s2 = sec(sheet, next(), "Basis of calculation");
     s2.appendChild(h("ul", { "class": "basis" },
-      h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight and any UDL spread over the whole length. Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
+      h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight, any UDL spread over the whole length (w_udl) and any UDL over part of it (U1, U2...: solved as distributed loads). Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
       grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a whole-rig analysis: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
       grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
@@ -7428,8 +7668,8 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         (tl ? "Out-of-level tolerance ±" + U.f("inch", tl, 2) + ": any hoist may be that far off its level, each on its own. Each hoist's check adds the worst it could see - the sum of what every hoist alone running " + U.f("inch", tl, 2) + " high or low does to it (4b, + Level)." : "");
     }
     var fx = [
-      ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
-      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
+      ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L - U) / (UDL(row) x k), U = any UDL over part of the truss that covers the whole span.  Pass if the sum of point loads on the span, plus the weight of any UDL over only part of the span (checked as a point load, which is conservative), <= capacity and L <= the table's maximum span."],
+      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + the part of any UDL over part of the truss on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
       ["F3", "Moment / shear", (sw ? "M_allow = k x min( max over the table of (CPL x L / 4 + w_self x L^2 / 8) , max of (UDL x L / 8 + w_self x L^2 / 8) ),  V_allow = k x max over the table of (CPL / 2 + w_self x L / 2, UDL / 2 + w_self x L / 2). The tables are loads on top of the truss's self weight, so its moment and shear are added back; the diagrams include the self weight."
         : "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). The diagrams leave out the truss's self weight.") + " Estimates from the tables, not published values."],
       ["F4", "High hook static", "High hook = low hook R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if high hook <= rated capacity."],
@@ -7647,11 +7887,19 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       return h("tr", null, td(n, "b"), tdr(Ln(l.distance, 3)), tdr(Wn(l.weight)), td(what), td(sg ? segName(sg) : ""));
     });
     var pSum = beam.loads.reduce(function (a, l) { return a + l.weight; }, 0);
+    // UDLs over part of the truss (2.0.0): U1, U2..., with the segments they lie on
+    var udls = (beam.udls || []).slice().sort(function (a, b) { return a.start - b.start; }), uSum = 0;
+    function udlOn(u, rg) { var a = Math.max(u.start, rg[0]), b = Math.min(u.end, rg[1]); return b - a > 1e-9 ? u.q * (b - a) : 0; }
+    udls.forEach(function (u, j) {
+      u.tag = "U" + (j + 1); uSum += u.weight;
+      var on = lim.segments.filter(function (sg) { return !sg.skipped && udlOn(u, segRange(beam, sg)) > 0; }).map(segName).join(", ");
+      lrows.push(h("tr", null, td(u.tag, "b"), tdr(Ln(u.start, 3) + " - " + Ln(u.end, 3)), tdr(Wn(u.weight)), td(U.f("wpl", u.q, 2) + " UDL" + (u.note && u.note !== "UDL" ? ", " + u.note : "") + (u.mirrored ? " (mirror)" : "")), td(on)));
+    });
     if (beam.wSelf) lrows.push(h("tr", null, td("w_self", "b"), tdr("0 - " + Ln(beam.length, 3)), tdr(Wn(beam.wSelf * beam.length)), td(U.f("wpl", beam.wSelf, 2) + " self weight"), td("")));
     if (beam.wDist) lrows.push(h("tr", null, td("w_udl", "b"), tdr("0 - " + Ln(beam.length, 3)), tdr(Wn(beam.wDist * beam.length)), td(U.f("wpl", beam.wDist, 2) + " UDL"), td("")));
     box.appendChild(para("Loads on the truss", "sub"));
     box.appendChild(table("small", ["", ["At (" + U.unit("len") + ")", "r"], ["Weight (" + U.unit("w") + ")", "r"], "Load", "On"], lrows,
-      h("tr", null, td("Total"), td(""), tdr(Wn(beam.totalLoad), "b"), td("point loads " + W(pSum, 1) + " + uniform " + W(beam.w * beam.length, 1)), td(""))));
+      h("tr", null, td("Total"), td(""), tdr(Wn(beam.totalLoad), "b"), td("point loads " + W(pSum, 1) + (udls.length ? " + partial UDLs " + W(uSum, 1) : "") + " + uniform " + W(beam.w * beam.length, 1)), td(""))));
 
     // reactions
     var rrows = [], sumGov = 0, sumBy = {};
@@ -7676,6 +7924,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
     if (pos.length === 2) {
       var a = pos[0], b = pos[1], sp = b - a, mP = 0;
       beam.loads.forEach(function (l) { mP += l.weight * (l.distance - a); });
+      udls.forEach(function (u) { mP += u.weight * (u.distance - a); });     // a partial UDL acts at its middle
       var mW = beam.w * beam.length * (beam.length / 2 - a), rB = (mP + mW) / sp, rA = beam.totalLoad - rB;
       box.appendChild(work("Statics (two supports at " + Ln(a, 3) + " and " + Ln(b, 3) + " " + U.unit("len") + "): moments about the first, R2 = [sum P x (x - " + Ln(a, 3) + ") + w L (L/2 - " + Ln(a, 3) + ")] / " + Ln(sp, 3) +
         " = [" + U.n("mom", mP, 1) + " + " + U.n("mom", mW, 1) + "] / " + Ln(sp, 3) + " = " + W(rB, 1) + ";  R1 = " + W(beam.totalLoad, 1) + " - " + W(rB, 1) + " = " + W(rA, 1) + "." +
@@ -7698,6 +7947,14 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
       var rg = segRange(beam, s), onIt = [];
       beam.loads.forEach(function (l, i) { if (whereLoad(beam, l.distance) === segKey(s)) onIt.push(tag[i]); });
       onIt.sort(function (a, b) { return a.slice(1) - b.slice(1); });
+      // partial UDLs on this segment: on a span, one covering all of it counts as UDL (uFull), else as a point load
+      var uFull = [], uPart = [];
+      udls.forEach(function (u) {
+        var wOn = udlOn(u, rg); if (!(wOn > 0)) return;
+        var whole = s.type === "span" && u.start <= rg[0] + 1e-6 && u.end >= rg[1] - 1e-6;
+        (whole ? uFull : uPart).push(u.tag + (Math.abs(wOn - u.weight) > 1e-6 ? " part (" + Wn(wOn, 1) + ")" : ""));
+      });
+      onIt = onIt.concat(uPart);
       var bad = !!s.code, kk = fmt(k, 3), lines = [], rows;
       var title = segName(s) + " (" + Ln(rg[0], 3) + " - " + Lf(rg[1], 3) + ")";
       var loadSum = onIt.length ? onIt.join(" + ") : "no point loads";
@@ -7708,7 +7965,7 @@ input.fxsearch.bad { outline: 2px solid var(--fail); }
         if (!(s.udlMax > 0)) lines.push(ml("UDL share", [mv("f"), "0 (the UDL row is 0, so no capacity is taken from this row)"]));
         else if (s.udlUsed > 0) lines.push(ml("UDL share", [
           [mv("f"), " = ", fr(["UDL", X, mv("k"), MINUS, mv("w", "udl"), X, mv("L")], ["UDL", X, mv("k")])],
-          fr([Wn(ud.value, 0) + X + kk + MINUS + U.n("wpl", beam.wDist, 2) + X + Ln(s.length, 3)], [Wn(ud.value, 0) + X + kk]), fmt(s.freeFraction, 4)]));
+          fr([Wn(ud.value, 0) + X + kk + MINUS + (beam.wDist ? U.n("wpl", beam.wDist, 2) + X + Ln(s.length, 3) : "") + (uFull.length ? (beam.wDist ? " - " : "") + Wn(s.udlFull, 1) + " (" + uFull.join(" + ") + ")" : "")], [Wn(ud.value, 0) + X + kk]), fmt(s.freeFraction, 4)]));
         else lines.push(ml("UDL share", [mv("f"), "1 (no UDL on this truss)"]));
         lines.push(ml("Capacity", [[mv("C"), " = CPL", X, mv("k"), X, mv("f")], Wn(cp.value, 0) + X + kk + X + fmt(s.udlMax > 0 ? s.freeFraction : 0, 4), W(s.capacity, 1)]));
         lines.push(mcmp("Load", [mv("ΣP"), " = " + loadSum], W(s.load, 1), [mv("C"), " = " + W(s.capacity, 1)], !s.loadFail, pct(s.utilization) + " workload"));

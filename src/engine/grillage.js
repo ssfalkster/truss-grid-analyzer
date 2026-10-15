@@ -125,7 +125,8 @@
         if (origin === undefined || bm.t.id === origin) for (var e = 0; e < bm.nodes.length - 1; e++) {
           var el = bm.els[e]; if (!el) continue;
           var dd = dofs[bi][e].concat(dofs[bi][e + 1]);
-          for (var r = 0; r < 6; r++) F[dd[r]] += bm.w * el.fg[r];
+          var we = bm.w + ((bm.wx && bm.wx[e]) || 0);
+          for (var r = 0; r < 6; r++) F[dd[r]] += we * el.fg[r];
         }
         bm.nodes.forEach(function (nd, ni) {
           var P = origin === undefined ? nd.P : (nd.Pby && nd.Pby[origin]) || 0;
@@ -232,11 +233,11 @@
    * load, so with M(x) = M0 + V x - w x^2 / 2 (sagging +, w up) the exact Timoshenko shape is the end displacements
    * joined by a straight line, plus the bending part (w'' = M / EI) and the shear part (w' = -V / GA, i.e. -M / GA),
    * each made zero at both ends. Output only - nothing else reads it. */
-  function deflected(bm, nds, seg, w) {
+  function deflected(bm, nds, seg) {
     var EI = bm.EI, GA = bm.GA > 0 && isFinite(bm.GA) ? bm.GA : Infinity, pts = [];
     nds.forEach(function (nd, e) {
       var sg = seg[e]; if (!sg) return;
-      var L = sg.L, x0 = nd.d;
+      var L = sg.L, x0 = nd.d, w = sg.w;
       function B(x) { return (sg.M0 * x * x / 2 + sg.V * x * x * x / 6 - w * x * x * x * x / 24) / EI; }
       function Sh(x) { return isFinite(GA) ? -(sg.M0 + sg.V * x - w * x * x / 2) / GA : 0; }
       var BL = B(L), S0 = Sh(0), SL = Sh(L), n = 8;
@@ -252,28 +253,29 @@
     var beams = model.beams, U = sol.U, members = {}, ext = {};
     beams.forEach(function (bm, bi) {
       var nds = bm.nodes, w = wOf ? wOf(bm) : bm.w, seg = [];
+      function wE(e) { return w + ((bm.wx && bm.wx[e]) || 0); }      // the element's uniform load, with any partial UDL
       nds.forEach(function (nd, ni) { ext[bi + ":" + ni] = nd.P || 0; });
       for (var e = 0; e < nds.length - 1; e++) {
         var el = bm.els[e]; if (!el) continue;
         var da = sol.dofs[bi][e], db = sol.dofs[bi][e + 1], ug = [U[da[0]], U[da[1]], U[da[2]], U[db[0]], U[db[1]], U[db[2]]], ul = [], f = [], r, q;
         for (r = 0; r < 6; r++) { var v = 0; for (q = 0; q < 6; q++) v += el.T[r][q] * ug[q]; ul.push(v); }
-        for (r = 0; r < 6; r++) { var v2 = -w * el.fl[r]; for (q = 0; q < 6; q++) v2 += el.Kl[r][q] * ul[q]; f.push(v2); }
+        for (r = 0; r < 6; r++) { var v2 = -wE(e) * el.fl[r]; for (q = 0; q < 6; q++) v2 += el.Kl[r][q] * ul[q]; f.push(v2); }
         ext[bi + ":" + e] += f[0]; ext[bi + ":" + (e + 1)] += f[3];
         // end forces on the element: V up at the left end, moments in the slope sense; M(x) = -m1 + V1 x - w x^2 / 2
-        seg[e] = { L: el.L, V: f[0], M0: -f[1], T: Math.abs(f[2]), wA: ul[0], wB: ul[3] };
+        seg[e] = { L: el.L, V: f[0], M0: -f[1], T: Math.abs(f[2]), wA: ul[0], wB: ul[3], w: wE(e) };
       }
       var scale = 0;
-      seg.forEach(function (sg) { if (sg) scale = Math.max(scale, Math.abs(sg.M0), Math.abs(sg.M0 + sg.V * sg.L - w * sg.L * sg.L / 2)); });
+      seg.forEach(function (sg) { if (sg) scale = Math.max(scale, Math.abs(sg.M0), Math.abs(sg.M0 + sg.V * sg.L - sg.w * sg.L * sg.L / 2)); });
       var pts = [], out = { points: pts, w: w, length: bm.L, maxSag: 0, maxHog: 0, maxShear: 0, maxTorque: 0, atSag: 0, atHog: 0, atShear: 0 };
       nds.forEach(function (nd, ni) {
         var L = seg[ni - 1], R = seg[ni];
-        var vl = L ? L.V - w * L.L : 0, vr = R ? R.V : 0;
-        var ml = L ? L.M0 + L.V * L.L - w * L.L * L.L / 2 : null, mr = R ? R.M0 : null;
+        var vl = L ? L.V - L.w * L.L : 0, vr = R ? R.V : 0, qr = R ? R.w : 0;
+        var ml = L ? L.M0 + L.V * L.L - L.w * L.L * L.L / 2 : null, mr = R ? R.M0 : null;
         if (ml !== null && mr !== null && Math.abs(ml - mr) > JUMP_TOL * scale + 1e-9) {
           // moment carried across a rigid joint from the truss bolted there
-          pts.push({ x: nd.d, vl: vl, vr: vr, m: ml }); pts.push({ x: nd.d, vl: vl, vr: vr, m: mr, jump: true });
-        } else pts.push({ x: nd.d, vl: vl, vr: vr, m: ml !== null ? ml : mr !== null ? mr : 0 });
-        if (R && w > 0 && R.V > 0 && R.V - w * R.L < 0) pts.push({ x: nd.d + R.V / w, vl: 0, vr: 0, m: R.M0 + R.V * R.V / (2 * w), peak: true });
+          pts.push({ x: nd.d, vl: vl, vr: vr, m: ml, q: qr }); pts.push({ x: nd.d, vl: vl, vr: vr, m: mr, jump: true, q: qr });
+        } else pts.push({ x: nd.d, vl: vl, vr: vr, m: ml !== null ? ml : mr !== null ? mr : 0, q: qr });
+        if (R && qr > 0 && R.V > 0 && R.V - qr * R.L < 0) pts.push({ x: nd.d + R.V / qr, vl: 0, vr: 0, m: R.M0 + R.V * R.V / (2 * qr), peak: true, q: qr });
         if (R && R.T > out.maxTorque) out.maxTorque = R.T;
       });
       pts.forEach(function (p) {
@@ -283,7 +285,7 @@
         if (v > out.maxShear) { out.maxShear = v; out.atShear = p.x; }
       });
       out.maxMoment = Math.max(out.maxSag, out.maxHog);
-      out.defl = deflected(bm, nds, seg, w);
+      out.defl = deflected(bm, nds, seg);
       members[bm.t.id] = out;
     });
     // what is left at a node after the hoists there comes through its bolted connections: peel the link tree from
@@ -342,6 +344,8 @@
     beams.forEach(function (bm) {
       var res = results.trusses[bm.t.id];
       res.beam.loads.forEach(function (l) { if (l.injected) return; addP(bm, pt(bm, l.distance), l.weight, bm.t.id); });
+      // partial UDLs (2.0.0): a node at each end; the elements between carry them (bm.wx, below)
+      bm.udls = (res.beam.udls || []).map(function (u) { return { a: pt(bm, u.start), b: pt(bm, u.end), q: u.q }; });
     });
     // hoists hung below a truss (1.22.0): a chain between the hoist's point on its truss and the carrier; the hoist,
     // chain and hardware weight hang on the carrier
@@ -383,7 +387,7 @@
       if (!hh || index[hh.id] === undefined || !r || !r.block) return;
       var s0 = b.supports.filter(function (x) { return x.kind === "truss" && x.onTruss === hh.id; })[0];
       var bm = beams[index[hh.id]], d = pt(bm, s0 ? s0.onDistance : 0);
-      var own = r.beam.loads.reduce(function (a, l) { return a + (l.injected ? 0 : l.weight); }, 0);
+      var own = r.beam.loads.reduce(function (a, l) { return a + (l.injected ? 0 : l.weight); }, 0) + (r.beam.udls || []).reduce(function (a, u) { return a + u.weight; }, 0);
       addP(bm, d, r.block.weight + own, b.id);
     });
     // hardware weight at a bolted connection (rig.js passes it to the truss it is bolted to, with the reaction)
@@ -419,6 +423,13 @@
     pending.forEach(function (p) { p.na = pt(beams[index[p.a]], p.da); p.nb = pt(beams[index[p.b]], p.db); });
     beams.forEach(function (bm) {
       bm.nodes = Object.keys(bm.pts).map(Number).sort(function (x, y) { return x - y; }).map(function (d) { return { d: d, P: bm.pts[d].P || 0, Pby: bm.pts[d].Pby, hoist: bm.pts[d].hoist }; });
+      // the partial UDL each element carries on top of the beam's uniform w (lb/ft); nodes sit at every UDL end
+      bm.wx = [];
+      for (var e = 0; e < bm.nodes.length - 1; e++) {
+        var mid = (bm.nodes[e].d + bm.nodes[e + 1].d) / 2, q = 0;
+        (bm.udls || []).forEach(function (u) { if (mid > u.a && mid < u.b) q += u.q; });
+        bm.wx.push(q);
+      }
     });
     pending.forEach(function (p) {
       var A = beams[index[p.a]], B = beams[index[p.b]];
@@ -522,7 +533,10 @@
     }
     // everything the model carries, to check the solve against (equilibrium) and against the load-path total
     out.load = 0;
-    model.beams.forEach(function (bm) { out.load += bm.w * bm.L; bm.nodes.forEach(function (nd) { out.load += nd.P || 0; }); });
+    model.beams.forEach(function (bm) {
+      out.load += bm.w * bm.L; bm.nodes.forEach(function (nd) { out.load += nd.P || 0; });
+      (bm.wx || []).forEach(function (q, e) { out.load += q * (bm.nodes[e + 1].d - bm.nodes[e].d); });
+    });
     var hinged = solveSlack(model, false), rigid = solveSlack(model, true);
     if (!rigid.ok) {
       out.unstable = true;
@@ -684,7 +698,7 @@
     var injected = res.injected.map(function (inj) {
       return { distance: inj.distance, weight: injectedForce(inj.source, sol, rig, byId, results), note: inj.note, source: inj.source, injected: true };
     });
-    var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, note: l.note, mirror: l.mirror, id: l.id }; }).concat(injected);
+    var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, span: l.span, note: l.note, mirror: l.mirror, id: l.id }; }).concat(injected);
     var truss = res.dbTruss, st = rig.settings || {};
     var beam = TLA.beam.solve({ length: t.length, supports: sups.map(function (s) { return s.distance; }), loads: loads, trussWeightPerFt: truss.weight_per_ft_lb, wallWeight: t.wallWeight, weightless: t.weightless });
     beam.active = sups;
@@ -942,7 +956,9 @@
       tool: "Truss Grid Analyzer", version: TLA.VERSION, units: { length: "ft", force: "lb", EI: "lb-ft2", GJ: "lb-ft2", k: "lb/ft" },
       beams: model.beams.map(function (bm) {
         return { id: bm.t.id, name: bm.t.name, x: Number(bm.t.x) || 0, y: Number(bm.t.y) || 0, angle: Number(bm.t.angle) || 0, L: bm.L, EI: bm.EI, GJ: bm.GJ, w: bm.w,
-          nodes: bm.nodes.map(function (nd) { return { d: r6(nd.d), P: nd.P || 0 }; }) };
+          nodes: bm.nodes.map(function (nd) { return { d: r6(nd.d), P: nd.P || 0 }; }),
+          // partial UDLs (2.0.0): extra uniform load (lb/ft) on element e, between nodes e and e + 1
+          wx: (bm.wx || []).some(function (q) { return q > 0; }) ? bm.wx.slice() : undefined };
       }),
       links: model.links.map(function (lk) { return { a: lk.a, na: lk.na, b: lk.b, nb: lk.nb, rigid: !!lk.rigid }; }),
       supports: model.supports.map(function (sp) { return sp.k > 0 ? { b: sp.b, n: sp.n, id: sp.id, k: sp.k } : { b: sp.b, n: sp.n, id: sp.id }; }),

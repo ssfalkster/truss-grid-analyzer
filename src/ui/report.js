@@ -195,7 +195,7 @@
     /* ---- 2. basis ---- */
     var s2 = sec(sheet, next(), "Basis of calculation");
     s2.appendChild(h("ul", { "class": "basis" },
-      h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight and any UDL spread over the whole length. Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
+      h("li", { text: "Trusses are beams along their centerline, carrying point loads, their self weight, any UDL spread over the whole length (w_udl) and any UDL over part of it (U1, U2...: solved as distributed loads). Lengths and positions are measured from the start of each truss line (corner blocks included)." }),
       grill ? h("li", { text: "Hoist loads, the forces in bolted connections and the loads every check sees come from a whole-rig analysis: trusses are Timoshenko beams (bending EI, shear GA, torsion GJ) meeting at the corner blocks; hoists are rigid supports at one level" + (Number(st.hoistStiffness) > 0 ? " - here springs of " + U.f("stiff", st.hoistStiffness, 0) : "") + ". The corner-block joints are solved hinged (vertical force only), semi-rigid (rotational springs of 1, 4 and 16 x EI/L of the lighter truss) and rigid, and each hoist and each truss is checked with the joint model that loads it hardest." }) : null,
       grill ? null : h("li", { text: "The load-path method (each truss a continuous beam solved with the three-moment equation, the reaction of a bolted truss passed to its carrier as a point load) is the result used here." }),
       h("li", { text: "A chain can only pull: a hoist whose reaction comes out negative is taken out (Slack) and the rig solved again. A truss left with one support point is unstable." }),
@@ -224,8 +224,8 @@
         (tl ? "Out-of-level tolerance ±" + U.f("inch", tl, 2) + ": any hoist may be that far off its level, each on its own. Each hoist's check adds the worst it could see - the sum of what every hoist alone running " + U.f("inch", tl, 2) + " high or low does to it (4b, + Level)." : "");
     }
     var fx = [
-      ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L) / (UDL(row) x k).  Pass if the sum of point loads on the span <= capacity and L <= the table's maximum span."],
-      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
+      ["F1", "Span", "Capacity = CPL(row) x k x f,  f = (UDL(row) x k - w_udl x L - U) / (UDL(row) x k), U = any UDL over part of the truss that covers the whole span.  Pass if the sum of point loads on the span, plus the weight of any UDL over only part of the span (checked as a point load, which is conservative), <= capacity and L <= the table's maximum span."],
+      ["F2", "Cantilever", "L_c <= maximum span / 4.  Capacity = CPL(row for 4 x L_c) x k.  Load = point loads on it + the part of any UDL over part of the truss on it + w_udl x L_c" + (sw ? " + w_self x L_c" : "") + ".  Pass if load <= capacity."],
       ["F3", "Moment / shear", (sw ? "M_allow = k x min( max over the table of (CPL x L / 4 + w_self x L^2 / 8) , max of (UDL x L / 8 + w_self x L^2 / 8) ),  V_allow = k x max over the table of (CPL / 2 + w_self x L / 2, UDL / 2 + w_self x L / 2). The tables are loads on top of the truss's self weight, so its moment and shear are added back; the diagrams include the self weight."
         : "M_allow = k x min( max over the table of CPL x L / 4 , max of UDL x L / 8 ),  V_allow = k x max over the table of (CPL / 2, UDL / 2). The diagrams leave out the truss's self weight.") + " Estimates from the tables, not published values."],
       ["F4", "High hook static", "High hook = low hook R" + (Number(st.addPercent) > 0 ? " x (1 + " + st.addPercent + "/100)" : "") + " + hoist weight + chain weight per " + U.unit("len") + " x chain length + hardware.  Good if high hook <= rated capacity."],
@@ -443,11 +443,19 @@
       return h("tr", null, td(n, "b"), tdr(Ln(l.distance, 3)), tdr(Wn(l.weight)), td(what), td(sg ? segName(sg) : ""));
     });
     var pSum = beam.loads.reduce(function (a, l) { return a + l.weight; }, 0);
+    // UDLs over part of the truss (2.0.0): U1, U2..., with the segments they lie on
+    var udls = (beam.udls || []).slice().sort(function (a, b) { return a.start - b.start; }), uSum = 0;
+    function udlOn(u, rg) { var a = Math.max(u.start, rg[0]), b = Math.min(u.end, rg[1]); return b - a > 1e-9 ? u.q * (b - a) : 0; }
+    udls.forEach(function (u, j) {
+      u.tag = "U" + (j + 1); uSum += u.weight;
+      var on = lim.segments.filter(function (sg) { return !sg.skipped && udlOn(u, segRange(beam, sg)) > 0; }).map(segName).join(", ");
+      lrows.push(h("tr", null, td(u.tag, "b"), tdr(Ln(u.start, 3) + " - " + Ln(u.end, 3)), tdr(Wn(u.weight)), td(U.f("wpl", u.q, 2) + " UDL" + (u.note && u.note !== "UDL" ? ", " + u.note : "") + (u.mirrored ? " (mirror)" : "")), td(on)));
+    });
     if (beam.wSelf) lrows.push(h("tr", null, td("w_self", "b"), tdr("0 - " + Ln(beam.length, 3)), tdr(Wn(beam.wSelf * beam.length)), td(U.f("wpl", beam.wSelf, 2) + " self weight"), td("")));
     if (beam.wDist) lrows.push(h("tr", null, td("w_udl", "b"), tdr("0 - " + Ln(beam.length, 3)), tdr(Wn(beam.wDist * beam.length)), td(U.f("wpl", beam.wDist, 2) + " UDL"), td("")));
     box.appendChild(para("Loads on the truss", "sub"));
     box.appendChild(table("small", ["", ["At (" + U.unit("len") + ")", "r"], ["Weight (" + U.unit("w") + ")", "r"], "Load", "On"], lrows,
-      h("tr", null, td("Total"), td(""), tdr(Wn(beam.totalLoad), "b"), td("point loads " + W(pSum, 1) + " + uniform " + W(beam.w * beam.length, 1)), td(""))));
+      h("tr", null, td("Total"), td(""), tdr(Wn(beam.totalLoad), "b"), td("point loads " + W(pSum, 1) + (udls.length ? " + partial UDLs " + W(uSum, 1) : "") + " + uniform " + W(beam.w * beam.length, 1)), td(""))));
 
     // reactions
     var rrows = [], sumGov = 0, sumBy = {};
@@ -472,6 +480,7 @@
     if (pos.length === 2) {
       var a = pos[0], b = pos[1], sp = b - a, mP = 0;
       beam.loads.forEach(function (l) { mP += l.weight * (l.distance - a); });
+      udls.forEach(function (u) { mP += u.weight * (u.distance - a); });     // a partial UDL acts at its middle
       var mW = beam.w * beam.length * (beam.length / 2 - a), rB = (mP + mW) / sp, rA = beam.totalLoad - rB;
       box.appendChild(work("Statics (two supports at " + Ln(a, 3) + " and " + Ln(b, 3) + " " + U.unit("len") + "): moments about the first, R2 = [sum P x (x - " + Ln(a, 3) + ") + w L (L/2 - " + Ln(a, 3) + ")] / " + Ln(sp, 3) +
         " = [" + U.n("mom", mP, 1) + " + " + U.n("mom", mW, 1) + "] / " + Ln(sp, 3) + " = " + W(rB, 1) + ";  R1 = " + W(beam.totalLoad, 1) + " - " + W(rB, 1) + " = " + W(rA, 1) + "." +
@@ -494,6 +503,14 @@
       var rg = segRange(beam, s), onIt = [];
       beam.loads.forEach(function (l, i) { if (whereLoad(beam, l.distance) === segKey(s)) onIt.push(tag[i]); });
       onIt.sort(function (a, b) { return a.slice(1) - b.slice(1); });
+      // partial UDLs on this segment: on a span, one covering all of it counts as UDL (uFull), else as a point load
+      var uFull = [], uPart = [];
+      udls.forEach(function (u) {
+        var wOn = udlOn(u, rg); if (!(wOn > 0)) return;
+        var whole = s.type === "span" && u.start <= rg[0] + 1e-6 && u.end >= rg[1] - 1e-6;
+        (whole ? uFull : uPart).push(u.tag + (Math.abs(wOn - u.weight) > 1e-6 ? " part (" + Wn(wOn, 1) + ")" : ""));
+      });
+      onIt = onIt.concat(uPart);
       var bad = !!s.code, kk = fmt(k, 3), lines = [], rows;
       var title = segName(s) + " (" + Ln(rg[0], 3) + " - " + Lf(rg[1], 3) + ")";
       var loadSum = onIt.length ? onIt.join(" + ") : "no point loads";
@@ -504,7 +521,7 @@
         if (!(s.udlMax > 0)) lines.push(ml("UDL share", [mv("f"), "0 (the UDL row is 0, so no capacity is taken from this row)"]));
         else if (s.udlUsed > 0) lines.push(ml("UDL share", [
           [mv("f"), " = ", fr(["UDL", X, mv("k"), MINUS, mv("w", "udl"), X, mv("L")], ["UDL", X, mv("k")])],
-          fr([Wn(ud.value, 0) + X + kk + MINUS + U.n("wpl", beam.wDist, 2) + X + Ln(s.length, 3)], [Wn(ud.value, 0) + X + kk]), fmt(s.freeFraction, 4)]));
+          fr([Wn(ud.value, 0) + X + kk + MINUS + (beam.wDist ? U.n("wpl", beam.wDist, 2) + X + Ln(s.length, 3) : "") + (uFull.length ? (beam.wDist ? " - " : "") + Wn(s.udlFull, 1) + " (" + uFull.join(" + ") + ")" : "")], [Wn(ud.value, 0) + X + kk]), fmt(s.freeFraction, 4)]));
         else lines.push(ml("UDL share", [mv("f"), "1 (no UDL on this truss)"]));
         lines.push(ml("Capacity", [[mv("C"), " = CPL", X, mv("k"), X, mv("f")], Wn(cp.value, 0) + X + kk + X + fmt(s.udlMax > 0 ? s.freeFraction : 0, 4), W(s.capacity, 1)]));
         lines.push(mcmp("Load", [mv("ΣP"), " = " + loadSum], W(s.load, 1), [mv("C"), " = " + W(s.capacity, 1)], !s.loadFail, pct(s.utilization) + " workload"));
