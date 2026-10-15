@@ -163,36 +163,28 @@
       Object.assign({ key: "y", label: "Y", roIf: function (t) { return !!t.anchor; } }, lenCell(function (t) { return t.y; }, function (t, v) { t.y = v; })),
       Object.assign({ key: "ang", label: "Angle", roIf: function (t) { return !!t.anchor; } }, numCell(function (t) { return t.angle || 0; }, function (t, v) { t.angle = ((v % 360) + 360) % 360; })),
       roCell(function (t) { if (!t.anchor) return '<span class="mut">-</span>'; var b = S.truss(t.anchor.block || (t.anchor.reverse && t.anchor.reverse.truss)); return esc((b ? b.name : "?") + (t.anchor.mode && t.anchor.mode !== "through" ? " (" + t.anchor.mode + ")" : "")); }, { html: true }),
+      Object.assign({ key: "udl", label: "UDL (" + U.unit("w") + ")" }, wCell(function (t) { return t.wallWeight || 0; }, function (t, v) { t.wallWeight = v; }, 0)),
       Object.assign({ key: "meas", label: "Measure from" }, { type: "select", options: FROM, get: function (t) { var f = t.measure || "start"; return (FROM.filter(function (x) { return x[0] === f; })[0] || FROM[0])[1]; }, raw: function (t) { return t.measure || "start"; }, parse: fromCell().parse, set: function (t, v) { t.measure = v; } }),
       roCell(function (t) { return P.hangsFrom(t); }),
       roCell(function (t) { var vd = P.trussVerdict(S.results.trusses[t.id]); return '<span class="st ' + vd[0] + '">' + vd[1] + "</span>"; }, { html: true })
     ];
     cols[4].key = "lenro"; cols[4].label = "Line (" + U.unit("len") + ")";
     cols[8].key = "bolt"; cols[8].label = "Bolted to";
-    cols[10].key = "hangs"; cols[10].label = "Hangs from";     // 2.0.0: the UDL column moved to the Loads step
-    cols[11].key = "status"; cols[11].label = "Status";
+    cols[11].key = "hangs"; cols[11].label = "Hangs from";
+    cols[12].key = "status"; cols[12].label = "Status";
     var rows = S.rig.trusses.filter(function (t) { return !t.isBlock; }).map(function (t) { return { key: "T:" + t.id, obj: t, truss: t, sel: { truss: t.id } }; });
     rows.push({ key: "NT", kind: "new", label: "new truss… (type a name)", create: function () { var t = S.makeTruss({ hoists: [] }); S.rig.trusses.push(t); return { key: "T:" + t.id, obj: t, truss: t }; } });
     return { cols: cols, rows: rows, hint: "Type straight from the plot: X / Y / angle for free trusses; a truss bolted to a corner block is placed by the block (bolt it with \"Bolt to…\" in the inspector). Pieces = truss sections before corner blocks. Gray columns are results." };
   }
 
   /* ---------------- step 2: loads ---------------- */
-  /** Set a truss's UDL (total over its whole length) from the Loads grid (1.27.0). */
-  function udlPrompt(t) {
-    var cur = Math.round(U.v("w", Number(t.wallWeight) || 0) * 1000) / 1000;
-    var a = prompt("UDL on " + t.name + ": total weight spread evenly over the whole truss (" + U.unit("w") + "). 0 = none.", String(cur));
-    if (a == null) return;
-    var v = parseFloat(String(a).replace(/,/g, ""));
-    if (!(v >= 0)) { alert("Type a weight, 0 or more."); return; }
-    t.wallWeight = U.back("w", v); S.commit();
-  }
   function loads() {
     var len = function (row) { return row.truss.length; };
     var cols = [
       roCell(function (l, row) { return row.truss.name; }, { cls: "mut" }),
       Object.assign({ key: "at" }, lenCell(function (l, row) { return S.measureDisplay(l, row.truss.length); }, function (l, v, row) { S.measureSet(l, v, row.truss.length); })),
       Object.assign({ key: "from", label: "From" }, fromCell(len)),
-      { key: "item", label: "Item / fixture", type: "ac", source: fixtureSource, free: true, get: function (l, row) { return P.isUdl(l) ? '<span class="pill udl">UDL</span> ' + esc((l.note && l.note !== "UDL" ? l.note + " · " : "") + P.udlText(l, row.truss)) : (l.note || "") + (typeof l.fixtureLb === "number" ? "" : l.note ? ' <span class="pill">custom</span>' : ""); }, html: true, raw: function (l) { return l.note || ""; },
+      { key: "item", label: "Item / fixture", type: "ac", source: fixtureSource, free: true, get: function (l) { return (l.note || "") + (typeof l.fixtureLb === "number" ? "" : l.note ? ' <span class="pill">custom</span>' : ""); }, html: true, raw: function (l) { return l.note || ""; },
         parse: function (s) { return s; },
         set: function (l, v) {
           if (v && typeof v === "object") { P.applyFixture(l, v); return; }
@@ -202,36 +194,24 @@
           if (f) P.applyFixture(l, f); else l.note = s;
         } },
       Object.assign({ key: "each", label: "Weight (" + U.unit("w") + ")" }, wCell(function (l) { return P.loadParts(l).each; }, function (l, v) { var p = P.loadParts(l); p.each = v; P.setLoadParts(l, p); })),
-      Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")", roIf: function (l) { return P.isUdl(l); } }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
+      Object.assign({ key: "clamp", label: "Clamp (" + U.unit("w") + ")" }, wCell(function (l) { var c = P.loadParts(l).clamp; return c ? c : ""; }, function (l, v) { var p = P.loadParts(l); p.clamp = v; if (typeof l.fixtureLb !== "number") l.fixtureLb = p.each; P.setLoadParts(l, p); })),
       roCell(function (l, row) { return U.n("w", l.weight, 1) + (P.mirrorAt(l, row.truss) ? ' <span class="pill">×2</span>' : ""); }, { r: true, html: true }),
       { key: "mirror", label: "Mirror about CL", type: "check", get: function (l, row) { var m = P.mirrorAt(l, row.truss); return m ? "at " + m : ""; }, val: function (l) { return !!l.mirror; }, set: function (l, v) { l.mirror = !!v; } },
       Object.assign({ key: "note", label: "Note" }, textCell(function (l) { return l.comment; }, function (l, v) { l.comment = v || undefined; })),
       { key: "cat", label: "Category", type: "select", options: TLA.rig.LOAD_CATS.map(function (c) { return [c[0], c[1]]; }), get: function (l) { var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === (l.cat || "other"); })[0]; var f = TLA.rig.loadFactor(l, S.rig.settings); return (c ? c[1] : "Other") + (f !== 1 ? " ×" + f : ""); }, raw: function (l) { return l.cat || "other"; },
-        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } },
-      // 2.0.0: a length makes the load a UDL over that length, centered on At; blank or 0 makes it a point load again
-      { key: "span", label: "UDL length (" + U.unit("len") + ")", type: "len", r: true, get: function (l) { return P.isUdl(l) ? P.lenText(l.span) : ""; }, raw: function (l) { return P.isUdl(l) ? P.lenText(l.span) : ""; },
-        parse: function (q) { if (String(q).trim() === "") return 0; var v = P.parseShownLen(q); return isFinite(v) && v >= 0 ? v : undefined; },
-        set: function (l, v, row) {
-          if (!(v > 0.01)) { delete l.span; return; }
-          var t = row.truss, c = Math.min(Math.max(l.distance, v / 2), t.length - v / 2);
-          if (v > t.length) { v = t.length; c = t.length / 2; }
-          P.setUdlEnds(l, c - v / 2, c + v / 2, t);
-          delete l.fixtureLb; delete l.clampLb;
-        } }
+        parse: function (q) { q = String(q).trim().toLowerCase(); var c = TLA.rig.LOAD_CATS.filter(function (x) { return x[0] === q || x[1].toLowerCase().indexOf(q) === 0; })[0]; return q === "" ? "other" : c ? c[0] : undefined; }, set: function (l, v) { l.cat = v === "other" ? undefined : v; } }
     ];
-    cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[7].label = "Total (" + U.unit("w") + ")";
+    cols[0].key = "truss"; cols[0].label = "Truss"; cols[1].label = "At (" + U.unit("len") + ")"; cols[6].key = "total"; cols[6].label = "Total (" + U.unit("w") + ")";
     var rows = [];
     S.rig.trusses.forEach(function (t) {
       if (t.isBlock) return;
       var tot = t.loads.reduce(function (a, l) { return a + (Number(l.weight) || 0) * (P.mirrorAt(l, t) ? 2 : 1); }, 0);
-      var udl = (Number(t.wallWeight) || 0) + TLA.rig.cableOf(t, S.rig.settings) * t.length;
-      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: (udl > 0 ? "UDL " + U.f("w", udl, 1) + " · " : "") + P.loadCount(t) + " load" + (P.loadCount(t) === 1 ? "" : "s") + " · " + U.f("w", tot, 1),
-        acts: [["Whole-truss UDL…", function () { udlPrompt(t); }]].concat(t.loads.length ? [["Mirror all", function () { t.loads.forEach(function (l) { l.mirror = true; }); S.commit(); }], ["Copy to truss…", function () { copyPrompt(t); }], ["Sort", function () { S.sortLoads(t.id); }], ["Clear", function () { if (confirm("Remove all " + t.loads.length + " loads from " + t.name + "? (Undo brings them back.)")) S.clearLoads(t.id); }]] : []) });
+      rows.push({ key: "G:" + t.id, kind: "group", truss: t, label: t.name, right: P.loadCount(t) + " load" + (P.loadCount(t) === 1 ? "" : "s") + " · " + U.f("w", tot, 1),
+        acts: t.loads.length ? [["Mirror all", function () { t.loads.forEach(function (l) { l.mirror = true; }); S.commit(); }], ["Copy to truss…", function () { copyPrompt(t); }], ["Sort", function () { S.sortLoads(t.id); }], ["Clear", function () { if (confirm("Remove all " + t.loads.length + " loads from " + t.name + "? (Undo brings them back.)")) S.clearLoads(t.id); }]] : [] });
       t.loads.forEach(function (l) { rows.push({ key: "L:" + l.id, obj: l, truss: t, sel: { truss: t.id, load: l.id }, del: function () { t.loads.splice(t.loads.indexOf(l), 1); } }); });
       rows.push({ key: "NL:" + t.id, kind: "new", truss: t, label: "+ load on " + t.name + " (start typing)", sel: { truss: t.id }, create: function () { var l = P.newLoad(t); return { key: "L:" + l.id, obj: l, truss: t }; } });
-      rows.push({ key: "NU:" + t.id, kind: "new", truss: t, label: "+ UDL over part of " + t.name + " (type its weight, then At and UDL length)", sel: { truss: t.id }, create: function () { var l = P.addUdl(t, 0, t.length / 4, t.length * 3 / 4); return { key: "L:" + l.id, obj: l, truss: t }; } });
     });
-    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. A UDL length makes the row a UDL over that length, centered on At (2.0.0); the whole-truss UDL is in each truss's header row. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category, UDL length." };
+    return { cols: cols, rows: rows, hint: "Item: type to search the fixture library (or a weight, e.g. 45 lb, for a custom load). Total = weight + clamp. One row per load position. Mirror adds the same load on the other side of the centerline. Category sets the load factor (Rig settings). Paste rows from a spreadsheet: at, from, item, weight, clamp, mirror, note, category." };
   }
   function copyPrompt(t) {
     var others = S.rig.trusses.filter(function (o) { return o.id !== t.id && !o.isBlock; });
@@ -704,7 +684,6 @@
   TLA.grids = {
     mount: mount, show: show, leave: leave, tsv: tsv, focusMode: focusMode, findFixture: findFixture, fixtureSource: fixtureSource, attachFixtureAc: attachFixtureAc, attachAc: attachAc,
     compare: function (v) { if (v === undefined) return st.cmp; st.cmp = !!v; }, showPlan: function (v) { if (v === undefined) return !st.noFocus; st.noFocus = !v; focusMode(); },
-    spec: function (step) { return step === 1 ? structure() : step === 2 ? loads() : hoists(); },    // the column / row spec of a step
     active: function () { return !!st.act; }, selected: function () { return multiRows().map(function (r) { return r.obj; }); }, selectRows: selectRows
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

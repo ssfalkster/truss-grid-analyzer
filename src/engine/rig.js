@@ -3,8 +3,7 @@
  * on the truss they are bolted to. Fully data driven - any number of trusses / supports / nesting depth.
  *
  * rig = { trusses: [ { id, name, trussId | custom, length, weightless, wallWeight, x, y, angle,
- *                      loads: [ {id, distance, weight, note, mirror, span?} ] (span > 0, 2.0.0: a UDL over span ft,
- *                      centered on distance),
+ *                      loads: [ {id, distance, weight, note, mirror} ],
  *                      supports: [ { id, name, distance, kind: 'hoist'|'truss', hoistId, chainLength,
  *                                    onTruss, onDistance, hardwareWeight } ] } ],
  *         settings: { derate: number|null } }
@@ -181,7 +180,7 @@
       var supports = t.supports || [];
       if (!supports.length) { warnings.push({ truss: t.id, message: t.name + ": has no supports" }); return; }
 
-      var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, span: l.span, note: l.note, mirror: l.mirror, id: l.id }; });
+      var loads = (t.loads || []).map(function (l) { return { distance: l.distance, weight: l.weight, note: l.note, mirror: l.mirror, id: l.id }; });
       var injected = [];
       feeders[t.id].forEach(function (fid) {
         var fr = results[fid];
@@ -303,9 +302,6 @@
     rig.trusses.forEach(function (t) {
       (t.loads || []).forEach(function (l) {
         if (!(Number(l.weight) > 0)) add("check", t, t.name + ": the load" + (l.note ? " '" + l.note + "'" : "") + " at " + (Math.round((Number(l.distance) || 0) * 10) / 10) + " ft has no weight - enter it, or delete the load.", { load: l.id });
-        // 2.0.0: a UDL that runs past an end of its truss - the part past the end is left out of the solve
-        var sp = Number(l.span) || 0, d = Number(l.distance) || 0;
-        if (sp > 0 && (d - sp / 2 < -0.01 || d + sp / 2 > (Number(t.length) || 0) + 0.01)) add("check", t, t.name + ": the UDL" + (l.note && l.note !== "UDL" ? " '" + l.note + "'" : "") + " runs past the end of the truss - only the part on the truss is counted. Shorten it or move it.", { load: l.id });
       });
     });
     // hoists at the same point, on one truss or across trusses (plan position)

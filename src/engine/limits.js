@@ -65,22 +65,17 @@
       var L = s.L;
       if (L <= 1e-9) { segs.push({ type: "span", index: i + 1, length: 0, code: 0, status: "Good", skipped: true }); return; }
       var lenFail = L > maxSpan + 1e-9;
-      // partial UDLs (2.0.0): one covering the whole span uses up the table's UDL like the truss's own UDL; a part of
-      // a span is checked as a point load of its weight (the table's CPL is a load at the center: conservative)
-      var udlFull = 0, udlPart = 0;
-      (s.ud || []).forEach(function (u) { var f = u.q * (u.b - u.a); if (u.a < 1e-6 && u.b > L - 1e-6) udlFull += f; else udlPart += f; });
       var udlMax = tableAt(truss, "udl", L) * k;
-      var udlUsed = wallPerFt * L + udlFull;
+      var udlUsed = wallPerFt * L;
       var free = udlMax > 0 ? (udlMax - udlUsed) / udlMax : 0;
       var cap = tableAt(truss, "cpl", L) * k * free;
-      var load = s.sumF + udlPart;
-      var loadFail = load > cap + 1e-9 || (udlMax > 0 && udlUsed > udlMax + 1e-9);
+      var loadFail = s.sumF > cap + 1e-9;
       var code = (lenFail ? 1 : 0) + (loadFail ? 2 : 0);
       segs.push({
-        type: "span", index: i + 1, length: L, maxLength: maxSpan, load: load, pointLoad: s.sumF, udlPart: udlPart, udlFull: udlFull, capacity: cap,
+        type: "span", index: i + 1, length: L, maxLength: maxSpan, load: s.sumF, capacity: cap,
         udlMax: udlMax, udlUsed: udlUsed, freeFraction: free,
         lengthFail: lenFail, loadFail: loadFail, code: code, status: STATUS[code],
-        utilization: cap > 0 ? load / cap : (load > 0 ? Infinity : 0)
+        utilization: cap > 0 ? s.sumF / cap : (s.sumF > 0 ? Infinity : 0)
       });
     });
     cant("cantilever-right", beam.right);
@@ -129,7 +124,6 @@
       var nb = TLA.beam.solve({
         length: beam.length, supports: beam.positions, trussWeightPerFt: 0, wallWeight: beam.wDist * beam.length,
         loads: beam.loads.map(function (l) { return { distance: l.distance, weight: l.weight }; })
-          .concat((beam.udls || []).map(function (u) { return { distance: u.distance, weight: u.weight, span: u.span }; }))
       });
       net = TLA.beam.diagram(nb);
     }

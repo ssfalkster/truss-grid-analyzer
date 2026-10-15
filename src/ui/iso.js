@@ -124,13 +124,6 @@
             // the load hangs below the truss, so the arrow points down (tip away from the truss)
             el("path", { d: "M" + a1.X + " " + (a1.Y + bodyW * 0.5 + 9) + " l -3.5 -8 l 7 0 z", "class": "arrow" + (l.mirrored ? " ghost" : "") }, grp);
           });
-          // UDLs (2.0.0): a band under the truss over the stretch they cover - the whole truss, or part of it
-          var ud = (res.beam.udls || []).map(function (u) { return [u.start, u.end, "udl part" + (u.mirrored ? " ghost" : "")]; });
-          if (res.beam.wDist > 1e-9) ud.unshift([0, t.length, "udl"]);
-          ud.forEach(function (u, k) {
-            var qa = TLA.rig.geometry.endPoint(t, u[0]), qb = TLA.rig.geometry.endPoint(t, u[1]), pa2 = project(qa.x, qa.y, z), pb2 = project(qb.x, qb.y, z), dy = bodyW * 0.5 + 3 + k * 3;
-            el("g", { "class": u[2] }, grp).appendChild(el("line", { x1: pa2.X, y1: pa2.Y + dy, x2: pb2.X, y2: pb2.Y + dy }));
-          });
         }
       }
       // 1.22.0 deflection mode: the deflected shape above the truss, exaggerated so the largest sag in the rig is 3 ft
